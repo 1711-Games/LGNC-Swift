@@ -1,0 +1,72 @@
+import LGNCore
+import LGNP
+import NIO
+
+public typealias Time = TimeAmount
+public typealias ControlBitmask = LGNP.Message.ControlBitmask
+
+public extension LGNS {
+    public typealias Resolver = (LGNP.Message, RequestInfo) -> EventLoopFuture<LGNP.Message?>
+
+    public static let DEFAULT_PORT = 1711
+
+    public class Server: Shutdownable {
+        public typealias BindTo = Address
+
+        private let requiredBitmask: LGNP.Message.ControlBitmask
+        private let readTimeout: TimeAmount
+        private let writeTimeout: TimeAmount
+        private let eventLoopGroup: MultiThreadedEventLoopGroup
+        private let cryptor: LGNP.Cryptor
+        private var bootstrap: ServerBootstrap!
+        private var channel: Channel!
+        lazy var saltBytes = Bytes(self.cryptor.salt.utf8)
+
+        public required init(
+            cryptor: LGNP.Cryptor,
+            requiredBitmask: ControlBitmask,
+            eventLoopGroup: MultiThreadedEventLoopGroup,
+            readTimeout: Time = .seconds(1),
+            writeTimeout: Time = .seconds(1),
+            resolver: @escaping Resolver
+        ) throws {
+            self.cryptor = cryptor
+            self.requiredBitmask = requiredBitmask
+            self.readTimeout = readTimeout
+            self.writeTimeout = writeTimeout
+            self.eventLoopGroup = eventLoopGroup
+
+            self.bootstrap = ServerBootstrap(group: self.eventLoopGroup)
+                .serverChannelOption(ChannelOptions.backlog, value: 256)
+                .serverChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
+
+                .childChannelInitializer { channel in
+                    channel.pipeline.add(handler: BackPressureHandler()).then {
+                    channel.pipeline.add(handler: IdleStateHandler(readTimeout: self.readTimeout, writeTimeout: self.writeTimeout)).then {
+                    channel.pipeline.add(handler: LGNS.LGNPCoder(cryptor: self.cryptor, requiredBitmask: self.requiredBitmask)).then {
+                    channel.pipeline.add(handler: LGNS.ServerHandler(resolver: resolver))
+                }}}}
+
+                .childChannelOption(ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
+                .childChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
+                .childChannelOption(ChannelOptions.maxMessagesPerRead, value: 64)
+                .childChannelOption(ChannelOptions.recvAllocator, value: AdaptiveRecvByteBufferAllocator())
+
+            SignalObserver.add(self)
+        }
+
+        public func shutdown(promise: PromiseVoid) {
+            print("LGNS: shutting down")
+            self.channel.close(promise: promise)
+            print("LGNS: goodbye")
+        }
+
+        public func serve(at target: BindTo, promise: PromiseVoid? = nil) throws {
+            self.channel = try self.bootstrap.bind(to: target).wait()
+
+            promise?.succeed(result: ())
+
+            try self.channel.closeFuture.wait()
+        }
+    }
+}

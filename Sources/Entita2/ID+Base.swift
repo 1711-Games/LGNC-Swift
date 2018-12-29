@@ -1,0 +1,21 @@
+import LGNCore
+
+public protocol Identifiable: Hashable {
+    var _bytes: Bytes { get }
+}
+
+public extension E2 {
+    public struct ID<Value: Codable & Hashable>: Identifiable {
+        internal let value: Value
+
+        public var _bytes: Bytes {
+            return LGNCore.getBytes(self.value)
+        }
+        
+        public init(value: Value) {
+            self.value = value
+        }
+    }
+}
+
+extension E2.ID: Equatable {}
