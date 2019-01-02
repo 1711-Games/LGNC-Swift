@@ -14,6 +14,9 @@ public extension DictionaryExtractable {
     }
 
     public static func getDictionaryKey(_ name: String) -> String {
+        if Entita.KEY_DICTIONARIES_ENABLED == false {
+            return name
+        }
         return self.keyDictionary[name] ?? name
     }
 
@@ -32,7 +35,6 @@ public extension DictionaryExtractable {
     ) throws -> T {
         let resultTuple: (key: String, value: Any?) = self.extract(param: name, from: dictionary)
         guard let result = resultTuple.value as? T else {
-            // print("\(#line)")
             throw Entita.E.ExtractError(self.formatFieldKey(name, resultTuple.key), resultTuple.value)
         }
         return result

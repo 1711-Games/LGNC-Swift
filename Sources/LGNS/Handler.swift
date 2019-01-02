@@ -45,6 +45,7 @@ internal extension LGNS {
         }
 
         public func channelRead(ctx: ChannelHandlerContext, data: NIOAny) {
+            let profiler = LGNCore.Profiler.begin()
             var message = self.unwrapInboundIn(data)
             let remoteAddr = ctx.channel.remoteAddrString
             var metaDict: [String: String] = [:]
@@ -76,6 +77,13 @@ internal extension LGNS {
             )
 
             self.promise = nil
+
+            future.whenComplete {
+                LGNCore.log(
+                    "LGNS request '\(message.URI)' execution took \(profiler.end().rounded(toPlaces: 5)) s",
+                    prefix: message.uuid.string
+                )
+            }
 
             future.whenFailure {
                 self.errorCaught(ctx: ctx, error: $0)

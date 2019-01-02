@@ -6,7 +6,7 @@ import Entita
 
 public extension Service {
     public static func serveLGNS(
-        at target: LGNS.Server.BindTo = .port(Self.port),
+        at target: LGNS.Server.BindTo? = nil,
         cryptor: LGNP.Cryptor,
         eventLoopGroup: MultiThreadedEventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
         requiredBitmask: LGNP.Message.ControlBitmask = .defaultValues,
@@ -14,31 +14,35 @@ public extension Service {
         writeTimeout: TimeAmount = .seconds(1),
         promise: PromiseVoid? = nil
     ) throws {
-        if LGNC.ALLOW_INCOMPLETE_GUARANTEE == false && self.checkContractsCallbacks() == false {
-            throw LGNC.E.serverError("Not all contracts are guaranteed (to disable set LGNC.ALLOW_PART_GUARANTEE to true)")
-        }
+        try self.validate(transport: .LGNS)
 
-        let server = try LGNS.Server(
+        let address = try self.unwrapAddress(from: target)
+
+        try self.checkGuarantees()
+
+        let server = LGNS.Server(
             cryptor: cryptor,
             requiredBitmask: requiredBitmask,
             eventLoopGroup: eventLoopGroup,
             readTimeout: readTimeout,
             writeTimeout: writeTimeout
         ) { request, info in
-            LGNC.log("Serving request at URI '\(request.URI)'", prefix: request.uuid.string)
+            LGNCore.log("Serving request at LGNS URI '\(request.URI)'", prefix: request.uuid.string)
             do {
                 return self.executeContract(
                     URI: request.URI,
                     uuid: request.uuid.string,
+                                                      // what is the reason for it again?
+                                                      // vvvvvvvvvvvvvvv
                     payload: try request.unpackPayload()[LGNC.ENTITY_KEY] as? Entita.Dict ?? Entita.Dict(),
-                    requestInfo: info
+                    requestInfo: LGNC.RequestInfo(from: info, transport: .LGNS)
                 ).map {
                     do {
                         return request.getLikeThis(
                             payload: try $0.getDictionary().pack(to: request.contentType)
                         )
                     } catch {
-                        LGNC.log("Could not pack entity to \(request.contentType): \(error)", prefix: info.uuid)
+                        LGNCore.log("Could not pack entity to \(request.contentType): \(error)", prefix: info.uuid.string)
                         return request.getLikeThis(payload: LGNP.ERROR_RESPONSE)
                     }
                 }
@@ -47,6 +51,6 @@ public extension Service {
             }
         }
 
-        try server.serve(at: target, promise: promise)
+        try server.serve(at: address, promise: promise)
     }
 }

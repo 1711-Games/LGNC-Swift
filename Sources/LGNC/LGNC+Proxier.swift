@@ -38,15 +38,14 @@ public extension LGNC {
                 // Set the handlers that are applied to the accepted Channels
                 .childChannelInitializer { channel in
                     channel.pipeline.configureHTTPServerPipeline(withErrorHandling: true).then {
-                        channel.pipeline.add(
-                            handler: LGNC.Proxier.HTTPHandler(
-                                client: client,
-                                registry: registry,
-                                hostFormat: hostFormat
-                            )
+                    channel.pipeline.add(
+                        handler: LGNC.Proxier.HTTPHandler(
+                            client: client,
+                            registry: registry,
+                            hostFormat: hostFormat
                         )
-                    }
-                }
+                    )
+                }}
                 
                 // Enable TCP_NODELAY and SO_REUSEADDR for the accepted Channels
                 .childChannelOption(ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)

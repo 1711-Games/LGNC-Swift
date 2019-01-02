@@ -25,3 +25,9 @@ public extension UUID {
         return self.uuidString
     }
 }
+
+public extension Date {
+    public var timeIntervalSince: TimeInterval {
+        return -self.timeIntervalSinceNow
+    }
+}

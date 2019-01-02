@@ -13,7 +13,7 @@ public extension Contract {
         using client: LGNS.Client,
         controlBitmask: LGNP.Message.ControlBitmask? = nil,
         uuid: UUID = UUID(),
-        requestInfo: RequestInfo? = nil
+        requestInfo: LGNC.RequestInfo? = nil
     ) -> EventLoopFuture<Self.Response> {
         let controlBitmask = controlBitmask ?? client.controlBitmask
         let payload: Bytes

@@ -1,5 +1,6 @@
 import Foundation
 import NIO
+import NIOConcurrencyHelpers
 
 public protocol Shutdownable: class {
     func shutdown(promise: PromiseVoid)
@@ -11,6 +12,8 @@ public class SignalObserver {
     }
 
     private static var instances: [Box] = []
+    private static var lock: Lock = Lock()
+
     public static var eventLoop: EventLoop = EmbeddedEventLoop()
 
     private init() {}
@@ -29,6 +32,8 @@ public class SignalObserver {
     }
 
     public class func add(_ instance: Shutdownable) {
-        self.instances.append(Box(value: instance))
+        self.lock.withLockVoid {
+            self.instances.append(Box(value: instance))
+        }
     }
 }

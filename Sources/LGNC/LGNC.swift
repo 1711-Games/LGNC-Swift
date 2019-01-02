@@ -11,16 +11,8 @@ public struct LGNC {
     static public let GLOBAL_ERROR_KEY = "_"
 
     static public var ALLOW_INCOMPLETE_GUARANTEE = false
-    
-    public static func log(_ message: String, prefix: String? = nil, file: String = #file, line: Int = #line) {
-        LGNCore.log(message, prefix: prefix, file: file, line: line)
-    }
-    
-    public static func log(_ message: String, prefix: UUID, file: String = #file, line: Int = #line) {
-        self.log(message, prefix: prefix.string, file: file, line: line)
-    }
 
-    public static func getMeta(from requestInfo: RequestInfo) -> Bytes {
+    public static func getMeta(from requestInfo: LGNC.RequestInfo) -> Bytes {
         return self.getMeta(clientAddr: requestInfo.clientAddr, userAgent: requestInfo.userAgent)
     }
 
@@ -41,6 +33,49 @@ public struct LGNC {
 
 public extension LGNC {
     public struct Entity {}
+}
+
+public extension LGNC {
+    public struct RequestInfo {
+        public let remoteAddr: String
+        public let clientAddr: String
+        public let userAgent: String
+        public let uuid: UUID
+        public let isSecure: Bool
+        public let transport: LGNC.Transport
+        public var eventLoop: EventLoop
+
+        public init(
+            remoteAddr: String,
+            clientAddr: String,
+            userAgent: String,
+            uuid: UUID,
+            isSecure: Bool,
+            transport: LGNC.Transport,
+            eventLoop: EventLoop
+        ) {
+            self.remoteAddr = remoteAddr
+            self.clientAddr = clientAddr
+            self.userAgent = userAgent
+            self.uuid = uuid
+            self.isSecure = isSecure
+            self.transport = transport
+            self.eventLoop = eventLoop
+        }
+
+        public init(
+            from innerRequestInfo: LGNS.RequestInfo,
+            transport: LGNC.Transport
+        ) {
+            self.remoteAddr = innerRequestInfo.remoteAddr
+            self.clientAddr = innerRequestInfo.clientAddr
+            self.userAgent = innerRequestInfo.userAgent
+            self.uuid = innerRequestInfo.uuid
+            self.isSecure = innerRequestInfo.isSecure
+            self.eventLoop = innerRequestInfo.eventLoop
+            self.transport = transport
+        }
+    }
 }
 
 public extension LGNC.Entity {

@@ -29,7 +29,7 @@ public extension LGNS {
             readTimeout: Time = .seconds(1),
             writeTimeout: Time = .seconds(1),
             resolver: @escaping Resolver
-        ) throws {
+        ) {
             self.cryptor = cryptor
             self.requiredBitmask = requiredBitmask
             self.readTimeout = readTimeout
@@ -56,9 +56,9 @@ public extension LGNS {
         }
 
         public func shutdown(promise: PromiseVoid) {
-            print("LGNS: shutting down")
+            LGNCore.log("LGNS Server: shutting down")
             self.channel.close(promise: promise)
-            print("LGNS: goodbye")
+            LGNCore.log("LGNS Server: goodbye")
         }
 
         public func serve(at target: BindTo, promise: PromiseVoid? = nil) throws {

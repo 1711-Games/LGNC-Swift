@@ -6,16 +6,16 @@ import Entita
 import NIO
 
 public protocol Service {
-    typealias Executor = (RequestInfo, Entita.Dict) -> Future<Entity>
+    typealias Executor = (LGNC.RequestInfo, Entita.Dict) -> Future<Entity>
 
     static var keyDictionary: [String: Entita.Dict] { get }
-    static var contractExecutorMap: [String: Executor] { get }
-    static var port: Int { get }
+    static var contractMap: Contract.Map { get }
+    static var transports: [LGNC.Transport: Int] { get }
     static var info: [String: String] { get }
 
     static func checkContractsCallbacks() -> Bool
     static func serveLGNS(
-        at target: LGNS.Server.BindTo,
+        at target: LGNS.Server.BindTo?,
         cryptor: LGNP.Cryptor,
         eventLoopGroup: MultiThreadedEventLoopGroup,
         requiredBitmask: LGNP.Message.ControlBitmask,
@@ -23,14 +23,32 @@ public protocol Service {
         writeTimeout: TimeAmount,
         promise: PromiseVoid?
     ) throws
-}
-
-public enum ServiceVisibility {
-    case Public, Private
+    static func serveHTTP(
+        at target: LGNS.Server.BindTo?,
+        eventLoopGroup: MultiThreadedEventLoopGroup,
+        readTimeout: TimeAmount,
+        writeTimeout: TimeAmount,
+        promise: PromiseVoid?
+    ) throws
 }
 
 public extension LGNC {
-    public typealias ServicesRegistry = [String: (port: Int, contracts: [String: ServiceVisibility])]
+    public typealias ServicesRegistry = [
+        String: (
+            transports: [Transport: Int],
+            contracts: [
+                String: (
+                    visibility: ContractVisibility,
+                    transports: [Transport]
+                )
+            ]
+        )
+    ]
+
+    public enum Transport: String {
+        case LGNS, HTTP
+        // case LGNSS, HTTPS // once, maybe
+    }
 }
 
 public extension Service {
@@ -38,20 +56,23 @@ public extension Service {
         URI: String,
         uuid: String,
         payload: Entita.Dict,
-        requestInfo info: RequestInfo
+        requestInfo: LGNC.RequestInfo
     ) -> Future<Entity> {
         let result: Future<LGNC.Entity.Result>
         do {
-            guard let contractExecutor = self.contractExecutorMap[URI] else {
+            guard let contractInfo = self.contractMap[URI] else {
                 throw LGNC.ContractError.URINotFound(URI)
             }
-            result = contractExecutor(info, payload)
+            guard contractInfo.transports.contains(requestInfo.transport) else {
+                throw LGNC.ContractError.TransportNotAllowed(requestInfo.transport)
+            }
+            result = contractInfo.executor(requestInfo, payload)
                 .map { LGNC.Entity.Result(from: $0) }
                 .mapIfError { error in
                     do {
                         switch error {
                         case let LGNC.E.UnpackError(error):
-                            LGNCore.log(error, prefix: info.uuid.string)
+                            LGNCore.log(error, prefix: requestInfo.uuid.string)
                             throw LGNC.E.clientError("Invalid request")
                         case let LGNC.E.MultipleError(errors):
                             throw LGNC.E.MultipleError(errors) // rethrow
@@ -66,21 +87,46 @@ public extension Service {
                     } catch let LGNC.E.MultipleError(errors) {
                         return LGNC.Entity.Result(from: errors)
                     } catch {
-                        LGNCore.log("Extremely unexpected error: \(error)", prefix: info.uuid.string)
+                        LGNCore.log("Extremely unexpected error: \(error)", prefix: requestInfo.uuid.string)
                         return LGNC.Entity.Result.internalError
                     }
                 }
         } catch let error as LGNC.ContractError {
-            result = info.eventLoop.newSucceededFuture(
-                result: info.isSecure
+            result = requestInfo.eventLoop.newSucceededFuture(
+                result: requestInfo.isSecure
                     ? LGNC.Entity.Result(from: [LGNC.GLOBAL_ERROR_KEY: [error]])
                     : LGNC.Entity.Result.internalError
             )
             LGNCore.log("Contract error: \(error)")
         } catch let error {
             LGNCore.log("Quite uncaught error: \(error)", prefix: uuid)
-            result = info.eventLoop.newSucceededFuture(result: LGNC.Entity.Result.internalError)
+            result = requestInfo.eventLoop.newSucceededFuture(result: LGNC.Entity.Result.internalError)
         }
         return result.map { $0 as Entity }
+    }
+
+    internal static func checkGuarantees() throws {
+        if LGNC.ALLOW_INCOMPLETE_GUARANTEE == false && Self.checkContractsCallbacks() == false {
+            throw LGNC.E.serverError("Not all contracts are guaranteed (to disable set LGNC.ALLOW_PART_GUARANTEE to true)")
+        }
+    }
+
+    internal static func unwrapAddress(from target: LGNS.Address?) throws -> LGNS.Address {
+        let address: Address
+        if let target = target {
+            address = target
+        } else {
+            guard let port = Self.transports[.LGNS] else {
+                throw LGNC.E.serverError("LGNS transport is not available in service")
+            }
+            address = .port(port)
+        }
+        return address
+    }
+
+    internal static func validate(transport: LGNC.Transport) throws {
+        guard let _ = self.transports[transport] else {
+            throw LGNC.E.ServiceError("Transport \(transport) not supported for service")
+        }
     }
 }

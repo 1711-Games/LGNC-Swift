@@ -18,6 +18,7 @@ public extension LGNC {
         case DecodeError([String: [ValidatorError]])
         case UnpackError(String)
         case ControllerError(String)
+        case ServiceError(String)
         case MultipleError([String: [ClientError]])
 
         public static func singleError(field: String, message: String, code: Int) -> E {
@@ -35,6 +36,7 @@ public extension LGNC {
 
     public enum ContractError: ClientError {
         case URINotFound(String)
+        case TransportNotAllowed(LGNC.Transport)
         case GeneralError(String, Int)
         case InternalError
         
@@ -42,6 +44,8 @@ public extension LGNC {
             switch self {
             case .URINotFound(let URI):
                 return (message: "URI '\(URI)' not found", code: 404)
+            case .TransportNotAllowed(let transport):
+                return (message: "Transport '\(transport.rawValue)' not allowed", code: 405)
             case .InternalError:
                 return (message: "Internal server error", code: 500)
             case .GeneralError(let message, let code):

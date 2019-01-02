@@ -5,13 +5,98 @@ import LGNS
 import NIO
 import NIOHTTP1
 
+public extension LGNC {
+    public struct HTTP {
+        public typealias Resolver = (Request) -> Future<Bytes>
+    }
+}
+
+public extension LGNC.HTTP {
+    public enum ContentType: String {
+        case PlainText = "text/plain"
+        case XML = "application/xml"
+        case JSON = "application/json"
+        case MsgPack = "application/msgpack"
+    }
+
+    public struct Request {
+        public let URI: String
+        public let headers: HTTPHeaders
+        public let remoteAddr: String
+        public let body: Bytes
+        public let uuid: UUID
+        public let eventLoop: EventLoop
+
+        public var contentType: ContentType? {
+            guard let string = self.headers["Content-Type"].first else {
+                return nil
+            }
+            return ContentType(rawValue: string.lowercased())
+        }
+    }
+}
+
+public extension LGNC.HTTP {
+    public class Server: Shutdownable {
+        public typealias BindTo = LGNS.Address
+
+        private let readTimeout: TimeAmount
+        private let writeTimeout: TimeAmount
+        private let eventLoopGroup: MultiThreadedEventLoopGroup
+        private var bootstrap: ServerBootstrap!
+
+        private var channel: Channel!
+
+        public required init(
+            eventLoopGroup: MultiThreadedEventLoopGroup,
+            readTimeout: Time = .minutes(1),
+            writeTimeout: Time = .minutes(1),
+            resolver: @escaping Resolver
+        ) {
+            self.readTimeout = readTimeout
+            self.writeTimeout = writeTimeout
+            self.eventLoopGroup = eventLoopGroup
+
+            self.bootstrap = ServerBootstrap(group: self.eventLoopGroup)
+                .serverChannelOption(ChannelOptions.backlog, value: 256)
+                .serverChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
+
+                .childChannelInitializer { channel in
+                    channel.pipeline.configureHTTPServerPipeline(withErrorHandling: true).then {
+                    channel.pipeline.add(handler: Handler(resolver: resolver))
+                }}
+
+                .childChannelOption(ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
+                .childChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
+                .childChannelOption(ChannelOptions.maxMessagesPerRead, value: 64)
+                .childChannelOption(ChannelOptions.recvAllocator, value: AdaptiveRecvByteBufferAllocator())
+
+            SignalObserver.add(self)
+        }
+
+        public func shutdown(promise: PromiseVoid) {
+            LGNCore.log("HTTP Server: shutting down")
+            self.channel.close(promise: promise)
+            LGNCore.log("HTTP Server: goodbye")
+        }
+
+        public func serve(at target: BindTo, promise: PromiseVoid? = nil) throws {
+            self.channel = try self.bootstrap.bind(to: target).wait()
+
+            promise?.succeed(result: ())
+
+            try self.channel.closeFuture.wait()
+        }
+    }
+}
+
 fileprivate func httpResponseHead(request: HTTPRequestHead, status: HTTPResponseStatus, headers: HTTPHeaders = HTTPHeaders()) -> HTTPResponseHead {
     var head = HTTPResponseHead(version: request.version, status: status, headers: headers)
     let connectionHeaders: [String] = head.headers[canonicalForm: "connection"].map { $0.lowercased() }
-    
+
     if !connectionHeaders.contains("keep-alive") && !connectionHeaders.contains("close") {
         // the user hasn't pre-set either 'keep-alive' or 'close', so we might need to add headers
-        
+
         switch (request.isKeepAlive, request.version.major, request.version.minor) {
         case (true, 1, 0):
             // HTTP/1.0 and the request has 'Connection: keep-alive', we should mirror that
@@ -27,34 +112,32 @@ fileprivate func httpResponseHead(request: HTTPRequestHead, status: HTTPResponse
     return head
 }
 
-internal extension LGNC.Proxier {
-    internal final class HTTPHandler: ChannelInboundHandler {
+internal extension LGNC.HTTP {
+    internal final class Handler: ChannelInboundHandler {
         public typealias InboundIn = HTTPServerRequestPart
         public typealias OutboundOut = HTTPServerResponsePart
-        
+
         private enum State {
             case idle
             case waitingForRequestBody
             case sendingResponse
-            
+
             mutating func requestReceived() {
                 precondition(self == .idle, "Invalid state for request received: \(self)")
                 self = .waitingForRequestBody
             }
-            
+
             mutating func requestComplete() {
                 precondition(self == .waitingForRequestBody, "Invalid state for request complete: \(self)")
                 self = .sendingResponse
             }
-            
+
             mutating func responseComplete() {
                 precondition(self == .sendingResponse, "Invalid state for response complete: \(self)")
                 self = .idle
             }
         }
-        
-        private static let regex = Regex(pattern: "^\\/([\\w\\d_]+)\\/([\\w\\d_]+)\\/([\\w\\d_]+)$")!
-        
+
         private var buffer: ByteBuffer!
         private var bodyBuffer: ByteBuffer?
         private var handler: ((ChannelHandlerContext, HTTPServerRequestPart) -> Void)?
@@ -62,37 +145,26 @@ internal extension LGNC.Proxier {
         private var infoSavedRequestHead: HTTPRequestHead?
         private var infoSavedBodyBytes: Int = 0
         private var keepAlive: Bool = false
-        
+
         private var uuid: UUID!
         private var profiler: LGNCore.Profiler!
 
-        private var serviceName: String?
-        private var nodeName: String?
-        private var contractName: String?
-        private var port: Int!
-        
         private var errored: Bool = false
-        
-        private let client: LGNS.Client
-        private let registry: LGNC.ServicesRegistry
-        private let hostFormat: String
-        
+
+        private let resolver: Resolver
+
         public init(
-            client: LGNS.Client,
-            registry: LGNC.ServicesRegistry,
-            hostFormat: String
+            resolver: @escaping Resolver
         ) {
-            self.client = client
-            self.registry = registry
-            self.hostFormat = hostFormat
+            self.resolver = resolver
         }
-        
+
         public func handlerAdded(ctx: ChannelHandlerContext) {
             let message: StaticString = "Hello World!"
             self.buffer = ctx.channel.allocator.buffer(capacity: message.count)
             self.buffer.write(staticString: message)
         }
-        
+
         public func userInboundEventTriggered(ctx: ChannelHandlerContext, event: Any) {
             switch event {
             case let evt as ChannelEvent where evt == ChannelEvent.inputClosed:
@@ -110,33 +182,34 @@ internal extension LGNC.Proxier {
                 ctx.fireUserInboundEventTriggered(event)
             }
         }
-        
+
         public func channelRead(ctx: ChannelHandlerContext, data: NIOAny) {
             let reqPart = self.unwrapInboundIn(data)
             if let handler = self.handler {
                 handler(ctx, reqPart)
                 return
             }
-            
+
             switch reqPart {
             case .head(let request):
                 self.bodyBuffer = nil
-                
+
                 self.uuid = UUID()
                 self.profiler = LGNCore.Profiler.begin()
 
                 self.keepAlive = request.isKeepAlive
-                
-                let matches = HTTPHandler.regex.matches(request.uri)
-                if request.method == .POST && matches.count == 1 && matches[0].captureGroups.count == 3 {
-                    self.serviceName = matches[0].captureGroups[0]
-                    self.nodeName = matches[0].captureGroups[1]
-                    self.contractName = matches[0].captureGroups[2]
-                    
+
+                if request.method == .POST {
                     self.handler = self.defaultHandler
                 } else {
-                    dump(request.headers[canonicalForm: "Cookie"])
-                    self.handler = { ctx, req in self.handleJustWrite(ctx: ctx, request: req, statusCode: .notImplemented, string: "501 Not Implemented") }
+                    self.handler = { ctx, req in
+                        self.handleJustWrite(
+                            ctx: ctx,
+                            request: req,
+                            statusCode: .notImplemented,
+                            string: "501 Not Implemented"
+                        )
+                    }
                 }
                 self.handler!(ctx, reqPart)
             case .body:
@@ -148,19 +221,19 @@ internal extension LGNC.Proxier {
                 self.completeResponse(ctx, trailers: nil, promise: nil)
             }
         }
-        
+
         private func completeResponse(_ ctx: ChannelHandlerContext, trailers: HTTPHeaders?, promise: EventLoopPromise<Void>?) {
             self.state.responseComplete()
-            
+
             let promise = self.keepAlive ? promise : (promise ?? ctx.eventLoop.newPromise())
             if !self.keepAlive {
                 promise!.futureResult.whenComplete { ctx.close(promise: nil) }
             }
             self.handler = nil
-            
+
             ctx.writeAndFlush(self.wrapOutboundOut(.end(trailers)), promise: promise)
         }
-        
+
         private func handleJustWrite(
             ctx: ChannelHandlerContext,
             request: HTTPServerRequestPart,
@@ -186,55 +259,17 @@ internal extension LGNC.Proxier {
                     trailers = HTTPHeaders()
                     trailers?.add(name: trailer.0, value: trailer.1)
                 }
-                
+
                 self.completeResponse(ctx, trailers: trailers, promise: nil)
             }
         }
-        
+
         private func defaultHandler(_ ctx: ChannelHandlerContext, _ request: HTTPServerRequestPart) {
             switch request {
             case .head(let req):
                 self.infoSavedRequestHead = req
                 self.infoSavedBodyBytes = 0
-                
-                guard let serviceName = self.serviceName else {
-                    LGNCore.log("No service provided", prefix: self.uuid.string)
-                    self.handler = { _ctx, _req in self.handleJustWrite(ctx: _ctx, request: _req, statusCode: .badRequest, string: "400 Bad Request") }
-                    self.handler!(ctx, request)
-                    return
-                }
-                guard let _ = self.nodeName else {
-                    LGNCore.log("No node provided for service '\(serviceName)'", prefix: self.uuid.string)
-                    self.handler = { _ctx, _req in self.handleJustWrite(ctx: _ctx, request: _req, statusCode: .badRequest, string: "400 Bad Request") }
-                    self.handler!(ctx, request)
-                    return
-                }
-                guard let contractName = self.contractName else {
-                    LGNCore.log("Contract name not provided for service '\(serviceName)'", prefix: self.uuid.string)
-                    self.handler = { _ctx, _req in self.handleJustWrite(ctx: _ctx, request: _req, statusCode: .badRequest, string: "400 Bad Request") }
-                    self.handler!(ctx, request)
-                    return
-                }
-                guard let service = self.registry[serviceName] else {
-                    LGNCore.log("Service '\(serviceName)' not found", prefix: uuid.string)
-                    self.handler = { _ctx, _req in self.handleJustWrite(ctx: _ctx, request: _req, statusCode: .badRequest, string: "400 Bad Request") }
-                    self.handler!(ctx, request)
-                    return
-                }
-                self.port = service.transports[.LGNS]!
-                guard let contractInfo = service.contracts[contractName] else {
-                    LGNCore.log("Contract '\(contractName)' not found in service '\(serviceName)'", prefix: uuid.string)
-                    self.handler = { _ctx, _req in self.handleJustWrite(ctx: _ctx, request: _req, statusCode: .badRequest, string: "400 Bad Request") }
-                    self.handler!(ctx, request)
-                    return
-                }
-                guard contractInfo.visibility == .Public else {
-                    LGNCore.log("Contract '\(contractName)' is not public", prefix: uuid.string)
-                    self.handler = { _ctx, _req in self.handleJustWrite(ctx: _ctx, request: _req, statusCode: .badRequest, string: "400 Bad Request") }
-                    self.handler!(ctx, request)
-                    return
-                }
-                
+
                 self.state.requestReceived()
             case .body(buffer: var buf):
                 self.infoSavedBodyBytes += buf.readableBytes
@@ -247,66 +282,62 @@ internal extension LGNC.Proxier {
                 guard !self.errored else {
                     return
                 }
-                
+
                 self.state.requestComplete()
-                
+
                 self.buffer.clear()
-                
+
                 var buffer = self.bodyBuffer
-                if buffer != nil, let bytes = buffer!.readBytes(length: buffer!.readableBytes) {
-                    let future = self.client.request(
-                        at: .ip(
-                            host: self.hostFormat
-                                .replacingOccurrences(of: "{NODE}", with: self.nodeName!)
-                                .replacingOccurrences(of: "{SERVICE}", with: self.serviceName!.lowercased()),
-                            port: self.port
-                        ),
-                        with: LGNP.Message(
-                            URI: self.contractName!,
-                            payload: bytes,
-                            meta: LGNC.getMeta(
-                                clientAddr: ctx.channel.remoteAddrString,
-                                userAgent: self.infoSavedRequestHead!.headers["User-Agent"].first ?? ""
-                            ),
-                            salt: self.client.cryptor.salt.bytes,
-                            controlBitmask: self.client.controlBitmask,
-                            uuid: self.uuid
-                        ),
-                        on: ctx.eventLoop
-                    )
-                    future.whenSuccess { message in
-                        self.buffer.write(bytes: message.payload)
-                        self.finishRequest(
-                            ctx: ctx,
-                            status: .ok,
-                            additionalHeaders: [
-                                "X-LGNC-UUID": message.uuid.string,
-                            ]
-                        )
-                        LGNCore.log(
-                            "Contract '\(self.serviceName!)::\(self.contractName!)' execution took \(self.profiler.end().rounded(toPlaces: 5)) s",
-                            prefix: self.uuid.string
-                        )
-                    }
-                    future.whenFailure { error in
-                        LGNCore.log("There was an error while proxying to service: \(error)")
-                        if case NIO.ChannelError.connectFailed(_) = error {
-                            self.buffer.write(string: "404 Not Found")
-                            self.finishRequest(ctx: ctx, status: .notFound)
-                        } else {
-                            dump(error)
-                            self.buffer.write(string: "400 Bad Request")
-                            self.finishRequest(ctx: ctx, status: .badRequest)
-                        }
-                    }
-                } else {
+                guard buffer != nil, let bytes = buffer!.readBytes(length: buffer!.readableBytes) else {
                     LGNCore.log("Empty payload", prefix: uuid.string)
                     self.buffer.write(string: "400 Bad Request")
                     self.finishRequest(ctx: ctx, status: .badRequest)
+                    return
+                }
+                let request = Request(
+                    URI: String(self.infoSavedRequestHead!.uri.dropFirst()),
+                    headers: self.infoSavedRequestHead!.headers,
+                    remoteAddr: ctx.channel.remoteAddrString,
+                    body: bytes,
+                    uuid: self.uuid,
+                    eventLoop: ctx.eventLoop
+                )
+                let future = self.resolver(request)
+                future.whenComplete {
+                    LGNCore.log(
+                        "HTTP request '\(request.URI)' execution took \(self.profiler.end().rounded(toPlaces: 5)) s",
+                        prefix: self.uuid.string
+                    )
+                }
+                var headers = [
+                    "LGNC-UUID": self.uuid.string,
+                ]
+                future.whenSuccess { bytes in
+                    self.buffer.write(bytes: bytes)
+                    if let contentType = request.contentType {
+                        headers["Content-Type"] = contentType.rawValue
+                    }
+                    self.finishRequest(
+                        ctx: ctx,
+                        status: .ok,
+                        additionalHeaders: headers
+                    )
+                }
+                future.whenFailure { error in
+                    LGNCore.log(
+                        "There was an error while processing request '\(request.URI)': \(error)",
+                        prefix: self.uuid.string
+                    )
+                    self.buffer.write(string: "500 Internal Server Error")
+                    self.finishRequest(
+                        ctx: ctx,
+                        status: .internalServerError,
+                        additionalHeaders: headers
+                    )
                 }
             }
         }
-        
+
         private func finishRequest(
             ctx: ChannelHandlerContext,
             status: HTTPResponseStatus,
