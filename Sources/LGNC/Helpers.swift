@@ -55,6 +55,12 @@ private extension String {
     }
 }
 
+internal extension String {
+    var isNumber: Bool {
+        return !isEmpty && self.rangeOfCharacter(from: CharacterSet.decimalDigits.inverted) == nil
+    }
+}
+
 private extension NSTextCheckingResult {
     var ranges: [NSRange] {
         var ranges = [NSRange]()

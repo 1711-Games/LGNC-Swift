@@ -4,6 +4,7 @@ import LGNP
 import LGNS
 import NIO
 import NIOHTTP1
+import LGNPContenter
 
 public extension LGNC {
     public struct HTTP {
@@ -25,14 +26,9 @@ public extension LGNC.HTTP {
         public let remoteAddr: String
         public let body: Bytes
         public let uuid: UUID
+        public let contentType: ContentType
+        public let method: HTTPMethod
         public let eventLoop: EventLoop
-
-        public var contentType: ContentType? {
-            guard let string = self.headers["Content-Type"].first else {
-                return nil
-            }
-            return ContentType(rawValue: string.lowercased())
-        }
     }
 }
 
@@ -42,13 +38,13 @@ public extension LGNC.HTTP {
 
         private let readTimeout: TimeAmount
         private let writeTimeout: TimeAmount
-        private let eventLoopGroup: MultiThreadedEventLoopGroup
+        private let eventLoopGroup: EventLoopGroup
         private var bootstrap: ServerBootstrap!
 
         private var channel: Channel!
 
         public required init(
-            eventLoopGroup: MultiThreadedEventLoopGroup,
+            eventLoopGroup: EventLoopGroup,
             readTimeout: Time = .minutes(1),
             writeTimeout: Time = .minutes(1),
             resolver: @escaping Resolver
@@ -199,7 +195,7 @@ internal extension LGNC.HTTP {
 
                 self.keepAlive = request.isKeepAlive
 
-                if request.method == .POST {
+                if [.POST, .GET].contains(request.method) {
                     self.handler = self.defaultHandler
                 } else {
                     self.handler = { ctx, req in
@@ -264,6 +260,12 @@ internal extension LGNC.HTTP {
             }
         }
 
+        private func sendBadRequest(message: String = "400 Bad Request", to ctx: ChannelHandlerContext) {
+            LGNCore.log(message, prefix: uuid.string)
+            self.buffer.write(string: message)
+            self.finishRequest(ctx: ctx, status: .badRequest)
+        }
+
         private func defaultHandler(_ ctx: ChannelHandlerContext, _ request: HTTPServerRequestPart) {
             switch request {
             case .head(let req):
@@ -287,19 +289,63 @@ internal extension LGNC.HTTP {
 
                 self.buffer.clear()
 
-                var buffer = self.bodyBuffer
-                guard buffer != nil, let bytes = buffer!.readBytes(length: buffer!.readableBytes) else {
-                    LGNCore.log("Empty payload", prefix: uuid.string)
-                    self.buffer.write(string: "400 Bad Request")
-                    self.finishRequest(ctx: ctx, status: .badRequest)
+                guard self.infoSavedRequestHead!.method == .POST else {
+                    self.sendBadRequest(message: "400 Bad Request (POST method only)", to: ctx)
                     return
                 }
+
+                guard
+                    let contentTypeString = self.infoSavedRequestHead!.headers["Content-Type"].first,
+                    let contentType = ContentType(rawValue: contentTypeString.lowercased())
+                else {
+                    self.sendBadRequest(message: "400 Bad Request (Content-Type header missing)", to: ctx)
+                    return
+                }
+
+                let uri = String(self.infoSavedRequestHead!.uri.dropFirst())
+                let payloadBytes: Bytes
+                if var buffer = self.bodyBuffer, let bytes = buffer.readBytes(length: buffer.readableBytes) {
+                    payloadBytes = bytes
+                } /*else if uri.contains("?"), let params = URLComponents(string: String(uri))?.queryItems {
+                    let payloadDict = Dictionary(
+                        uniqueKeysWithValues: params
+                            .map { (param) -> (String, Any)? in
+                                guard let value = param.value else {
+                                    return nil
+                                }
+                                return (
+                                    param.name,
+                                    (value.isNumber ? (Int(value) ?? -1) : value) as Any
+                                )
+                            }
+                            .compactMap { $0 }
+                    )
+                    do {
+                        switch contentType {
+                        case .MsgPack: payloadBytes = try payloadDict.getMsgPack()
+                        case .JSON: payloadBytes = try payloadDict.getJSON()
+                        default:
+                            self.sendBadRequest(message: "400 Bad Request (Invalid Content-Type)", to: ctx)
+                            return
+                        }
+                    } catch {
+                        LGNCore.log("Error while packing query: \(error)", prefix: self.uuid.string)
+                        self.sendBadRequest(message: "400 Bad Request (Invalid Content-Type)", to: ctx)
+                        return
+                    }
+                } */else {
+                    self.sendBadRequest(to: ctx)
+                    return
+                }
+
                 let request = Request(
-                    URI: String(self.infoSavedRequestHead!.uri.dropFirst()),
+                    URI: uri,
                     headers: self.infoSavedRequestHead!.headers,
                     remoteAddr: ctx.channel.remoteAddrString,
-                    body: bytes,
+                    body: payloadBytes,
                     uuid: self.uuid,
+                    contentType: contentType,
+                    method: self.infoSavedRequestHead!.method,
                     eventLoop: ctx.eventLoop
                 )
                 let future = self.resolver(request)
@@ -314,9 +360,7 @@ internal extension LGNC.HTTP {
                 ]
                 future.whenSuccess { bytes in
                     self.buffer.write(bytes: bytes)
-                    if let contentType = request.contentType {
-                        headers["Content-Type"] = contentType.rawValue
-                    }
+                    headers["Content-Type"] = request.contentType.rawValue
                     self.finishRequest(
                         ctx: ctx,
                         status: .ok,

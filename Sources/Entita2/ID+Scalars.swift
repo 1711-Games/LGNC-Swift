@@ -7,3 +7,4 @@ public extension Identifiable {
 }
 
 extension Int: Identifiable {}
+extension String: Identifiable {}

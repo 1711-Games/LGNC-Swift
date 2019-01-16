@@ -48,9 +48,9 @@ public extension Contract {
             ),
             on: eventLoop
         ).thenThrowing { responseMessage in
-            return try responseMessage.unpackPayload()
-        }.then { dict in
-            return LGNC.Entity.Result.initFromResponse(
+            try responseMessage.unpackPayload()
+        }.then { (dict: [String: Any]) -> Future<LGNC.Entity.Result> in
+            LGNC.Entity.Result.initFromResponse(
                 from: dict,
                 on: eventLoop,
                 type: Self.Response.self
@@ -63,6 +63,15 @@ public extension Contract {
                 throw LGNC.E.UnpackError("Empty result")
             }
             return resultEntity as! Self.Response
+        }.thenIfErrorThrowing {
+            if case ChannelError.connectFailed(let error) = $0 {
+                LGNCore.log("""
+                    Could not execute contract '\(self)' on service '\(self.ParentService.self)' \
+                    @ \(address): \(error)
+                    """, prefix: uuid.string)
+                throw LGNC.ContractError.InternalError
+            }
+            throw $0
         }
     }
 

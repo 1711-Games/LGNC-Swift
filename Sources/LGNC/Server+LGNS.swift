@@ -8,7 +8,7 @@ public extension Service {
     public static func serveLGNS(
         at target: LGNS.Server.BindTo? = nil,
         cryptor: LGNP.Cryptor,
-        eventLoopGroup: MultiThreadedEventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
+        eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
         requiredBitmask: LGNP.Message.ControlBitmask = .defaultValues,
         readTimeout: TimeAmount = .seconds(1),
         writeTimeout: TimeAmount = .seconds(1),
@@ -31,7 +31,7 @@ public extension Service {
             do {
                 return self.executeContract(
                     URI: request.URI,
-                    uuid: request.uuid.string,
+                    uuid: request.uuid,
                                                       // what is the reason for it again?
                                                       // vvvvvvvvvvvvvvv
                     payload: try request.unpackPayload()[LGNC.ENTITY_KEY] as? Entita.Dict ?? Entita.Dict(),

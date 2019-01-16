@@ -14,10 +14,16 @@ public protocol Service {
     static var info: [String: String] { get }
 
     static func checkContractsCallbacks() -> Bool
+    static func executeContract(
+        URI: String,
+        uuid: UUID,
+        payload: Entita.Dict,
+        requestInfo: LGNC.RequestInfo
+    ) -> Future<Entity>
     static func serveLGNS(
         at target: LGNS.Server.BindTo?,
         cryptor: LGNP.Cryptor,
-        eventLoopGroup: MultiThreadedEventLoopGroup,
+        eventLoopGroup: EventLoopGroup,
         requiredBitmask: LGNP.Message.ControlBitmask,
         readTimeout: TimeAmount,
         writeTimeout: TimeAmount,
@@ -25,7 +31,7 @@ public protocol Service {
     ) throws
     static func serveHTTP(
         at target: LGNS.Server.BindTo?,
-        eventLoopGroup: MultiThreadedEventLoopGroup,
+        eventLoopGroup: EventLoopGroup,
         readTimeout: TimeAmount,
         writeTimeout: TimeAmount,
         promise: PromiseVoid?
@@ -54,7 +60,7 @@ public extension LGNC {
 public extension Service {
     public static func executeContract(
         URI: String,
-        uuid: String,
+        uuid: UUID,
         payload: Entita.Dict,
         requestInfo: LGNC.RequestInfo
     ) -> Future<Entity> {
@@ -63,7 +69,7 @@ public extension Service {
             guard let contractInfo = self.contractMap[URI] else {
                 throw LGNC.ContractError.URINotFound(URI)
             }
-            guard contractInfo.transports.contains(requestInfo.transport) else {
+            guard LGNC.ALLOW_ALL_TRANSPORTS == true || contractInfo.transports.contains(requestInfo.transport) else {
                 throw LGNC.ContractError.TransportNotAllowed(requestInfo.transport)
             }
             result = contractInfo.executor(requestInfo, payload)
@@ -81,7 +87,7 @@ public extension Service {
                         case let error as ClientError:
                             throw LGNC.E.MultipleError([LGNC.GLOBAL_ERROR_KEY: [error]])
                         default:
-                            LGNCore.log("Uncaught error: \(error)", prefix: uuid)
+                            LGNCore.log("Uncaught error: \(error)", prefix: uuid.string)
                             throw LGNC.E.MultipleError([LGNC.GLOBAL_ERROR_KEY: [LGNC.ContractError.InternalError]])
                         }
                     } catch let LGNC.E.MultipleError(errors) {
@@ -97,9 +103,9 @@ public extension Service {
                     ? LGNC.Entity.Result(from: [LGNC.GLOBAL_ERROR_KEY: [error]])
                     : LGNC.Entity.Result.internalError
             )
-            LGNCore.log("Contract error: \(error)")
+            LGNCore.log("Contract error: \(error)", prefix: uuid.string)
         } catch let error {
-            LGNCore.log("Quite uncaught error: \(error)", prefix: uuid)
+            LGNCore.log("Quite uncaught error: \(error)", prefix: uuid.string)
             result = requestInfo.eventLoop.newSucceededFuture(result: LGNC.Entity.Result.internalError)
         }
         return result.map { $0 as Entity }

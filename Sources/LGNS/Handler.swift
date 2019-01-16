@@ -8,6 +8,8 @@ internal extension LGNS {
         public typealias InboundOut = LGNP.Message
         public typealias OutboundOut = LGNP.Message
 
+        fileprivate var handlerType: StaticString = ""
+
         private static let META_SECTION_BYTES: Bytes = [0, 255]
         private static let EOL: Byte = 10
 
@@ -78,12 +80,12 @@ internal extension LGNS {
 
             self.promise = nil
 
-            future.whenComplete {
-                LGNCore.log(
-                    "LGNS request '\(message.URI)' execution took \(profiler.end().rounded(toPlaces: 5)) s",
-                    prefix: message.uuid.string
-                )
-            }
+//            future.whenComplete {
+//                LGNCore.log(
+//                    "LGNS \(type(of: self)) request '\(message.URI)' execution took \(profiler.end().rounded(toPlaces: 5)) s",
+//                    prefix: message.uuid.string
+//                )
+//            }
 
             future.whenFailure {
                 self.errorCaught(ctx: ctx, error: $0)

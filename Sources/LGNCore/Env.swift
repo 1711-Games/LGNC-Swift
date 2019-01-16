@@ -6,7 +6,7 @@ public extension LGNCore {
 
         public subscript(index: String) -> String {
             get {
-                return self.values[index]!
+                return self.get(index)!
             }
             set {
                 self.values[index] = newValue
@@ -15,6 +15,10 @@ public extension LGNCore {
 
         public init(values: [String: String]) {
             self.values = values
+        }
+
+        public func get(_ index: String) -> String? {
+            return self.values[index]
         }
 
         public static func log(_ message: String) {

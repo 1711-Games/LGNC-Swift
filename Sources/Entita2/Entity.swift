@@ -22,11 +22,19 @@ public protocol E2Entity: Codable {
     func pack(to format: E2.Format) throws -> Bytes
 
     static func load(by ID: Identifier, on eventLoop: EventLoop) -> Future<Self?>
+
+    /// Same as `save`, but with executes `beforeInsert` and `afterInsert` before and after insert respectively
+    func insert(on eventLoop: EventLoop) -> Future<Void>
+    func beforeInsert(on eventLoop: EventLoop) -> Future<Void>
+    func afterInsert(on eventLoop: EventLoop) -> Future<Void>
+
     func save(on eventLoop: EventLoop) -> Future<Void>
+
     func delete(on eventLoop: EventLoop) -> Future<Void>
+    func beforeDelete(on eventLoop: EventLoop) -> Future<Void>
+    func afterDelete(on eventLoop: EventLoop) -> Future<Void>
+
+    func getIDAsKey() -> Bytes
 
     static func IDAsKey(ID: Identifier) -> Bytes
-    func getIDAsKey() -> Bytes
-//    static func _getKeyFrom(entity: Self) -> Bytes
-//    static func _getKeyFrom(ID: Identifier) -> Bytes
 }

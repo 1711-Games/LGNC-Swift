@@ -11,6 +11,7 @@ public struct LGNC {
     static public let GLOBAL_ERROR_KEY = "_"
 
     static public var ALLOW_INCOMPLETE_GUARANTEE = false
+    static public var ALLOW_ALL_TRANSPORTS = false
 
     public static func getMeta(from requestInfo: LGNC.RequestInfo) -> Bytes {
         return self.getMeta(clientAddr: requestInfo.clientAddr, userAgent: requestInfo.userAgent)
@@ -115,7 +116,7 @@ public extension LGNC.Entity {
             self.meta = meta
             self.success = success
         }
-        
+
         public convenience init(from errors: [String: [Error]]) {
             self.init(
                 result: nil,
@@ -183,10 +184,19 @@ public extension LGNC.Entity {
             } catch {
                 return eventLoop.newFailedFuture(error: error)
             }
-            
-            return T.initWithValidation(from: _result!, on: eventLoop).map {
+
+            let future: Future<T?>
+            if let _result = _result {
+                future = T
+                    .initWithValidation(from: _result, on: eventLoop)
+                    .map { $0 }
+            } else {
+                future = eventLoop.newSucceededFuture(result: nil)
+            }
+
+            return future.map { (result: T?) in
                 self.init(
-                    result: $0,
+                    result: result,
                     errors: _errors,
                     meta: _meta,
                     success: _success

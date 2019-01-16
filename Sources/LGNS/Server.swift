@@ -16,7 +16,7 @@ public extension LGNS {
         private let requiredBitmask: LGNP.Message.ControlBitmask
         private let readTimeout: TimeAmount
         private let writeTimeout: TimeAmount
-        private let eventLoopGroup: MultiThreadedEventLoopGroup
+        private let eventLoopGroup: EventLoopGroup
         private let cryptor: LGNP.Cryptor
         private var bootstrap: ServerBootstrap!
         private var channel: Channel!
@@ -25,7 +25,7 @@ public extension LGNS {
         public required init(
             cryptor: LGNP.Cryptor,
             requiredBitmask: ControlBitmask,
-            eventLoopGroup: MultiThreadedEventLoopGroup,
+            eventLoopGroup: EventLoopGroup,
             readTimeout: Time = .seconds(1),
             writeTimeout: Time = .seconds(1),
             resolver: @escaping Resolver

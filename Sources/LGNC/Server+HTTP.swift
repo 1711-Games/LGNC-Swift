@@ -19,7 +19,7 @@ public extension LGNP.Message.ContentType {
 public extension Service {
     public static func serveHTTP(
         at target: LGNS.Server.BindTo? = nil,
-        eventLoopGroup: MultiThreadedEventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
+        eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
         readTimeout: TimeAmount = .minutes(1),
         writeTimeout: TimeAmount = .minutes(1),
         promise: PromiseVoid? = nil
@@ -37,18 +37,15 @@ public extension Service {
         ) { request in
             LGNCore.log("Serving request at HTTP URI '\(request.URI)'", prefix: request.uuid.string)
             do {
-                guard let contentType = request.contentType else {
-                    throw LGNC.E.clientError("Content type not specified", 400)
-                }
                 let payload: Entita.Dict
-                switch contentType {
+                switch request.contentType {
                 case .JSON: payload = try request.body.unpackFromJSON()
                 case .MsgPack: payload = try request.body.unpackFromMsgPack()
                 default: throw LGNC.E.clientError("Only JSON and MsgPack are allowed", 400)
                 }
                 return self.executeContract(
                     URI: request.URI,
-                    uuid: request.uuid.string,
+                    uuid: request.uuid,
                     payload: payload,
                     requestInfo: LGNC.RequestInfo(
                         remoteAddr: request.remoteAddr,
@@ -61,9 +58,12 @@ public extension Service {
                     )
                 ).map {
                     do {
-                        return try $0.getDictionary().pack(to: LGNP.Message.ContentType(from: contentType))
+                        return try $0.getDictionary().pack(to: LGNP.Message.ContentType(from: request.contentType))
                     } catch {
-                        LGNCore.log("Could not pack entity to \(contentType): \(error)", prefix: request.uuid.string)
+                        LGNCore.log(
+                            "Could not pack entity to \(request.contentType): \(error)",
+                            prefix: request.uuid.string
+                        )
                         return "500 Internal Server Error".bytes
                     }
                 }

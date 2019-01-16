@@ -11,6 +11,14 @@ public extension Dictionary where Key == String, Value == [ClientError] {
         }
         return result
     }
+
+    public func getGeneralError() -> ClientError? {
+        return self.getExactlyOneErrorFor(field: "_")
+    }
+
+    public func getGeneralErrorCode() -> Int? {
+        return self.getGeneralError()?.getErrorTuple().code
+    }
 }
 
 public extension LGNC {

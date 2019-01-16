@@ -49,6 +49,17 @@ public extension Entita2FDBModel {
         return Self.subspacePrefix[ID].asFDBKey()
     }
 
+    public static func doesRelateToThis(tuple: Tuple) -> Bool {
+        let flat = tuple.tuple.compactMap { $0 }
+        guard flat.count >= 2 else {
+            return false
+        }
+        guard let value = flat[flat.count - 2] as? String, value == self.entityName else {
+            return false
+        }
+        return true
+    }
+
     public func getIDAsKey() -> Bytes {
         return Self.IDAsKey(ID: self.ID)
     }
@@ -92,6 +103,15 @@ public extension Entita2FDBModel {
         on eventLoop: EventLoop
     ) -> Future<[Self.Identifier: Self]> {
         return self.loadAll(bySubspace: self.subspacePrefix[key], limit: limit, on: eventLoop)
+    }
+
+    public static func loadAllRaw(
+        limit: Int32 = 0,
+        mode: FDB.StreamingMode = .WantAll,
+        iteration: Int32 = 1,
+        on eventLoop: EventLoop
+    ) -> Future<KeyValuesResult> {
+        return self.storage.loadAll(by: self.subspacePrefix.range, limit: limit, on: eventLoop)
     }
 }
 

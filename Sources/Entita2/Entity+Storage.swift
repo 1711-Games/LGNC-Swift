@@ -32,23 +32,53 @@ public extension E2Entity {
             return try Self.init(from: bytes, format: Self.format)
         }
     }
-    
+
+    public func beforeInsert(on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.newSucceededFuture(result: ())
+    }
+
+    public func afterInsert(on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.newSucceededFuture(result: ())
+    }
+
     public func save(on eventLoop: EventLoop) -> Future<Void> {
+        let payload: Bytes
         do {
-            return Self.storage.save(
-                bytes: try self.pack(to: Self.format),
-                by: self.getIDAsKey(),
-                on: eventLoop
-            )
+            payload = try self.pack(to: Self.format)
         } catch {
             return eventLoop.newFailedFuture(error: E.SaveError("Could not save entity: \(error)"))
         }
-    }
-    
-    public func delete(on eventLoop: EventLoop) -> Future<Void> {
-        return Self.storage.delete(
+        return Self.storage.save(
+            bytes: payload,
             by: self.getIDAsKey(),
             on: eventLoop
         )
+    }
+
+    public func insert(on eventLoop: EventLoop) -> Future<Void> {
+        return self
+            .beforeInsert(on: eventLoop)
+            .then { self.save(on: eventLoop) }
+            .then { self.afterInsert(on: eventLoop) }
+    }
+
+    public func beforeDelete(on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.newSucceededFuture(result: ())
+    }
+
+    public func afterDelete(on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.newSucceededFuture(result: ())
+    }
+
+    public func delete(on eventLoop: EventLoop) -> Future<Void> {
+        return self
+            .beforeDelete(on: eventLoop)
+            .then {
+                Self.storage.delete(
+                    by: self.getIDAsKey(),
+                    on: eventLoop
+                )
+            }
+            .then { self.afterDelete(on: eventLoop) }
     }
 }

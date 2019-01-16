@@ -20,10 +20,10 @@ public extension LGNC {
             eventLoopGroup: MultiThreadedEventLoopGroup,
             readTimeout: Time = .seconds(1),
             writeTimeout: Time = .seconds(1)
-        ) throws {
+        ) {
             self.cryptor = cryptor
             
-            let client = try LGNS.Client(
+            let client = LGNS.Client(
                 cryptor: cryptor,
                 controlBitmask: requiredBitmask,
                 eventLoopGroup: eventLoopGroup

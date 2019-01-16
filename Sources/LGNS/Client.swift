@@ -16,7 +16,7 @@ public extension LGNS {
             eventLoopGroup: EventLoopGroup,
             readTimeout: Time = .seconds(1),
             writeTimeout: Time = .seconds(1)
-        ) throws {
+        ) {
             self.cryptor = cryptor
             self.controlBitmask = controlBitmask
             self.readTimeout = readTimeout
