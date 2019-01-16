@@ -6,7 +6,24 @@ extension FDB: E2Storage {
     public func load(by key: Bytes, on eventLoop: EventLoop) -> EventLoopFuture<Bytes?> {
         return self
             .begin(eventLoop: eventLoop)
-            .then { $0.get(key: key) }
+            .then { transaction in
+                self
+                    .load(by: key, with: transaction, on: eventLoop)
+                    .then { maybeBytes in
+                        transaction
+                            .commit()
+                            .map { _ in maybeBytes }
+                    }
+            }
+    }
+    
+    public func load(
+        by key: Bytes,
+        with transaction: Transaction,
+        on eventLoop: EventLoop
+    ) -> EventLoopFuture<Bytes?> {
+        return transaction
+            .get(key: key)
             .map { $0.0 }
     }
 
@@ -24,7 +41,21 @@ extension FDB: E2Storage {
     public func save(bytes: Bytes, by key: Bytes, on eventLoop: EventLoop) -> EventLoopFuture<Void> {
         return self
             .begin(eventLoop: eventLoop)
-            .then { $0.set(key: key, value: bytes, commit: true) }
+            .then { transaction in
+                self
+                    .save(bytes: bytes, by: key, with: transaction, on: eventLoop)
+                    .then { transaction.commit() }
+            }
+    }
+    
+    public func save(
+        bytes: Bytes,
+        by key: Bytes,
+        with transaction: Transaction,
+        on eventLoop: EventLoop
+    ) -> EventLoopFuture<Void> {
+        return transaction
+            .set(key: key, value: bytes, commit: true)
             .map { _ in () }
     }
 
@@ -66,6 +97,45 @@ public extension Entita2FDBModel {
 
     public static var subspacePrefix: Subspace {
         return self.subspace[self.entityName]
+    }
+    
+    public static func loadWithTransaction(
+        by ID: Identifier,
+        on eventLoop: EventLoop
+    ) -> Future<(Self?, Transaction)> {
+        return self.storage
+            .begin(eventLoop: eventLoop)
+            .then { transaction in
+                self.storage
+                    .load(by: Self.IDAsKey(ID: ID), with: transaction, on: eventLoop)
+                    .map { maybeBytes in (maybeBytes, transaction) }
+            }
+            .thenThrowing { maybeBytes, transaction in
+                guard let bytes = maybeBytes else {
+                    return (nil, transaction)
+                }
+                return (
+                    try Self.init(from: bytes, format: Self.format),
+                    transaction
+                )
+            }
+    }
+    
+    public func save(
+        with transaction: Transaction,
+        on eventLoop: EventLoop
+    ) -> Future<Transaction> {
+        return self
+            .getPackedSelf(on: eventLoop)
+            .then { payload in
+                Self.storage.save(
+                    bytes: payload,
+                    by: self.getIDAsKey(),
+                    with: transaction,
+                    on: eventLoop
+                )
+            }
+            .map { _ in transaction }
     }
 
     internal static func loadAll(

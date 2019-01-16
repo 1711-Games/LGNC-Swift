@@ -40,19 +40,25 @@ public extension E2Entity {
     public func afterInsert(on eventLoop: EventLoop) -> Future<Void> {
         return eventLoop.newSucceededFuture(result: ())
     }
-
-    public func save(on eventLoop: EventLoop) -> Future<Void> {
-        let payload: Bytes
+    
+    public func getPackedSelf(on eventLoop: EventLoop) -> Future<Bytes> {
         do {
-            payload = try self.pack(to: Self.format)
+            return eventLoop.newSucceededFuture(result: try self.pack(to: Self.format))
         } catch {
             return eventLoop.newFailedFuture(error: E.SaveError("Could not save entity: \(error)"))
         }
-        return Self.storage.save(
-            bytes: payload,
-            by: self.getIDAsKey(),
-            on: eventLoop
-        )
+    }
+
+    public func save(on eventLoop: EventLoop) -> Future<Void> {
+        return self
+            .getPackedSelf(on: eventLoop)
+            .then { payload in
+                Self.storage.save(
+                    bytes: payload,
+                    by: self.getIDAsKey(),
+                    on: eventLoop
+                )
+            }
     }
 
     public func insert(on eventLoop: EventLoop) -> Future<Void> {
