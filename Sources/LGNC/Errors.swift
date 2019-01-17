@@ -46,6 +46,7 @@ public extension LGNC {
         case URINotFound(String)
         case TransportNotAllowed(LGNC.Transport)
         case GeneralError(String, Int)
+        case RemoteContractExecutionFailed
         case InternalError
         
         public func getErrorTuple() -> (message: String, code: Int) {
@@ -54,7 +55,7 @@ public extension LGNC {
                 return (message: "URI '\(URI)' not found", code: 404)
             case .TransportNotAllowed(let transport):
                 return (message: "Transport '\(transport.rawValue)' not allowed", code: 405)
-            case .InternalError:
+            case .InternalError, .RemoteContractExecutionFailed:
                 return (message: "Internal server error", code: 500)
             case .GeneralError(let message, let code):
                 return (message: message, code: code)

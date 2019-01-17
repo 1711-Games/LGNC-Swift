@@ -55,7 +55,7 @@ extension FDB: E2Storage {
         on eventLoop: EventLoop
     ) -> EventLoopFuture<Void> {
         return transaction
-            .set(key: key, value: bytes, commit: true)
+            .set(key: key, value: bytes)
             .map { _ in () }
     }
 
@@ -105,12 +105,14 @@ public extension Entita2FDBModel {
     ) -> Future<(Self?, Transaction)> {
         return self.storage
             .begin(eventLoop: eventLoop)
-            .then { transaction in
-                self.storage
+            .then { (transaction) -> Future<(Bytes?, Transaction)> in
+                dump(ID)
+                dump(Self.IDAsKey(ID: ID)._string)
+                return self.storage
                     .load(by: Self.IDAsKey(ID: ID), with: transaction, on: eventLoop)
                     .map { maybeBytes in (maybeBytes, transaction) }
             }
-            .thenThrowing { maybeBytes, transaction in
+            .thenThrowing { (maybeBytes, transaction) in
                 guard let bytes = maybeBytes else {
                     return (nil, transaction)
                 }

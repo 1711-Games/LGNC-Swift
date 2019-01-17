@@ -69,7 +69,7 @@ public extension Contract {
                     Could not execute contract '\(self)' on service '\(self.ParentService.self)' \
                     @ \(address): \(error)
                     """, prefix: uuid.string)
-                throw LGNC.ContractError.InternalError
+                throw LGNC.ContractError.RemoteContractExecutionFailed
             }
             throw $0
         }
