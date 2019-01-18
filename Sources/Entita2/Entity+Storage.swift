@@ -49,13 +49,19 @@ public extension E2Entity {
         }
     }
 
-    public func save(on eventLoop: EventLoop) -> Future<Void> {
+    public func save(by ID: Identifier? = nil, on eventLoop: EventLoop) -> Future<Void> {
+        let IDBytes: Bytes
+        if let ID = ID {
+            IDBytes = Self.IDAsKey(ID: ID)
+        } else {
+            IDBytes = self.getIDAsKey()
+        }
         return self
             .getPackedSelf(on: eventLoop)
             .then { payload in
                 Self.storage.save(
                     bytes: payload,
-                    by: self.getIDAsKey(),
+                    by: IDBytes,
                     on: eventLoop
                 )
             }

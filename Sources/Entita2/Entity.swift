@@ -28,7 +28,7 @@ public protocol E2Entity: Codable {
     func beforeInsert(on eventLoop: EventLoop) -> Future<Void>
     func afterInsert(on eventLoop: EventLoop) -> Future<Void>
 
-    func save(on eventLoop: EventLoop) -> Future<Void>
+    func save(by ID: Identifier?, on eventLoop: EventLoop) -> Future<Void>
 
     func delete(on eventLoop: EventLoop) -> Future<Void>
     func beforeDelete(on eventLoop: EventLoop) -> Future<Void>
