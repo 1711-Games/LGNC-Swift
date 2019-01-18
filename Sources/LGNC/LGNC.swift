@@ -6,6 +6,8 @@ import Entita
 import NIO
 
 public struct LGNC {
+    static public let VERSION = "0.1.0a"
+
     static public let ENTITY_KEY = "a"
     static public let ID_KEY = "a"
     static public let GLOBAL_ERROR_KEY = "_"
