@@ -357,6 +357,7 @@ internal extension LGNC.HTTP {
                 }
                 var headers = [
                     "LGNC-UUID": self.uuid.string,
+                    "Server": "LGNC \(LGNC.VERSION)",
                 ]
                 future.whenSuccess { bytes in
                     self.buffer.write(bytes: bytes)
