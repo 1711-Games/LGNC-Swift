@@ -1,8 +1,6 @@
 import LGNP
 import NIO
-
-public typealias Future = EventLoopFuture
-public typealias Promise = EventLoopPromise
+import LGNCore
 
 public typealias FutureVoid = Future<Void>
 
