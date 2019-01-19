@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "LGNKit-Swift",
     products: [
-        .library(name: "LGNCore", targets: ["LGNCore"]),
+        .library(name: "LGNCore", targets: ["LGNCore", "NIO"]),
         .library(name: "LGNP", targets: ["LGNP"]),
         .library(name: "LGNPContenter", targets: ["LGNPContenter"]),
         .library(name: "LGNS", targets: ["LGNS"]),
