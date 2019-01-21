@@ -91,7 +91,8 @@ internal extension LGNS {
                 let messageLength = self.messageLength, // there is header length parsed
                 self.buf.readableBytes >= messageLength, // buffer size is at least stated bytes long
                 let _ = self.buf.readBytes(length: LGNP.MESSAGE_HEADER_LENGTH), // ignore header bytes
-                let bytes = self.buf.readAllBytes() { // all other bytes are read from buffer
+                let bytes = self.buf.readAllBytes() // all other bytes are read from buffer
+            {
                 self.buf = nil // clear buffer
                 // try to parse
                 do {
@@ -114,7 +115,7 @@ internal extension LGNS {
                     ctx.fireErrorCaught(error)
                 }
             } else {
-                ctx.fireChannelRead(data)
+                print("still waiting")
             }
         }
 

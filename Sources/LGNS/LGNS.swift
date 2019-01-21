@@ -17,7 +17,7 @@ public extension LGNS {
         case localhost
         
         public static func port(_ port: Int) -> Address {
-            return self.ip(host: "127.0.0.1", port: port)
+            return self.ip(host: "0.0.0.0", port: port)
         }
         
         public var description: String {
