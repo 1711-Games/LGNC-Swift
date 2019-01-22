@@ -30,9 +30,6 @@ let package = Package(
         // used by LGNP
         .package(url: "https://github.com/krzyzanowskim/CryptoSwift.git", .upToNextMajor(from: "0.9.0")),
         .package(url: "https://github.com/1024jp/GzipSwift.git", .upToNextMajor(from: "4.0.0")),
-
-        // used by LGNC
-        .package(url: "https://github.com/IBM-Swift/BlueSignals.git", .upToNextMajor(from: "1.0.16")),
     ],
     targets: [
         .target(
@@ -53,7 +50,7 @@ let package = Package(
         ),
         .target(
             name: "LGNC",
-            dependencies: ["LGNCore", "Entita", "LGNS", "LGNP", "LGNPContenter", "NIO", "NIOHTTP1", "Signals"]
+            dependencies: ["LGNCore", "Entita", "LGNS", "LGNP", "LGNPContenter", "NIO", "NIOHTTP1"]
         ),
         .target(
             name: "Entita",
@@ -67,6 +64,18 @@ let package = Package(
             name: "Entita2FDB",
             dependencies: ["LGNCore", "Entita2", "FDB", "NIO"]
         ),
-        //.testTarget(name: "LGNKitTests", dependencies: ["LGNKit"]),
+        .testTarget(
+            name: "LGNKitTests",
+            dependencies: [
+                "LGNCore",
+                "LGNP",
+                "LGNPContenter",
+                "LGNS",
+                "LGNC",
+                "Entita",
+                "Entita2",
+                "Entita2FDB",
+            ]
+        ),
     ]
 )
