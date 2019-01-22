@@ -13,17 +13,28 @@ public extension E2Entity {
         ].joined(separator: ".")
     }
 
+    public static func IDBytesAsKey(bytes: Bytes) -> Bytes {
+        return LGNCore.getBytes(Self.entityName + ":") + bytes
+    }
+
     public static func IDAsKey(ID: Identifier) -> Bytes {
-        return LGNCore.getBytes(Self.entityName + ":") + ID._bytes
+        return Self.IDBytesAsKey(bytes: ID._bytes)
     }
 
     public func getIDAsKey() -> Bytes {
-        return Self.IDAsKey(ID: self.ID)
+        return Self.IDAsKey(ID: self.getID())
     }
     
-    public static func load(by ID: Identifier, on eventLoop: EventLoop) -> Future<Self?> {
+    public static func loadBy(IDBytes: Bytes, on eventLoop: EventLoop) -> Future<Self?> {
+        return self.loadByRaw(
+            IDBytes: self.IDBytesAsKey(bytes: IDBytes),
+            on: eventLoop
+        )
+    }
+
+    public static func loadByRaw(IDBytes: Bytes, on eventLoop: EventLoop) -> Future<Self?> {
         return self.storage.load(
-            by: Self.IDAsKey(ID: ID),
+            by: IDBytes,
             on: eventLoop
         ).thenThrowing {
             guard let bytes = $0 else {
@@ -33,11 +44,23 @@ public extension E2Entity {
         }
     }
 
+    public static func load(by ID: Identifier, on eventLoop: EventLoop) -> Future<Self?> {
+        return self.loadBy(IDBytes: Self.IDAsKey(ID: ID), on: eventLoop)
+    }
+
+    public func beforeInsert0(on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.newSucceededFuture(result: ())
+    }
+
     public func beforeInsert(on eventLoop: EventLoop) -> Future<Void> {
         return eventLoop.newSucceededFuture(result: ())
     }
 
     public func afterInsert(on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.newSucceededFuture(result: ())
+    }
+    
+    public func afterInsert0(on eventLoop: EventLoop) -> Future<Void> {
         return eventLoop.newSucceededFuture(result: ())
     }
     
@@ -69,9 +92,15 @@ public extension E2Entity {
 
     public func insert(on eventLoop: EventLoop) -> Future<Void> {
         return self
-            .beforeInsert(on: eventLoop)
+            .beforeInsert0(on: eventLoop)
+            .then { self.beforeInsert(on: eventLoop) }
             .then { self.save(on: eventLoop) }
             .then { self.afterInsert(on: eventLoop) }
+            .then { self.afterInsert0(on: eventLoop) }
+    }
+    
+    public func beforeDelete0(on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.newSucceededFuture(result: ())
     }
 
     public func beforeDelete(on eventLoop: EventLoop) -> Future<Void> {
@@ -81,10 +110,15 @@ public extension E2Entity {
     public func afterDelete(on eventLoop: EventLoop) -> Future<Void> {
         return eventLoop.newSucceededFuture(result: ())
     }
+    
+    public func afterDelete0(on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.newSucceededFuture(result: ())
+    }
 
     public func delete(on eventLoop: EventLoop) -> Future<Void> {
         return self
-            .beforeDelete(on: eventLoop)
+            .beforeDelete0(on: eventLoop)
+            .then { self.beforeDelete(on: eventLoop) }
             .then {
                 Self.storage.delete(
                     by: self.getIDAsKey(),
@@ -92,5 +126,6 @@ public extension E2Entity {
                 )
             }
             .then { self.afterDelete(on: eventLoop) }
+            .then { self.afterDelete0(on: eventLoop) }
     }
 }

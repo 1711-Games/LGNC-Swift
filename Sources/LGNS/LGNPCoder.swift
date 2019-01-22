@@ -71,14 +71,15 @@ internal extension LGNS {
                 if updateBuffer {
                     self.buffer.write(buffer: &input)
                 }
-
-                if let headerBytes = self.buffer.readBytes(length: LGNPCoder.MESSAGE_HEADER_LENGTH) {
+                
+                if
+                    self.buffer.readableBytes >= LGNPCoder.MESSAGE_HEADER_LENGTH,
+                    let headerBytes = self.buffer.readBytes(length: LGNPCoder.MESSAGE_HEADER_LENGTH)
+                {
                     do {
                         try self.parseHeaderAndLength(from: headerBytes, ctx)
                         self.state = .waitingForBody
                         fallthrough
-                    } catch LGNP.E.TooShortHeaderToParse {
-                        // pass
                     } catch {
                         ctx.fireErrorCaught(error)
                         return

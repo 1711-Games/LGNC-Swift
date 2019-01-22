@@ -1,6 +1,15 @@
 import Entita2
+import LGNCore
 import FDB
 import NIO
+
+public protocol Entita2FDBModel: E2Entity where Storage == FDB, Identifier: TuplePackable {
+    static var subspace: Subspace { get }
+    static var indices: [String: PartialKeyPath<Self>] { get }
+    
+    static func loadByIndex(name: String, value: TuplePackable, on eventLoop: EventLoop) -> Future<Self?>
+    static func existsByIndex(name: String, value: TuplePackable, on eventLoop: EventLoop) -> Future<Bool>
+}
 
 extension FDB: E2Storage {
     public func load(by key: Bytes, on eventLoop: EventLoop) -> EventLoopFuture<Bytes?> {
@@ -9,11 +18,7 @@ extension FDB: E2Storage {
             .then { transaction in
                 self
                     .load(by: key, with: transaction, on: eventLoop)
-                    .then { maybeBytes in
-                        transaction
-                            .commit()
-                            .map { _ in maybeBytes }
-                    }
+                    .then { maybeBytes in transaction.commit().map { _ in maybeBytes } }
             }
     }
     
@@ -67,13 +72,25 @@ extension FDB: E2Storage {
     }
 }
 
-public protocol Entita2FDBModel: E2Entity where Storage == FDB, Identifier: TuplePackable {
-    static var subspace: Subspace { get }
-}
-
 public extension Entita2FDBModel {
+    public static var indices: [String: PartialKeyPath<Self>] {
+        return [:]
+    }
+
     public static var format: E2.Format {
         return .MsgPack
+    }
+    
+    public static var idxSubspace: Subspace {
+        return Self.subspace["idx"]
+    }
+    
+    public static func getIndexKeyForIndex(name: String, value: TuplePackable) -> FDBKey {
+        return Self.idxSubspace[Self.entityName][name][value]
+    }
+
+    public static func IDBytesAsKey(bytes: Bytes) -> Bytes {
+        return Self.subspacePrefix[bytes].asFDBKey()
     }
 
     public static func IDAsKey(ID: Identifier) -> Bytes {
@@ -90,15 +107,94 @@ public extension Entita2FDBModel {
         }
         return true
     }
+    
+    fileprivate func getIndexValueFrom(index path: PartialKeyPath<Self>) -> TuplePackable? {
+        guard let value = self[keyPath: path] as? TuplePackable else {
+            LGNCore.log("Invalid index '\(path)' for entity '\(Self.entityName)', not converting to TuplePackable")
+            return nil
+        }
+        return value
+    }
+
+    public func afterInsert0(on eventLoop: EventLoop) -> Future<Void> {
+        return EventLoopFuture<Void>.andAll(
+            Self.indices.map { indexName, path in
+                guard let value = self.getIndexValueFrom(index: path) else {
+                    return eventLoop.newSucceededFuture(result: ())
+                }
+                return Self.storage
+                    .begin(eventLoop: eventLoop)
+                    .then {
+                        $0.set(
+                            key: Self.getIndexKeyForIndex(name: indexName, value: value),
+                            value: LGNCore.getBytes(self.getID()),
+                            commit: true
+                        )
+                    }
+                    .map { _ in () }
+            },
+            eventLoop: eventLoop
+        )
+    }
+
+    public func afterDelete0(on eventLoop: EventLoop) -> Future<Void> {
+        return EventLoopFuture<Void>.andAll(
+            Self.indices.map { indexName, path in
+                guard let value = self.getIndexValueFrom(index: path) else {
+                    return eventLoop.newSucceededFuture(result: ())
+                }
+                return Self.storage
+                    .begin(eventLoop: eventLoop)
+                    .then { $0.clear(key: Self.getIndexKeyForIndex(name: indexName, value: value), commit: true) }
+                    .map { _ in () }
+            },
+            eventLoop: eventLoop
+        )
+    }
+
+    private static func isValidIndex(name: String) -> Bool {
+        guard let _ = Self.indices[name] else {
+            LGNCore.log("Index '\(name)' not found in entity '\(Self.entityName)' (available indices: \(Self.indices.keys.joined(separator: ", ")))")
+            return false
+        }
+        return true
+    }
+    
+    public static func loadByIndex(name: String, value: TuplePackable, on eventLoop: EventLoop) -> Future<Self?> {
+        guard Self.isValidIndex(name: name) else {
+            return eventLoop.newSucceededFuture(result: nil)
+        }
+
+        return self.storage
+            .begin(eventLoop: eventLoop)
+            .then { $0.get(key: Self.getIndexKeyForIndex(name: name, value: value)) }
+            .then { maybeIDBytes, _ in
+                guard let IDBytes = maybeIDBytes else {
+                    return eventLoop.newSucceededFuture(result: nil)
+                }
+                return Self.loadBy(IDBytes: IDBytes, on: eventLoop)
+            }
+    }
+    
+    public static func existsByIndex(name: String, value: TuplePackable, on eventLoop: EventLoop) -> Future<Bool> {
+        guard Self.isValidIndex(name: name) else {
+            return eventLoop.newSucceededFuture(result: false)
+        }
+        
+        return self.storage
+            .begin(eventLoop: eventLoop)
+            .then { $0.get(key: Self.getIndexKeyForIndex(name: name, value: value)) }
+            .map { maybeIDBytes, _ in maybeIDBytes != nil }
+    }
 
     public func getIDAsKey() -> Bytes {
-        return Self.IDAsKey(ID: self.ID)
+        return Self.IDAsKey(ID: self.getID())
     }
 
     public static var subspacePrefix: Subspace {
         return self.subspace[self.entityName]
     }
-    
+
     public static func loadWithTransaction(
         by ID: Identifier,
         on eventLoop: EventLoop
@@ -122,7 +218,7 @@ public extension Entita2FDBModel {
                 )
             }
     }
-    
+
     public func save(
         with transaction: Transaction,
         on eventLoop: EventLoop
@@ -154,7 +250,7 @@ public extension Entita2FDBModel {
                 uniqueKeysWithValues: try results.records.map {
                     let instance = try Self.init(from: $0.value)
                     return (
-                        instance.ID,
+                        instance.getID(),
                         instance
                     )
                 }
