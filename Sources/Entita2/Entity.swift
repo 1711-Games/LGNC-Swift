@@ -22,6 +22,9 @@ public protocol E2Entity: Codable {
     init(from bytes: Bytes, format: E2.Format) throws
     func pack(to format: E2.Format) throws -> Bytes
 
+    func afterLoad0(on eventLoop: EventLoop) -> Future<Void>
+    func afterLoad(on eventLoop: EventLoop) -> Future<Void>
+
     static func load(by ID: Identifier, on eventLoop: EventLoop) -> Future<Self?>
     static func loadBy(IDBytes: Bytes, on eventLoop: EventLoop) -> Future<Self?>
     static func loadByRaw(IDBytes: Bytes, on eventLoop: EventLoop) -> Future<Self?>
@@ -35,7 +38,11 @@ public protocol E2Entity: Codable {
     // Internal method, do not define
     func afterInsert0(on eventLoop: EventLoop) -> Future<Void>
 
+    func beforeSave0(on eventLoop: EventLoop) -> Future<Void>
+    func beforeSave(on eventLoop: EventLoop) -> Future<Void>
     func save(by ID: Identifier?, on eventLoop: EventLoop) -> Future<Void>
+    func afterSave(on eventLoop: EventLoop) -> Future<Void>
+    func afterSave0(on eventLoop: EventLoop) -> Future<Void>
 
     func beforeDelete0(on eventLoop: EventLoop) -> Future<Void>
     func beforeDelete(on eventLoop: EventLoop) -> Future<Void>

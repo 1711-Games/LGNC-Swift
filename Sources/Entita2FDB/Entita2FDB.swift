@@ -3,16 +3,38 @@ import LGNCore
 import FDB
 import NIO
 
+public typealias E2FDBIndex = Entita2FDBIndex
+
 public protocol Entita2FDBModel: E2Entity where Storage == FDB, Identifier: TuplePackable {
     static var subspace: Subspace { get }
-    static var indices: [String: PartialKeyPath<Self>] { get }
+    static var indices: [String: Entita2FDBIndex<Self>] { get }
     
     static func loadByIndex(name: String, value: TuplePackable, on eventLoop: EventLoop) -> Future<Self?>
     static func existsByIndex(name: String, value: TuplePackable, on eventLoop: EventLoop) -> Future<Bool>
 }
 
+public class Entita2FDBIndex<T: Entita2FDBModel> {
+    public unowned let path: PartialKeyPath<T>
+    public let type: Any.Type
+    public var previousValue: Any! = nil
+
+    public init(_ path: PartialKeyPath<T>) {
+        self.path = path
+    }
+
+    private func compare0<T: Comparable>(t: T.Type, lhs: Any, rhs: Any) -> Bool {
+        guard let lhs = lhs as? T, let rhs = rhs as? T else { return false }
+
+        return lhs == rhs
+    }
+
+    public func compare<T: Comparable>(with originalValue: T) -> Bool {
+        return self.compare0(t: T.self, lhs: self.previousValue!, rhs: originalValue)
+    }
+}
+
 extension FDB: E2Storage {
-    public func load(by key: Bytes, on eventLoop: EventLoop) -> EventLoopFuture<Bytes?> {
+    public func load(by key: Bytes, on eventLoop: EventLoop) -> Future<Bytes?> {
         return self
             .begin(eventLoop: eventLoop)
             .then { transaction in
@@ -26,7 +48,7 @@ extension FDB: E2Storage {
         by key: Bytes,
         with transaction: Transaction,
         on eventLoop: EventLoop
-    ) -> EventLoopFuture<Bytes?> {
+    ) -> Future<Bytes?> {
         return transaction
             .get(key: key)
             .map { $0.0 }
@@ -36,14 +58,14 @@ extension FDB: E2Storage {
         by range: RangeFDBKey,
         limit: Int32 = 0,
         on eventLoop: EventLoop
-    ) -> EventLoopFuture<KeyValuesResult> {
+    ) -> Future<KeyValuesResult> {
         return self
             .begin(eventLoop: eventLoop)
             .then { $0.get(range: range, limit: limit) }
             .map { $0.0 }
     }
 
-    public func save(bytes: Bytes, by key: Bytes, on eventLoop: EventLoop) -> EventLoopFuture<Void> {
+    public func save(bytes: Bytes, by key: Bytes, on eventLoop: EventLoop) -> Future<Void> {
         return self
             .begin(eventLoop: eventLoop)
             .then { transaction in
@@ -58,13 +80,13 @@ extension FDB: E2Storage {
         by key: Bytes,
         with transaction: Transaction,
         on eventLoop: EventLoop
-    ) -> EventLoopFuture<Void> {
+    ) -> Future<Void> {
         return transaction
             .set(key: key, value: bytes)
             .map { _ in () }
     }
 
-    public func delete(by key: Bytes, on eventLoop: EventLoop) -> EventLoopFuture<Void> {
+    public func delete(by key: Bytes, on eventLoop: EventLoop) -> Future<Void> {
         return self
             .begin(eventLoop: eventLoop)
             .then { $0.clear(key: key, commit: true) }
@@ -73,7 +95,7 @@ extension FDB: E2Storage {
 }
 
 public extension Entita2FDBModel {
-    public static var indices: [String: PartialKeyPath<Self>] {
+    public static var indices: [String: Entita2FDBIndex<Self>] {
         return [:]
     }
 
@@ -116,10 +138,17 @@ public extension Entita2FDBModel {
         return value
     }
 
+    public func afterLoad0(on eventLoop: EventLoop) -> Future<Void> {
+        for (_, index) in Self.indices {
+            index.previousValue = self[keyPath: index.path]
+        }
+        return eventLoop.newSucceededFuture(result: ())
+    }
+
     public func afterInsert0(on eventLoop: EventLoop) -> Future<Void> {
         return EventLoopFuture<Void>.andAll(
-            Self.indices.map { indexName, path in
-                guard let value = self.getIndexValueFrom(index: path) else {
+            Self.indices.map { indexName, index in
+                guard let value = self.getIndexValueFrom(index: index.path) else {
                     return eventLoop.newSucceededFuture(result: ())
                 }
                 return Self.storage
@@ -127,7 +156,7 @@ public extension Entita2FDBModel {
                     .then {
                         $0.set(
                             key: Self.getIndexKeyForIndex(name: indexName, value: value),
-                            value: LGNCore.getBytes(self.getID()),
+                            value: self.getID()._bytes,
                             commit: true
                         )
                     }
@@ -137,10 +166,21 @@ public extension Entita2FDBModel {
         )
     }
 
+    public func afterSave0(on eventLoop: EventLoop) -> EventLoopFuture<Void> {
+        return EventLoopFuture<Void>.andAll(
+            Self.indices.map { indexName, index in
+                guard index.compare(with: self[keyPath: index.path] as! Comparable) else {
+                    return eventLoop.newSucceededFuture(result: ())
+                }
+            },
+            eventLoop: eventLoop
+        )
+    }
+
     public func afterDelete0(on eventLoop: EventLoop) -> Future<Void> {
         return EventLoopFuture<Void>.andAll(
-            Self.indices.map { indexName, path in
-                guard let value = self.getIndexValueFrom(index: path) else {
+            Self.indices.map { indexName, index in
+                guard let value = self.getIndexValueFrom(index: index.path) else {
                     return eventLoop.newSucceededFuture(result: ())
                 }
                 return Self.storage

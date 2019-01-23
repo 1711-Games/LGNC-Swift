@@ -42,11 +42,45 @@ public extension E2Entity {
             }
             return try Self.init(from: bytes, format: Self.format)
         }
+        .then { (maybeModel: Self?) -> Future<Self?> in
+            guard let model = maybeModel else {
+                return eventLoop.newSucceededFuture(result: nil)
+            }
+            return model
+                .afterLoad0(on: eventLoop)
+                .then { model.afterLoad(on: eventLoop) }
+                .map { _ in model }
+        }
     }
 
     public static func load(by ID: Identifier, on eventLoop: EventLoop) -> Future<Self?> {
         return self.loadBy(IDBytes: Self.IDAsKey(ID: ID), on: eventLoop)
     }
+
+    public func afterLoad(on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.newSucceededFuture(result: ())
+    }
+
+    public func afterLoad0(on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.newSucceededFuture(result: ())
+    }
+
+    public func beforeSave0(on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.newSucceededFuture(result: ())
+    }
+
+    public func beforeSave(on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.newSucceededFuture(result: ())
+    }
+
+    public func afterSave(on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.newSucceededFuture(result: ())
+    }
+
+    public func afterSave0(on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.newSucceededFuture(result: ())
+    }
+
 
     public func beforeInsert0(on eventLoop: EventLoop) -> Future<Void> {
         return eventLoop.newSucceededFuture(result: ())
