@@ -72,9 +72,7 @@ public extension Entita2FDBIndexedEntity {
 
     public func afterInsert0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
         return EventLoopFuture<Void>.andAll(
-            Self.indices.map { indexName, index in
-                self.createIndex(indexName, for: index, with: transaction, on: eventLoop)
-            },
+            Self.indices.map { self.createIndex($0.key, for: $0.value, with: transaction, on: eventLoop) },
             eventLoop: eventLoop
         )
     }
