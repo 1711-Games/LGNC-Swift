@@ -15,10 +15,10 @@ public extension LGNCore {
 public extension ArraySlice where Element == Byte {
     public func cast<Result>() -> Result {
         precondition(
-            MemoryLayout<Result>.size == self.count,
-            "Memory layout size for result type '\(Result.self)' (\(MemoryLayout<Result>.size) bytes) does not match with given byte array length (\(self.count) bytes)"
+            MemoryLayout<Result>.size == count,
+            "Memory layout size for result type '\(Result.self)' (\(MemoryLayout<Result>.size) bytes) does not match with given byte array length (\(count) bytes)"
         )
-        return self.withUnsafeBytes {
+        return withUnsafeBytes {
             $0.baseAddress!.assumingMemoryBound(to: Result.self).pointee
         }
     }
@@ -30,24 +30,24 @@ public extension Array where Element == Byte {
     }
 
     public mutating func addNul() {
-        self.append(0)
+        append(0)
     }
 
     public func cast<Result>(file: StaticString = #file, line: Int = #line) -> Result {
         precondition(
-            MemoryLayout<Result>.size == self.count,
-            "Memory layout size for result type '\(Result.self)' (\(MemoryLayout<Result>.size) bytes) does not match with given byte array length (\(self.count) bytes) at \(file):\(line)"
+            MemoryLayout<Result>.size == count,
+            "Memory layout size for result type '\(Result.self)' (\(MemoryLayout<Result>.size) bytes) does not match with given byte array length (\(count) bytes) at \(file):\(line)"
         )
-        return self.withUnsafeBytes {
+        return withUnsafeBytes {
             $0.baseAddress!.assumingMemoryBound(to: Result.self).pointee
         }
     }
 
     public mutating func append(_ bytes: Bytes) {
-        self.append(contentsOf: bytes)
+        append(contentsOf: bytes)
     }
 
     public mutating func prepend(_ bytes: Bytes) {
-        self.insert(contentsOf: bytes, at: 0)
+        insert(contentsOf: bytes, at: 0)
     }
 }

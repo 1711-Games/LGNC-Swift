@@ -17,11 +17,11 @@ public extension DictionaryExtractable {
         if Entita.KEY_DICTIONARIES_ENABLED == false {
             return name
         }
-        return self.keyDictionary[name] ?? name
+        return keyDictionary[name] ?? name
     }
 
     public static func extract(param name: String, from dictionary: Entita.Dict) -> (key: String, value: Any?) {
-        let key = self.getDictionaryKey(name)
+        let key = getDictionaryKey(name)
         return (key: key, value: dictionary[key])
     }
 
@@ -33,9 +33,9 @@ public extension DictionaryExtractable {
         param name: String,
         from dictionary: Entita.Dict
     ) throws -> T {
-        let resultTuple: (key: String, value: Any?) = self.extract(param: name, from: dictionary)
+        let resultTuple: (key: String, value: Any?) = extract(param: name, from: dictionary)
         guard let result = resultTuple.value as? T else {
-            throw Entita.E.ExtractError(self.formatFieldKey(name, resultTuple.key), resultTuple.value)
+            throw Entita.E.ExtractError(formatFieldKey(name, resultTuple.key), resultTuple.value)
         }
         return result
     }
@@ -45,13 +45,13 @@ public extension DictionaryExtractable {
         from dictionary: Entita.Dict,
         isOptional: Bool = false
     ) throws -> T? {
-        let key = self.getDictionaryKey(name)
+        let key = getDictionaryKey(name)
         guard let rawDict = dictionary[key] as? [String: Any] else {
             if isOptional {
                 return nil
             }
             // print("\(#line)")
-            throw Entita.E.ExtractError(self.formatFieldKey(name, key), nil)
+            throw Entita.E.ExtractError(formatFieldKey(name, key), nil)
         }
         return try T(from: rawDict)
     }
@@ -61,14 +61,14 @@ public extension DictionaryExtractable {
         from dictionary: Entita.Dict,
         isOptional: Bool = false
     ) throws -> T? {
-        let resultTuple: (key: String, value: Any?) = self.extract(param: name, from: dictionary)
+        let resultTuple: (key: String, value: Any?) = extract(param: name, from: dictionary)
         guard let result = resultTuple.value as? T else {
             // print(T.self)
             // print("\(#line)")
             if isOptional {
                 return nil
             }
-            throw Entita.E.ExtractError(self.formatFieldKey(name, resultTuple.key), resultTuple.value)
+            throw Entita.E.ExtractError(formatFieldKey(name, resultTuple.key), resultTuple.value)
         }
         return result
     }
@@ -77,14 +77,14 @@ public extension DictionaryExtractable {
         param name: String,
         from dictionary: Entita.Dict
     ) throws -> T {
-        let resultTuple: (key: String, value: Any?) = self.extract(param: name, from: dictionary)
+        let resultTuple: (key: String, value: Any?) = extract(param: name, from: dictionary)
         guard let resultValue = resultTuple.value as? T.RawValue else {
             // print("\(#line)")
-            throw Entita.E.ExtractError(self.formatFieldKey(name, resultTuple.key), resultTuple.value)
+            throw Entita.E.ExtractError(formatFieldKey(name, resultTuple.key), resultTuple.value)
         }
         guard let result = T(rawValue: resultValue) else {
             // print("\(#line)")
-            throw Entita.E.ExtractError(self.formatFieldKey(name, resultTuple.key), resultValue)
+            throw Entita.E.ExtractError(formatFieldKey(name, resultTuple.key), resultValue)
         }
         return result
     }
@@ -93,10 +93,10 @@ public extension DictionaryExtractable {
         param name: String,
         from dictionary: Entita.Dict
     ) throws -> T {
-        let key = self.getDictionaryKey(name)
+        let key = getDictionaryKey(name)
         guard let rawDict = dictionary[key] as? [String: Any] else {
             // print("\(#line)")
-            throw Entita.E.ExtractError(self.formatFieldKey(name, key), nil)
+            throw Entita.E.ExtractError(formatFieldKey(name, key), nil)
         }
         return try T(from: rawDict)
     }
@@ -105,10 +105,10 @@ public extension DictionaryExtractable {
         param name: String,
         from dictionary: Entita.Dict
     ) throws -> [T] {
-        let key = self.getDictionaryKey(name)
+        let key = getDictionaryKey(name)
         guard let rawList = dictionary[key] as? [Entita.Dict] else {
             // print("\(#line)")
-            throw Entita.E.ExtractError(self.formatFieldKey(name, key), nil)
+            throw Entita.E.ExtractError(formatFieldKey(name, key), nil)
         }
         return try rawList.map { try T(from: $0) }
     }
@@ -117,10 +117,10 @@ public extension DictionaryExtractable {
         param name: String,
         from dictionary: Entita.Dict
     ) throws -> [String: T] {
-        let key = self.getDictionaryKey(name)
+        let key = getDictionaryKey(name)
         guard let rawDict = dictionary[key] as? [String: Entita.Dict] else {
             // print("\(#line)")
-            throw Entita.E.ExtractError(self.formatFieldKey(name, key), nil)
+            throw Entita.E.ExtractError(formatFieldKey(name, key), nil)
         }
         return try Dictionary(uniqueKeysWithValues: rawDict.map { key, rawDict in try (key, T(from: rawDict)) })
     }
@@ -129,10 +129,10 @@ public extension DictionaryExtractable {
         param name: String,
         from dictionary: Entita.Dict
     ) throws -> [String: [T]] {
-        let key = self.getDictionaryKey(name)
+        let key = getDictionaryKey(name)
         guard let rawDict = dictionary[key] as? [String: [Entita.Dict]] else {
             // print("\(#line)")
-            throw Entita.E.ExtractError(self.formatFieldKey(name, key), nil)
+            throw Entita.E.ExtractError(formatFieldKey(name, key), nil)
         }
         return try Dictionary(uniqueKeysWithValues: rawDict.map { key, rawDict in try (key, rawDict.map { try T(from: $0) }) })
     }
@@ -141,21 +141,21 @@ public extension DictionaryExtractable {
         param name: String,
         from dictionary: Entita.Dict
     ) throws -> Double {
-        return (try self.extract(param: name, from: dictionary) as NSNumber).doubleValue
+        return (try extract(param: name, from: dictionary) as NSNumber).doubleValue
     }
 
     public static func extract(
         param name: String,
         from dictionary: Entita.Dict
     ) throws -> Int {
-        return (try self.extract(param: name, from: dictionary) as NSNumber).intValue
+        return (try extract(param: name, from: dictionary) as NSNumber).intValue
     }
 
     public static func extract(
         param name: String,
         from dictionary: Entita.Dict
     ) throws -> [Int] {
-        return (try self.extract(param: name, from: dictionary) as [NSNumber]).map { $0.intValue }
+        return (try extract(param: name, from: dictionary) as [NSNumber]).map { $0.intValue }
     }
 
     public static func extract(
@@ -164,7 +164,7 @@ public extension DictionaryExtractable {
     ) throws -> [String: Int] {
         return Dictionary(
             uniqueKeysWithValues:
-            (try self.extract(param: name, from: dictionary) as [String: NSNumber])
+            (try extract(param: name, from: dictionary) as [String: NSNumber])
                 .map { key, value in (key, value.intValue) }
         )
     }
@@ -176,11 +176,11 @@ public extension DictionaryExtractable {
     ) throws -> Identifier {
         let dataset: Entita.Dict
         if let subkey = subkey {
-            dataset = try self.extract(param: subkey, from: dictionary)
+            dataset = try extract(param: subkey, from: dictionary)
         } else {
             dataset = dictionary
         }
-        return Identifier(try self.extract(param: name, from: dataset) as String)
+        return Identifier(try extract(param: name, from: dataset) as String)
     }
 
     public func extract<T>(param name: String, from dictionary: Entita.Dict) throws -> T {

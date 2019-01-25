@@ -7,7 +7,7 @@ internal extension LGNS {
         fileprivate enum State {
             case start, waitingForHeader, waitingForBody
         }
-        
+
         typealias InboundIn = ByteBuffer
         typealias InboundOut = LGNP.Message
         typealias OutboundIn = LGNP.Message
@@ -32,7 +32,7 @@ internal extension LGNS {
         ) {
             self.cryptor = cryptor
             self.requiredBitmask = requiredBitmask
-            self.salt = Bytes(self.cryptor.salt.utf8)
+            salt = Bytes(self.cryptor.salt.utf8)
             self.validateRequiredBitmask = validateRequiredBitmask
         }
 
@@ -44,7 +44,7 @@ internal extension LGNS {
         }
 
         private func parseHeaderAndLength(from input: Bytes, _: ChannelHandlerContext) throws {
-            self.messageLength = UInt32(
+            messageLength = UInt32(
                 try LGNP.validateMessageProtocolAndParseLength(
                     from: input,
                     checkMinimumMessageSize: false
@@ -58,27 +58,26 @@ internal extension LGNS {
         }
 
         public func channelRead(ctx: ChannelHandlerContext, data: NIOAny) {
-            var input = self.unwrapInboundIn(data)
+            var input = unwrapInboundIn(data)
             var updateBuffer = true
 
-            switch self.state {
+            switch state {
             case .start:
-                self.buffer = input
-                self.state = .waitingForHeader
+                buffer = input
+                state = .waitingForHeader
                 updateBuffer = false
                 fallthrough
             case .waitingForHeader:
                 if updateBuffer {
-                    self.buffer.write(buffer: &input)
+                    buffer.write(buffer: &input)
                 }
-                
+
                 if
-                    self.buffer.readableBytes >= LGNPCoder.MESSAGE_HEADER_LENGTH,
-                    let headerBytes = self.buffer.readBytes(length: LGNPCoder.MESSAGE_HEADER_LENGTH)
-                {
+                    buffer.readableBytes >= LGNPCoder.MESSAGE_HEADER_LENGTH,
+                    let headerBytes = self.buffer.readBytes(length: LGNPCoder.MESSAGE_HEADER_LENGTH) {
                     do {
-                        try self.parseHeaderAndLength(from: headerBytes, ctx)
-                        self.state = .waitingForBody
+                        try parseHeaderAndLength(from: headerBytes, ctx)
+                        state = .waitingForBody
                         fallthrough
                     } catch {
                         ctx.fireErrorCaught(error)
@@ -87,33 +86,32 @@ internal extension LGNS {
                 }
             case .waitingForBody:
                 if updateBuffer {
-                    self.buffer.write(buffer: &input)
+                    buffer.write(buffer: &input)
                 }
 
                 if
-                    self.buffer.readableBytes + LGNPCoder.MESSAGE_HEADER_LENGTH >= self.messageLength, // buffer size is at least stated bytes long
-                    let bytes = self.buffer.readAllBytes() // all other bytes are read from buffer
-                {
-                    self.buffer = nil // clear buffer
+                    buffer.readableBytes + LGNPCoder.MESSAGE_HEADER_LENGTH >= messageLength, // buffer size is at least stated bytes long
+                    let bytes = self.buffer.readAllBytes() { // all other bytes are read from buffer
+                    buffer = nil // clear buffer
                     // try to parse
                     do {
                         let message = try LGNP.decode(
                             body: bytes,
                             length: messageLength,
-                            with: self.cryptor,
-                            salt: self.salt
+                            with: cryptor,
+                            salt: salt
                         )
                         if message.containsError {
                             ctx.fireErrorCaught(LGNS.E.LGNPError(message.payloadAsString))
                             return
                         }
-                        guard !self.validateRequiredBitmask || message.controlBitmask.isSuperset(of: self.requiredBitmask) else {
+                        guard !validateRequiredBitmask || message.controlBitmask.isSuperset(of: requiredBitmask) else {
                             ctx.fireErrorCaught(LGNS.E.RequiredBitmaskNotSatisfied)
                             return
                         }
-                        ctx.fireChannelRead(self.wrapInboundOut(message))
-                        
-                        self.state = .start
+                        ctx.fireChannelRead(wrapInboundOut(message))
+
+                        state = .start
                     } catch {
                         ctx.fireErrorCaught(error)
                     }
@@ -124,11 +122,11 @@ internal extension LGNS {
         public func write(ctx: ChannelHandlerContext, data: NIOAny, promise: PromiseVoid?) {
             do {
                 ctx.write(
-                    self.wrapOutboundOut(
+                    wrapOutboundOut(
                         ctx.channel.allocator.allocateBuffer(
                             from: try LGNP.encode(
-                                message: self.unwrapOutboundIn(data),
-                                with: self.cryptor
+                                message: unwrapOutboundIn(data),
+                                with: cryptor
                             )
                         )
                     ),

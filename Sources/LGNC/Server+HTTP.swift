@@ -1,9 +1,9 @@
+import Entita
 import LGNCore
-import NIO
-import LGNS
 import LGNP
 import LGNPContenter
-import Entita
+import LGNS
+import NIO
 
 public extension LGNP.Message.ContentType {
     public init(from HTTPContentType: LGNC.HTTP.ContentType) {
@@ -24,11 +24,11 @@ public extension Service {
         writeTimeout: TimeAmount = .minutes(1),
         promise: PromiseVoid? = nil
     ) throws {
-        try self.validate(transport: .HTTP)
+        try validate(transport: .HTTP)
 
-        let address = try self.unwrapAddress(from: target)
+        let address = try unwrapAddress(from: target)
 
-        try self.checkGuarantees()
+        try checkGuarantees()
 
         let server = LGNC.HTTP.Server(
             eventLoopGroup: eventLoopGroup,

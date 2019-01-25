@@ -29,15 +29,15 @@ public extension LGNP {
             guard let iv = String(bytes: uuid.uuidString.bytes[0 ..< Cryptor.IV_SIZE - self.salt.bytes.count], encoding: .ascii) else {
                 throw E.InvalidIV("Could not generate IV")
             }
-            return "\(self.salt)\(iv)"
+            return "\(salt)\(iv)"
         }
 
         public func encrypt(input: Bytes, uuid: UUID) throws -> Bytes {
-            return try AES(key: self.key, iv: try self.getIV(from: uuid)).encrypt(input)
+            return try AES(key: key, iv: try getIV(from: uuid)).encrypt(input)
         }
 
         public func decrypt(input: Bytes, uuid: UUID) throws -> Bytes {
-            return try AES(key: self.key, iv: try self.getIV(from: uuid)).decrypt(input)
+            return try AES(key: key, iv: try getIV(from: uuid)).decrypt(input)
         }
     }
 }

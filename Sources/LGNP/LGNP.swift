@@ -26,7 +26,7 @@ public struct LGNP {
         from messageBytes: Bytes,
         checkMinimumMessageSize: Bool = true
     ) throws -> LGNP.Message.LengthType {
-        let protocolHeaderBytes = self.getProtocolLabelBytes()
+        let protocolHeaderBytes = getProtocolLabelBytes()
         guard checkMinimumMessageSize == false || messageBytes.count >= LGNP.MINIMUM_MESSAGE_LENGTH else {
             // this error is soft one because chunk might be too short to parse
             // all other errors are fatal though
@@ -65,7 +65,7 @@ public struct LGNP {
         }
         rawBody.append(message.payload)
         if let signature = self.getSignature(body: rawBody, message: message) {
-            if self.verbose {
+            if verbose {
                 print("[\(message.uuid.uuidString)] Compiled message signature \(signature.toHexString())")
             }
             rawBody.insert(contentsOf: signature, at: 0)
@@ -74,13 +74,13 @@ public struct LGNP {
             if let cryptor = cryptor {
                 do {
                     rawBody = try cryptor.encrypt(input: rawBody, uuid: message.uuid)
-                    if self.verbose {
+                    if verbose {
                         print("[\(message.uuid.uuidString)] Encrypted message with aes")
                     }
                 } catch {
                     throw E.EncryptionFailed("Encryption failed: \(error)")
                 }
-            } else if self.verbose {
+            } else if verbose {
                 print("[\(message.uuid.uuidString)] Encrypted bitmask provided, but no Cryptor")
             }
         }
@@ -116,12 +116,12 @@ public struct LGNP {
         saltedBody.append(LGNCore.getBytes(uuid))
         var result: Bytes?
         if controlBitmask.contains(.signatureRIPEMD320) {
-            if self.verbose {
+            if verbose {
                 print("RIPEMD320 not implemented yet")
             }
         }
         if controlBitmask.contains(.signatureRIPEMD160) {
-            if self.verbose {
+            if verbose {
                 print("RIPEMD160 not implemented yet")
             }
         }
@@ -135,7 +135,7 @@ public struct LGNP {
     }
 
     private static func getSignature(body: Bytes, message: Message) -> Bytes? {
-        return self.getSignature(
+        return getSignature(
             body: body,
             salt: message.salt,
             controlBitmask: message.controlBitmask,
@@ -145,20 +145,20 @@ public struct LGNP {
 
     public static func encode(message: Message, with cryptor: Cryptor? = nil) throws -> Bytes {
         var result = Bytes()
-        if self.verbose {
+        if verbose {
             print("[\(message.uuid.uuidString)] Began encoding message")
         }
-        result.prepend(try self.getBodyFor(message, with: cryptor))
+        result.prepend(try getBodyFor(message, with: cryptor))
         result.prepend(LGNCore.getBytes(message.controlBitmask))
-        if self.verbose {
+        if verbose {
             print("[\(message.uuid.uuidString)] Message control bitmask is \(message.controlBitmask.rawValue)")
         }
         result.prepend(LGNCore.getBytes(message.uuid))
-        if self.verbose {
+        if verbose {
             print("[\(message.uuid.uuidString)] Message headless size is \(Message.LengthType(result.count)) bytes")
         }
-        result.prepend(LGNCore.getBytes(Message.LengthType(result.count) + Message.LengthType(self.MESSAGE_HEADER_LENGTH)))
-        result.prepend(self.getProtocolLabelBytes())
+        result.prepend(LGNCore.getBytes(Message.LengthType(result.count) + Message.LengthType(MESSAGE_HEADER_LENGTH)))
+        result.prepend(getProtocolLabelBytes())
         return result
     }
 
@@ -172,15 +172,15 @@ public struct LGNP {
          fails with odd error message "Not enough bits to represent a signed value". Hopefully, it will at least be
          properly documented in future Swift versions (last tested on 4.1) or even fixed.
          */
-        guard body != self.ERROR_RESPONSE else {
+        guard body != ERROR_RESPONSE else {
             throw E.InvalidMessage("Response message is error")
         }
         guard body.count >= Int(LGNP.MESSAGE_HEADER_LENGTH) else {
             throw E.InvalidMessageProtocol("Message is not long enough: \(String(bytes: body, encoding: .ascii) ?? "unparseable")")
         }
-        return try self.decode(
+        return try decode(
             body: Bytes(body[Int(LGNP.MESSAGE_HEADER_LENGTH)...]),
-            length: try self.validateMessageProtocolAndParseLength(from: body),
+            length: try validateMessageProtocolAndParseLength(from: body),
             with: cryptor,
             salt: salt
         )
@@ -192,7 +192,7 @@ public struct LGNP {
         with cryptor: Cryptor? = nil,
         salt: Bytes
     ) throws -> Message {
-        let realLength = length - Message.LengthType(self.MESSAGE_HEADER_LENGTH)
+        let realLength = length - Message.LengthType(MESSAGE_HEADER_LENGTH)
         guard body.count >= realLength else {
             throw E.ParsingFailed("Body length must be \(realLength) bytes or more (given \(body.count) bytes)")
         }
@@ -221,14 +221,14 @@ public struct LGNP {
             }
             do {
                 payload = try cryptor.decrypt(input: payload, uuid: uuid)
-                if self.verbose {
+                if verbose {
                     print("Deencrypted")
                 }
             } catch {
                 throw E.DeencryptionFailed("Could not deencrypt payload: \(error)")
             }
         }
-        payload = try self.validateSignatureAndGetBody(
+        payload = try validateSignatureAndGetBody(
             from: payload,
             uuid: uuid,
             salt: salt,
@@ -241,12 +241,12 @@ public struct LGNP {
         guard let URI: String = String(bytes: URIBytes, encoding: .ascii) else {
             throw E.URIParsingFailed("Could not parse ASCII URI from bytes \(Bytes(URIBytes))")
         }
-        if self.verbose {
+        if verbose {
             print("Parsed URI '\(URI)'")
         }
         payload = Bytes(payload[(URIEndPos + 1)...])
         let meta: Bytes? = controlBitmask.contains(.containsMeta)
-            ? try self.extractMeta(from: &payload)
+            ? try extractMeta(from: &payload)
             : nil
         return Message(
             URI: URI,
@@ -317,7 +317,7 @@ public struct LGNP {
             LGNCore.log("Given \(signatureName) signature (\(givenSignature.toHexString())) does not match with etalon (\(etalonSignature.toHexString()))")
             throw E.SignatureVerificationFailed("Signature mismatch")
         }
-        if self.verbose {
+        if verbose {
             print("Validated \(signatureName) signature \(etalonSignature.toHexString())")
         }
         return result

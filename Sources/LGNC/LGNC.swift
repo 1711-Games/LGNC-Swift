@@ -1,22 +1,22 @@
+import Entita
 import Foundation
 import LGNCore
-import LGNS
 import LGNP
-import Entita
+import LGNS
 import NIO
 
 public struct LGNC {
-    static public let VERSION = "0.1.0a"
+    public static let VERSION = "0.1.0a"
 
-    static public let ENTITY_KEY = "a"
-    static public let ID_KEY = "a"
-    static public let GLOBAL_ERROR_KEY = "_"
+    public static let ENTITY_KEY = "a"
+    public static let ID_KEY = "a"
+    public static let GLOBAL_ERROR_KEY = "_"
 
-    static public var ALLOW_INCOMPLETE_GUARANTEE = false
-    static public var ALLOW_ALL_TRANSPORTS = false
+    public static var ALLOW_INCOMPLETE_GUARANTEE = false
+    public static var ALLOW_ALL_TRANSPORTS = false
 
     public static func getMeta(from requestInfo: LGNC.RequestInfo) -> Bytes {
-        return self.getMeta(clientAddr: requestInfo.clientAddr, userAgent: requestInfo.userAgent)
+        return getMeta(clientAddr: requestInfo.clientAddr, userAgent: requestInfo.userAgent)
     }
 
     public static func getMeta(clientAddr: String, userAgent: String) -> Bytes {
@@ -31,7 +31,6 @@ public struct LGNC {
         }
         return metaBytes
     }
-
 }
 
 public extension LGNC {
@@ -70,12 +69,12 @@ public extension LGNC {
             from innerRequestInfo: LGNS.RequestInfo,
             transport: LGNC.Transport
         ) {
-            self.remoteAddr = innerRequestInfo.remoteAddr
-            self.clientAddr = innerRequestInfo.clientAddr
-            self.userAgent = innerRequestInfo.userAgent
-            self.uuid = innerRequestInfo.uuid
-            self.isSecure = innerRequestInfo.isSecure
-            self.eventLoop = innerRequestInfo.eventLoop
+            remoteAddr = innerRequestInfo.remoteAddr
+            clientAddr = innerRequestInfo.clientAddr
+            userAgent = innerRequestInfo.userAgent
+            uuid = innerRequestInfo.uuid
+            isSecure = innerRequestInfo.isSecure
+            eventLoop = innerRequestInfo.eventLoop
             self.transport = transport
         }
     }
@@ -92,7 +91,7 @@ public extension LGNC.Entity {
                 :
             ]
         }
-        
+
         public static var internalError: Result {
             return Result(
                 result: nil,
@@ -101,12 +100,12 @@ public extension LGNC.Entity {
                 success: false
             )
         }
-        
+
         public let result: Entity?
         public let errors: [String: [Error]]
         public let meta: [String: String]
         public let success: Bool
-        
+
         public required init(
             result: Entity?,
             errors: [String: [Error]],
@@ -127,21 +126,21 @@ public extension LGNC.Entity {
                 success: false
             )
         }
-        
+
         public convenience init(from multipleErrors: [String: [ClientError]]) {
             self.init(from: Dictionary(uniqueKeysWithValues: multipleErrors.map { key, errors in
                 (key, errors.map { LGNC.Entity.Error(from: $0.getErrorTuple()) })
             }))
         }
-        
+
         public convenience init(from entity: Entity, success: Bool = true) {
             self.init(result: entity, errors: [:], meta: [:], success: success)
         }
-        
+
         public static func initFromResponse<T: ContractEntity>(
             from dictionary: Entita.Dict,
             on eventLoop: EventLoop,
-            type: T.Type
+            type _: T.Type
         ) -> EventLoopFuture<Result> {
             var errors: [String: [ValidatorError]] = [
                 "result": [],
@@ -149,36 +148,36 @@ public extension LGNC.Entity {
                 "meta": [],
                 "success": [],
             ]
-            var _result: Entita.Dict? = nil
+            var _result: Entita.Dict?
             var _errors: [String: [Error]] = [:]
             var _meta: [String: String] = [:]
             var _success: Bool!
-            
+
             do {
                 do {
                     _result = try Result.extract(param: "result", from: dictionary, isOptional: true)
                 } catch Entita.E.ExtractError {
                     errors["result"]?.append(Validation.Error.MissingValue())
                 }
-                
+
                 do {
                     _errors = try Result.extract(param: "errors", from: dictionary)
                 } catch Entita.E.ExtractError {
                     errors["errors"]?.append(Validation.Error.MissingValue())
                 }
-                
+
                 do {
                     _meta = try Result.extract(param: "meta", from: dictionary)
                 } catch Entita.E.ExtractError {
                     errors["meta"]?.append(Validation.Error.MissingValue())
                 }
-                
+
                 do {
                     _success = try Result.extract(param: "success", from: dictionary)
                 } catch Entita.E.ExtractError {
                     errors["success"]?.append(Validation.Error.MissingValue())
                 }
-                
+
                 let filteredErrors = errors.filter({ _, value in value.count > 0 })
                 guard filteredErrors.count == 0 else {
                     throw LGNC.E.DecodeError(filteredErrors)
@@ -205,7 +204,7 @@ public extension LGNC.Entity {
                 )
             }
         }
-        
+
         public static func initWithValidation(from dictionary: Entita.Dict, on eventLoop: EventLoop) -> EventLoopFuture<Result> {
             var errors: [String: [ValidatorError]] = [
                 "result": [],
@@ -214,36 +213,36 @@ public extension LGNC.Entity {
                 "success": [],
             ]
 
-            var _result: Entity? = nil
+            var _result: Entity?
             var _errors: [String: [Error]] = [:]
             var _meta: [String: String] = [:]
             var _success: Bool!
-            
+
             do {
                 do {
                     _result = try Result.extract(param: "result", from: dictionary, isOptional: true)
                 } catch Entita.E.ExtractError {
                     errors["result"]?.append(Validation.Error.MissingValue())
                 }
-                
+
                 do {
                     _errors = try Result.extract(param: "errors", from: dictionary)
                 } catch Entita.E.ExtractError {
                     errors["errors"]?.append(Validation.Error.MissingValue())
                 }
-                
+
                 do {
                     _meta = try Result.extract(param: "meta", from: dictionary)
                 } catch Entita.E.ExtractError {
                     errors["meta"]?.append(Validation.Error.MissingValue())
                 }
-                
+
                 do {
                     _success = try Result.extract(param: "success", from: dictionary)
                 } catch Entita.E.ExtractError {
                     errors["success"]?.append(Validation.Error.MissingValue())
                 }
-                
+
                 let filteredErrors = errors.filter({ _, value in value.count > 0 })
                 guard filteredErrors.count == 0 else {
                     throw LGNC.E.DecodeError(filteredErrors)
@@ -261,7 +260,7 @@ public extension LGNC.Entity {
                 )
             )
         }
-        
+
         public convenience init(from dictionary: Entita.Dict) throws {
             self.init(
                 result: try Result.extract(param: "result", from: dictionary),
@@ -270,7 +269,7 @@ public extension LGNC.Entity {
                 success: try Result.extract(param: "success", from: dictionary)
             )
         }
-        
+
         public func getDictionary() throws -> Entita.Dict {
             return [
                 self.getDictionaryKey("result"): try self.encode(self.result),
@@ -280,21 +279,21 @@ public extension LGNC.Entity {
             ]
         }
     }
-    
+
     public final class Error: ContractEntity, ClientError {
         public static let keyDictionary: [String: String] = [
 //            "message": "a",
 //            "code": "b",
             :
         ]
-        
+
         public let message: String
         public let code: Int
-        
+
         public static var internalError: Error {
             return self.init(from: LGNC.ContractError.InternalError)
         }
-        
+
         public required init(
             message: String,
             code: Int
@@ -302,19 +301,19 @@ public extension LGNC.Entity {
             self.message = message
             self.code = code
         }
-        
+
         public convenience init(from tuple: (message: String, code: Int)) {
             self.init(message: tuple.message, code: tuple.code)
         }
-        
+
         public convenience init(from error: ClientError) {
             self.init(from: error.getErrorTuple())
         }
 
         public func getErrorTuple() -> (message: String, code: Int) {
-            return (message: self.message, code: self.code)
+            return (message: message, code: code)
         }
-        
+
         public static func initWithValidation(from dictionary: Entita.Dict, on eventLoop: EventLoop) -> EventLoopFuture<Error> {
             var errors: [String: [ValidatorError]] = [
                 "message": [],
@@ -323,7 +322,7 @@ public extension LGNC.Entity {
 
             var _message: String!
             var _code: Int!
-            
+
             do {
                 do {
                     _message = try Error.extract(param: "message", from: dictionary)
@@ -336,7 +335,7 @@ public extension LGNC.Entity {
                 } catch Entita.E.ExtractError {
                     errors["code"]?.append(Validation.Error.MissingValue())
                 }
-                
+
                 let filteredErrors = errors.filter({ _, value in value.count > 0 })
                 guard filteredErrors.count == 0 else {
                     throw LGNC.E.DecodeError(filteredErrors)
@@ -344,7 +343,7 @@ public extension LGNC.Entity {
             } catch {
                 return eventLoop.newFailedFuture(error: error)
             }
-            
+
             return eventLoop.newSucceededFuture(
                 result: self.init(
                     message: _message,
@@ -352,14 +351,14 @@ public extension LGNC.Entity {
                 )
             )
         }
-        
+
         public convenience init(from dictionary: Entita.Dict) throws {
             self.init(
                 message: try Error.extract(param: "message", from: dictionary),
                 code: try Error.extract(param: "code", from: dictionary)
             )
         }
-        
+
         public func getDictionary() throws -> Entita.Dict {
             return [
                 self.getDictionaryKey("message"): try self.encode(self.message),

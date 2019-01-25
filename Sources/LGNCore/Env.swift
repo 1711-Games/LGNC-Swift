@@ -6,10 +6,10 @@ public extension LGNCore {
 
         public subscript(index: String) -> String {
             get {
-                return self.get(index)!
+                return get(index)!
             }
             set {
-                self.values[index] = newValue
+                values[index] = newValue
             }
         }
 
@@ -18,7 +18,7 @@ public extension LGNCore {
         }
 
         public func get(_ index: String) -> String? {
-            return self.values[index]
+            return values[index]
         }
 
         public static func log(_ message: String) {
@@ -42,7 +42,7 @@ public extension LGNCore {
             }
             guard errors.count == 0 else {
                 for name in errors {
-                    self.log("Missing required env param \(name)")
+                    log("Missing required env param \(name)")
                 }
                 exit(1)
             }

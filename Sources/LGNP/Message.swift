@@ -39,20 +39,20 @@ public extension LGNP {
 
             public var hasSignature: Bool {
                 return false
-                    || self.contains(.signatureSHA1)
-                    || self.contains(.signatureSHA256)
-                    || self.contains(.signatureRIPEMD160)
-                    || self.contains(.signatureRIPEMD320)
+                    || contains(.signatureSHA1)
+                    || contains(.signatureSHA256)
+                    || contains(.signatureRIPEMD160)
+                    || contains(.signatureRIPEMD320)
             }
 
             public var contentType: ContentType {
-                if self.contains(.contentTypeMsgPack) {
+                if contains(.contentTypeMsgPack) {
                     return .MsgPack
-                } else if self.contains(.contentTypeJSON) {
+                } else if contains(.contentTypeJSON) {
                     return .JSON
-                } else if self.contains(.contentTypeXML) {
+                } else if contains(.contentTypeXML) {
                     return .XML
-                } else if self.contains(.contentTypePlainText) {
+                } else if contains(.contentTypePlainText) {
                     return .PlainText
                 }
                 return .PlainText
@@ -63,7 +63,7 @@ public extension LGNP {
             }
 
             public var bytes: Bytes {
-                return LGNCore.getBytes(self.rawValue)
+                return LGNCore.getBytes(rawValue)
             }
         }
 
@@ -74,24 +74,24 @@ public extension LGNP {
         public var controlBitmask: ControlBitmask
         public var meta: Bytes? {
             didSet {
-                if self.meta != nil {
-                    self.controlBitmask.insert(.containsMeta)
+                if meta != nil {
+                    controlBitmask.insert(.containsMeta)
                 } else {
-                    self.controlBitmask.remove(.containsMeta)
+                    controlBitmask.remove(.containsMeta)
                 }
             }
         }
 
         public var contentType: ContentType {
-            return self.controlBitmask.contentType
+            return controlBitmask.contentType
         }
 
         public var containsError: Bool {
-            return self.controlBitmask.contains(.containsError)
+            return controlBitmask.contains(.containsError)
         }
 
         public var payloadAsString: String {
-            return String(bytes: self.payload, encoding: .ascii)!
+            return String(bytes: payload, encoding: .ascii)!
         }
 
         public init(
@@ -115,7 +115,7 @@ public extension LGNP {
 
             self.controlBitmask = _controlBitmask
         }
-        
+
         public static func error(message: String) -> Message {
             return self.init(URI: "", payload: message.bytes, salt: [])
         }
@@ -129,7 +129,7 @@ public extension LGNP {
             return Message(
                 URI: URI == nil ? self.URI : "",
                 payload: payload,
-                salt: self.salt,
+                salt: salt,
                 controlBitmask: (controlBitmask ?? self.controlBitmask).subtracting(.containsMeta),
                 uuid: uuid ?? self.uuid
             )

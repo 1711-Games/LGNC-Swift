@@ -1,9 +1,8 @@
-import Foundation
 import Entita
+import Foundation
 import LGNS
 
 public extension Contracts {
-    
 }
 
 public protocol ContractEntity: Entity {
@@ -16,16 +15,16 @@ public extension ContractEntity {
         on eventLoop: EventLoop
     ) -> Future<[String: [ValidatorError]]> {
         return Future<[String: [ValidatorError]]>
-        .reduce(
-            into: Dictionary(uniqueKeysWithValues: validators.keys.map { ($0, []) }),
-            validators.values.reduce(into: []) { $0.append(contentsOf: $1) },
-            eventLoop: eventLoop
-        ) { carry, result in
-            if let error = result.1 {
-                carry[result.0]!.append(error)
+            .reduce(
+                into: Dictionary(uniqueKeysWithValues: validators.keys.map { ($0, []) }),
+                validators.values.reduce(into: []) { $0.append(contentsOf: $1) },
+                eventLoop: eventLoop
+            ) { carry, result in
+                if let error = result.1 {
+                    carry[result.0]!.append(error)
+                }
+            }.map {
+                $0.filter { $0.value.count > 0 }
             }
-        }.map {
-            $0.filter { $0.value.count > 0 }
-        }
     }
 }

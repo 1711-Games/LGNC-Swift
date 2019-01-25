@@ -1,8 +1,8 @@
+import Entita
 import Foundation
 import LGNCore
 import LGNP
 import LGNS
-import Entita
 import NIO
 
 public protocol Service {

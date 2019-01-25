@@ -1,10 +1,10 @@
+import Entita
 import Foundation
 import LGNCore
 import LGNP
 import LGNS
-import Entita
-import SwiftMsgPack
 import NIO
+import SwiftMsgPack
 
 fileprivate extension LGNC {
     fileprivate struct Formatter {
@@ -33,31 +33,31 @@ public func stringIpToInt(_ input: String) -> UInt32 {
 }
 
 public func intToIpString(_ input: UInt32) -> String {
-    let byte1 = UInt8(input & 0xff)
-    let byte2 = UInt8((input >> 8) & 0xff)
-    let byte3 = UInt8((input >> 16) & 0xff)
-    let byte4 = UInt8((input >> 24) & 0xff)
+    let byte1 = UInt8(input & 0xFF)
+    let byte2 = UInt8((input >> 8) & 0xFF)
+    let byte3 = UInt8((input >> 16) & 0xFF)
+    let byte4 = UInt8((input >> 24) & 0xFF)
     return "\(byte4).\(byte3).\(byte2).\(byte1)"
 }
 
 private extension String {
     var wholeRange: NSRange {
-        return NSRange(location: 0, length: self.count)
+        return NSRange(location: 0, length: count)
     }
-    
-    //TODO: Use ObjectiveCBridgeable or wait until NSRegularExpression has a swifty API
+
+    // TODO: Use ObjectiveCBridgeable or wait until NSRegularExpression has a swifty API
     var _ns: NSString {
         return self as NSString
     }
-    
+
     func substringWithRange(_ range: NSRange) -> String {
-        return self._ns.substring(with: range)
+        return _ns.substring(with: range)
     }
 }
 
 internal extension String {
     var isNumber: Bool {
-        return !isEmpty && self.rangeOfCharacter(from: CharacterSet.decimalDigits.inverted) == nil
+        return !isEmpty && rangeOfCharacter(from: CharacterSet.decimalDigits.inverted) == nil
     }
 }
 
@@ -74,7 +74,7 @@ private extension NSTextCheckingResult {
 public struct Match {
     public let matchedString: String
     public let captureGroups: [String]
-    
+
     public init(baseString string: String, checkingResult: NSTextCheckingResult) {
         matchedString = string.substringWithRange(checkingResult.range)
         captureGroups = checkingResult.ranges.dropFirst().map { range in
@@ -86,28 +86,28 @@ public struct Match {
 public struct Regex {
     public let pattern: String
     public let options: NSRegularExpression.Options
-    
+
     fileprivate let matcher: NSRegularExpression
-    
+
     public init?(pattern: String, options: NSRegularExpression.Options = []) {
         guard let matcher = try? NSRegularExpression(pattern: pattern, options: options) else {
             return nil
         }
-        
+
         self.matcher = matcher
         self.pattern = pattern
         self.options = options
     }
-    
+
     public func match(_ string: String, options: NSRegularExpression.MatchingOptions = [], range: NSRange? = .none) -> Bool {
         let range = range ?? string.wholeRange
-        
+
         return matcher.numberOfMatches(in: string, options: options, range: range) != 0
     }
-    
+
     public func matches(_ string: String, options: NSRegularExpression.MatchingOptions = [], range: NSRange? = .none) -> [Match] {
         let range = range ?? string.wholeRange
-        
+
         return matcher.matches(in: string, options: options, range: range).map { Match(baseString: string, checkingResult: $0)
         }
     }
@@ -115,16 +115,16 @@ public struct Regex {
 
 internal extension String {
     func chopPrefix(_ prefix: String) -> String? {
-        if self.unicodeScalars.starts(with: prefix.unicodeScalars) {
+        if unicodeScalars.starts(with: prefix.unicodeScalars) {
             return String(self[self.index(self.startIndex, offsetBy: prefix.count)...])
         } else {
             return nil
         }
     }
-    
+
     func containsDotDot() -> Bool {
-        for idx in self.indices {
-            if self[idx] == "." && idx < self.index(before: self.endIndex) && self[self.index(after: idx)] == "." {
+        for idx in indices {
+            if self[idx] == "." && idx < index(before: endIndex) && self[self.index(after: idx)] == "." {
                 return true
             }
         }

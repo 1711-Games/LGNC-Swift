@@ -18,13 +18,13 @@ public extension Dictionary where Key == String {
             return try msgpack.pack(self).bytes
         }
     }
-    
+
     public func getJSON() throws -> Bytes {
         return try autoreleasepool {
-            return try JSONSerialization.data(withJSONObject: self, options: .prettyPrinted).bytes
+            try JSONSerialization.data(withJSONObject: self, options: .prettyPrinted).bytes
         }
     }
-    
+
     public func pack(to format: LGNP.Message.ContentType) throws -> Bytes {
         return try autoreleasepool {
             switch format {
@@ -35,12 +35,12 @@ public extension Dictionary where Key == String {
             }
         }
     }
-    
+
     public func pack(to format: LGNP.Message.ContentType?) throws -> Bytes {
         guard let format = format else {
             return Bytes()
         }
-        return try self.pack(to: format)
+        return try pack(to: format)
     }
 }
 
@@ -72,8 +72,8 @@ public extension LGNP.Message {
             throw LGNPConenter.E.ContentTypeNotAllowed("Content type \(contentType) not allowed (allowed content types: \(allowedContentTypes)")
         }
         switch contentType {
-        case .MsgPack: return try self.payload.unpackFromMsgPack()
-        case .JSON: return try self.payload.unpackFromJSON()
+        case .MsgPack: return try payload.unpackFromMsgPack()
+        case .JSON: return try payload.unpackFromJSON()
         case .XML: throw LGNPConenter.E.ContentError("XML content type not implemented yet")
         case .PlainText: throw LGNPConenter.E.ContentError("Plain text content type not supported")
         }
@@ -84,7 +84,7 @@ public extension Array where Element == Byte {
     public var ascii: String {
         return String(bytes: self, encoding: .ascii)!
     }
-    
+
     public func unpackFromMsgPack() throws -> [String: Any] {
         do {
             let result: [String: Any] = try autoreleasepool {
@@ -99,8 +99,7 @@ public extension Array where Element == Byte {
                 for (key, value) in input {
                     if let value = value as? [String: Any] {
                         result[key] = unwrap(value)
-                    }
-                    else if let value = value as? [Any?] {
+                    } else if let value = value as? [Any?] {
                         result[key] = value.removeNils()
                     }
                 }
@@ -111,7 +110,7 @@ public extension Array where Element == Byte {
             throw LGNPConenter.E.UnpackError("Could not unpack value from MsgPack: \(error)")
         }
     }
-    
+
     public func unpackFromJSON() throws -> [String: Any] {
         return try autoreleasepool {
             guard let result = (try? JSONSerialization.jsonObject(with: Data(self))) as? [String: Any] else {
@@ -120,10 +119,10 @@ public extension Array where Element == Byte {
             return result
         }
     }
-    
+
     public func unpack() throws -> Any? {
         return try autoreleasepool {
-            return try Data(self).unpack()
+            try Data(self).unpack()
         }
     }
 }

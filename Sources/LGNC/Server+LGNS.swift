@@ -1,8 +1,8 @@
-import NIO
-import LGNS
+import Entita
 import LGNP
 import LGNPContenter
-import Entita
+import LGNS
+import NIO
 
 public extension Service {
     public static func serveLGNS(
@@ -14,11 +14,11 @@ public extension Service {
         writeTimeout: TimeAmount = .seconds(1),
         promise: PromiseVoid? = nil
     ) throws {
-        try self.validate(transport: .LGNS)
+        try validate(transport: .LGNS)
 
-        let address = try self.unwrapAddress(from: target)
+        let address = try unwrapAddress(from: target)
 
-        try self.checkGuarantees()
+        try checkGuarantees()
 
         let server = LGNS.Server(
             cryptor: cryptor,
@@ -32,8 +32,8 @@ public extension Service {
                 return self.executeContract(
                     URI: request.URI,
                     uuid: request.uuid,
-                                                      // what is the reason for it again?
-                                                      // vvvvvvvvvvvvvvv
+                    // what is the reason for it again?
+                    // vvvvvvvvvvvvvvv
                     payload: try request.unpackPayload()[LGNC.ENTITY_KEY] as? Entita.Dict ?? Entita.Dict(),
                     requestInfo: LGNC.RequestInfo(from: info, transport: .LGNS)
                 ).map {

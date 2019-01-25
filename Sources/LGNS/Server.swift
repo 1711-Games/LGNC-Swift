@@ -36,16 +36,16 @@ public extension LGNS {
             self.writeTimeout = writeTimeout
             self.eventLoopGroup = eventLoopGroup
 
-            self.bootstrap = ServerBootstrap(group: self.eventLoopGroup)
+            bootstrap = ServerBootstrap(group: self.eventLoopGroup)
                 .serverChannelOption(ChannelOptions.backlog, value: 256)
                 .serverChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
 
                 .childChannelInitializer { channel in
                     channel.pipeline.add(handler: BackPressureHandler()).then {
-                    channel.pipeline.add(handler: IdleStateHandler(readTimeout: self.readTimeout, writeTimeout: self.writeTimeout)).then {
-                    channel.pipeline.add(handler: LGNS.LGNPCoder(cryptor: self.cryptor, requiredBitmask: self.requiredBitmask)).then {
-                    channel.pipeline.add(handler: LGNS.ServerHandler(resolver: resolver))
-                }}}}
+                        channel.pipeline.add(handler: IdleStateHandler(readTimeout: self.readTimeout, writeTimeout: self.writeTimeout)).then {
+                            channel.pipeline.add(handler: LGNS.LGNPCoder(cryptor: self.cryptor, requiredBitmask: self.requiredBitmask)).then {
+                                channel.pipeline.add(handler: LGNS.ServerHandler(resolver: resolver))
+                } } } }
 
                 .childChannelOption(ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
                 .childChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
@@ -57,16 +57,16 @@ public extension LGNS {
 
         public func shutdown(promise: PromiseVoid) {
             LGNCore.log("LGNS Server: shutting down")
-            self.channel.close(promise: promise)
+            channel.close(promise: promise)
             LGNCore.log("LGNS Server: goodbye")
         }
 
         public func serve(at target: BindTo, promise: PromiseVoid? = nil) throws {
-            self.channel = try self.bootstrap.bind(to: target).wait()
+            channel = try bootstrap.bind(to: target).wait()
 
             promise?.succeed(result: ())
 
-            try self.channel.closeFuture.wait()
+            try channel.closeFuture.wait()
         }
     }
 }

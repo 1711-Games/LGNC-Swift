@@ -5,7 +5,7 @@ public typealias _ID = Identifier
 public struct Identifier {
     private var value: String
     public var string: String {
-        return self.get()
+        return get()
     }
 
     public init(_ value: String) {
@@ -17,19 +17,19 @@ public struct Identifier {
     }
 
     public func get() -> String {
-        return self.value
+        return value
     }
 }
 
 extension Identifier: CustomStringConvertible {
     public var description: String {
-        return self.get()
+        return get()
     }
 }
 
 extension Identifier: Hashable {
     public var hashValue: Int {
-        return self.get().hash
+        return get().hash
     }
 
     public static func == (lhs: Identifier, rhs: Identifier) -> Bool {

@@ -20,14 +20,14 @@ public extension UUID {
         precondition(bytes.count == 16, "You provided \(bytes.count) bytes, exactly 16 is needed for UUID")
         self.init(uuid: bytes.cast())
     }
-    
+
     public var string: String {
-        return self.uuidString
+        return uuidString
     }
 }
 
 public extension Date {
     public var timeIntervalSince: TimeInterval {
-        return -self.timeIntervalSinceNow
+        return -timeIntervalSinceNow
     }
 }

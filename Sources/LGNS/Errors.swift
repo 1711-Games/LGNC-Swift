@@ -5,7 +5,7 @@ public extension LGNS {
         case ConnectionClosed
         case LGNPError(String)
         case UnknownError(String)
-        
+
         public var description: String {
             switch self {
             case .RequiredBitmaskNotSatisfied:

@@ -7,7 +7,7 @@ public extension E2 {
 
 public extension E2.ID where Value == UUID {
     public var string: String {
-        return self.value.uuidString
+        return value.uuidString
     }
 
     public init(_ uuid: UUID = UUID()) {
@@ -18,7 +18,7 @@ public extension E2.ID where Value == UUID {
         guard let uuid = UUID(uuidString: string) else {
             return nil
         }
-        self.value = uuid
+        value = uuid
     }
 }
 
@@ -26,7 +26,7 @@ extension E2.ID: Codable where Value == UUID {
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let result = try container.decode(Data.self)
-        
+
         guard result.count == 16 else {
             throw DecodingError.dataCorrupted(
                 DecodingError.Context(
@@ -37,10 +37,10 @@ extension E2.ID: Codable where Value == UUID {
         }
         self.init(UUID(uuid: [UInt8](result).cast()))
     }
-    
+
     public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
-        let bytes = LGNCore.getBytes(self.value)
+        let bytes = LGNCore.getBytes(value)
         try container.encode(Data(bytes))
     }
 }

@@ -10,7 +10,7 @@ public extension LGNCore {
 
         public func end() -> Float {
             var end = Date().timeIntervalSince1970
-            end -= self.start
+            end -= start
             return Float(end)
         }
     }

@@ -1,6 +1,6 @@
+import Entita
 import LGNCore
 import LGNS
-import Entita
 import NIO
 
 public protocol Contract {
@@ -15,7 +15,6 @@ public protocol Contract {
 
     static var URI: String { get }
 }
-
 
 public enum ContractVisibility {
     case Public, Private
@@ -43,7 +42,7 @@ public extension Contract {
 
     // Not to be used directly
     public static func _invoke(
-        with callback: Optional<(Request, LGNC.RequestInfo) -> Future<Entity>>,
+        with callback: Optional < (Request, LGNC.RequestInfo) -> Future < Entity>>,
         request: Entita.Dict,
         requestInfo: LGNC.RequestInfo,
         name: String
@@ -58,5 +57,4 @@ public extension Contract {
 }
 
 public struct Contracts {
-
 }

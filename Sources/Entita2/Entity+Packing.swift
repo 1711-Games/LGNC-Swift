@@ -11,7 +11,7 @@ public extension E2Entity {
         }
         self = result
     }
-    
+
     public func pack(to format: E2.Format = Self.format) throws -> Bytes {
         let result: Bytes
         switch format {

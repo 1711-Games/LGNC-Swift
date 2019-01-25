@@ -13,11 +13,11 @@ public extension Dictionary where Key == String, Value == [ClientError] {
     }
 
     public func getGeneralError() -> ClientError? {
-        return self.getExactlyOneErrorFor(field: "_")
+        return getExactlyOneErrorFor(field: "_")
     }
 
     public func getGeneralErrorCode() -> Int? {
-        return self.getGeneralError()?.getErrorTuple().code
+        return getGeneralError()?.getErrorTuple().code
     }
 }
 
@@ -36,7 +36,7 @@ public extension LGNC {
         public static func clientError(_ message: String, _ code: Int = 400) -> E {
             return E.MultipleError([LGNC.GLOBAL_ERROR_KEY: [ContractError.GeneralError(message, code)]])
         }
-        
+
         public static func serverError(_ message: String, _ code: Int = 500) -> E {
             return E.MultipleError([LGNC.GLOBAL_ERROR_KEY: [ContractError.GeneralError(message, code)]])
         }
@@ -48,16 +48,16 @@ public extension LGNC {
         case GeneralError(String, Int)
         case RemoteContractExecutionFailed
         case InternalError
-        
+
         public func getErrorTuple() -> (message: String, code: Int) {
             switch self {
-            case .URINotFound(let URI):
+            case let .URINotFound(URI):
                 return (message: "URI '\(URI)' not found", code: 404)
-            case .TransportNotAllowed(let transport):
+            case let .TransportNotAllowed(transport):
                 return (message: "Transport '\(transport.rawValue)' not allowed", code: 405)
             case .InternalError, .RemoteContractExecutionFailed:
                 return (message: "Internal server error", code: 500)
-            case .GeneralError(let message, let code):
+            case let .GeneralError(message, code):
                 return (message: message, code: code)
             }
         }

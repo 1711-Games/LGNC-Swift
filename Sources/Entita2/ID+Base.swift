@@ -9,9 +9,9 @@ public extension E2 {
         internal let value: Value
 
         public var _bytes: Bytes {
-            return LGNCore.getBytes(self.value)
+            return LGNCore.getBytes(value)
         }
-        
+
         public init(value: Value) {
             self.value = value
         }

@@ -15,7 +15,7 @@ internal extension LGNS {
 
         private let resolver: LGNS.Resolver
         fileprivate var promise: PromiseLGNP?
-        
+
         fileprivate class var profile: Bool {
             return false
         }
@@ -32,7 +32,7 @@ internal extension LGNS {
             let promise: PromiseVoid = ctx.eventLoop.newPromise()
             promise.futureResult.whenComplete { ctx.close(promise: nil) }
             ctx.writeAndFlush(
-                self.wrapOutboundOut(
+                wrapOutboundOut(
                     LGNP.Message(
                         URI: "",
                         payload: error.description.bytes,
@@ -42,11 +42,11 @@ internal extension LGNS {
                 ),
                 promise: promise
             )
-            //ctx.fireErrorCaught(error)
+            // ctx.fireErrorCaught(error)
         }
 
         public func channelInactive(ctx: ChannelHandlerContext) {
-            self.promise?.fail(error: LGNS.E.ConnectionClosed)
+            promise?.fail(error: LGNS.E.ConnectionClosed)
             ctx.fireChannelInactive()
         }
 
@@ -56,7 +56,7 @@ internal extension LGNS {
                 profiler = LGNCore.Profiler.begin()
             }
 
-            var message = self.unwrapInboundIn(data)
+            var message = unwrapInboundIn(data)
             let remoteAddr = ctx.channel.remoteAddrString
             var metaDict: [String: String] = [:]
             if let metaBytes = message.meta, metaBytes.starts(with: BaseHandler.META_SECTION_BYTES) {
@@ -74,7 +74,7 @@ internal extension LGNS {
                     metaDict[key] = value
                 }
             }
-            let future = self.resolver(
+            let future = resolver(
                 message,
                 RequestInfo(
                     remoteAddr: remoteAddr,
@@ -86,7 +86,7 @@ internal extension LGNS {
                 )
             )
 
-            self.promise = nil
+            promise = nil
 
             if let profiler = profiler {
                 future.whenComplete {
@@ -120,10 +120,10 @@ internal extension LGNS {
         func errorCaught(ctx: ChannelHandlerContext, error: Error) {
             dump("ERROR CAUGHT: \(error)")
             if let error = error as? LGNS.E {
-                self.handleError(ctx: ctx, error: error)
+                handleError(ctx: ctx, error: error)
             } else {
                 print("Unknown error: \(error)")
-                self.handleError(ctx: ctx, error: LGNS.E.UnknownError("\(error)"))
+                handleError(ctx: ctx, error: LGNS.E.UnknownError("\(error)"))
             }
         }
     }
@@ -134,14 +134,14 @@ internal extension LGNS {
         }
 
         fileprivate override func handleError(ctx: ChannelHandlerContext, error: LGNS.E) {
-            self.sendError(to: ctx, error: error)
+            sendError(to: ctx, error: error)
         }
     }
 
     internal class ClientHandler: BaseHandler {
         fileprivate override func handleError(ctx: ChannelHandlerContext, error: LGNS.E) {
             ctx.fireErrorCaught(error)
-            self.promise?.fail(error: error)
+            promise?.fail(error: error)
         }
     }
 }

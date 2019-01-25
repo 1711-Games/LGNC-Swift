@@ -1,7 +1,7 @@
 import Foundation
 import LGNCore
-import LGNS
 import LGNP
+import LGNS
 import NIO
 
 public typealias Address = LGNS.Address
@@ -30,7 +30,7 @@ public extension Contract {
         } catch {
             return eventLoop.newFailedFuture(error: error)
         }
-        
+
         var meta: Bytes?
         if let requestInfo = requestInfo {
             meta = LGNC.getMeta(from: requestInfo)
@@ -39,7 +39,7 @@ public extension Contract {
         return client.request(
             at: address,
             with: LGNP.Message(
-                URI: self.URI,
+                URI: URI,
                 payload: payload,
                 meta: meta,
                 salt: client.cryptor.salt.bytes,
@@ -64,11 +64,11 @@ public extension Contract {
             }
             return resultEntity as! Self.Response
         }.thenIfErrorThrowing {
-            if case ChannelError.connectFailed(let error) = $0 {
+            if case let ChannelError.connectFailed(error) = $0 {
                 LGNCore.log("""
-                    Could not execute contract '\(self)' on service '\(self.ParentService.self)' \
-                    @ \(address): \(error)
-                    """, prefix: uuid.string)
+                Could not execute contract '\(self)' on service '\(self.ParentService.self)' \
+                @ \(address): \(error)
+                """, prefix: uuid.string)
                 throw LGNC.ContractError.RemoteContractExecutionFailed
             }
             throw $0
