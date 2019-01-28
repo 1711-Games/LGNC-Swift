@@ -32,10 +32,12 @@ public extension Validation.Error {
     }
 
     public struct MissingValue: ValidatorError {
-        public let code: Int = 412
-        public let message: String = "Value missing"
+        public let code: Int
+        public let message: String
 
-        public init() {
+        public init(message: String = "Value missing", code: Int = 412) {
+            self.message = message
+            self.code = code
         }
     }
 }
