@@ -6,6 +6,7 @@ public extension E2Entity {
         return true
     }
 
+    @inlinable
     public static var entityName: String {
         let components = String(reflecting: Self.self).components(separatedBy: ".")
         return components[
