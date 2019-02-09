@@ -3,7 +3,7 @@ import NIO
 
 public extension E2Entity {
     public static var fullEntityName: Bool {
-        return true
+        return false
     }
 
     @inlinable
@@ -190,6 +190,10 @@ public extension E2Entity {
                     .then { self.afterInsert0(with: transaction, on: eventLoop) }
                     .then { self.commit0(transaction: transaction, on: eventLoop) }
             }
+    }
+
+    public func save(on eventLoop: EventLoop) -> Future<Void> {
+        return self.save(by: nil, on: eventLoop)
     }
 
     public func save(by ID: Identifier? = nil, on eventLoop: EventLoop) -> Future<Void> {

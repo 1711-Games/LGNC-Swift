@@ -1,12 +1,15 @@
 import LGNCore
 import NIO
+import FDB
 
 public extension E2 {
     public class Index<M: Entita2FDBIndexedEntity> {
         internal let path: PartialKeyPath<M>
+        internal let unique: Bool
 
-        public init<V: TuplePackable>(_ path: KeyPath<M, V>) {
+        public init<V: TuplePackable>(_ path: KeyPath<M, V>, unique: Bool) {
             self.path = path
+            self.unique = unique
         }
 
         internal func getTuplePackableValue(from instance: M) -> TuplePackable? {
@@ -17,9 +20,12 @@ public extension E2 {
 
 public protocol Entita2FDBIndexedEntity: E2FDBEntity {
     static var indices: [String: E2.Index<Self>] { get }
-    static var idxSubspace: Subspace { get }
+    static var indexSubspace: Subspace { get }
+    var indexIndexSubspace: Subspace { get }
 
-    static func getIndexKeyForIndex(name: TuplePackable, value: TuplePackable) -> FDBKey
+    func getIndexKeyForIndex(_ index: E2.Index<Self>, name: TuplePackable, value: TuplePackable) -> FDBKey
+    func getIndexIndexKeyForIndex(name: TuplePackable, value: TuplePackable) -> FDBKey
+    static func getIndexKeyForUniqueIndex(name: TuplePackable, value: TuplePackable) -> FDBKey
 
     static func loadByIndex(
         name: String,
@@ -28,25 +34,47 @@ public protocol Entita2FDBIndexedEntity: E2FDBEntity {
         on eventLoop: EventLoop
     ) -> Future<Self?>
     static func existsByIndex(name: String, value: TuplePackable, on eventLoop: EventLoop) -> Future<Bool>
-
-    func getIndexIndexSubspace() -> Subspace
 }
 
 public extension Entita2FDBIndexedEntity {
-    public static var idxSubspace: Subspace {
-        return Self.subspace["idx"]
+    public static var indexSubspace: Subspace {
+        return Self.subspace["idx"][Self.entityName]
+    }
+
+    public var indexIndexSubspace: Subspace {
+        return Self.indexSubspace["idx", self.getID()]
     }
 
     fileprivate func getIndexValueFrom(index: E2.Index<Self>) -> TuplePackable? {
         return index.getTuplePackableValue(from: self)
     }
 
-    public func getIndexIndexSubspace() -> Subspace {
-        return Subspace(self.getIDAsKey())["idx"]
+    public static func getGenericIndexSubspaceForIndex(
+        name: TuplePackable,
+        value: TuplePackable
+    ) -> Subspace {
+        return Self.indexSubspace[name][value]
     }
-    
-    public static func getIndexKeyForIndex(name: TuplePackable, value: TuplePackable) -> FDBKey {
-        return Self.idxSubspace[Self.entityName][name][value]
+
+    public static func getIndexKeyForUniqueIndex(
+        name: TuplePackable,
+        value: TuplePackable
+    ) -> FDBKey {
+        return Self.getGenericIndexSubspaceForIndex(name: name, value: value)
+    }
+
+    public func getIndexKeyForIndex(_ index: E2.Index<Self>, name: TuplePackable, value: TuplePackable) -> FDBKey {
+        var result = Self.getGenericIndexSubspaceForIndex(name: name, value: value)
+
+        if !index.unique {
+            result = result[self.getID()]
+        }
+
+        return result
+    }
+
+    public func getIndexIndexKeyForIndex(name: TuplePackable, value: TuplePackable) -> FDBKey {
+        return self.indexIndexSubspace[name][value]
     }
 
     private func createIndex(
@@ -62,11 +90,11 @@ public extension Entita2FDBIndexedEntity {
                 )
             )
         }
-        let indexIndexSubspace = self.getIndexIndexSubspace()
+
         return Self.storage
             .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
-            .then { $0.set(key: Self.getIndexKeyForIndex(name: indexName, value: value), value: self.getIDAsKey()) }
-            .then { $0.set(key: indexIndexSubspace[indexName][value], value: []) }
+            .then { $0.set(key: self.getIndexKeyForIndex(index, name: indexName, value: value), value: self.getIDAsKey()) }
+            .then { $0.set(key: self.getIndexIndexKeyForIndex(name: indexName, value: value), value: []) }
             .map { _ in () }
     }
 
@@ -85,26 +113,19 @@ public extension Entita2FDBIndexedEntity {
                 }
                 return Self.storage
                     .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
-                    .then { $0.clear(key: Self.getIndexKeyForIndex(name: indexName, value: value)) }
+                    .then { $0.clear(key: self.getIndexKeyForIndex(index, name: indexName, value: value)) }
+                    .then { $0.clear(key: self.getIndexIndexKeyForIndex(name: indexName, value: value)) }
                     .map { _ in () }
             },
             eventLoop: eventLoop
-        ).then {
-            Self.storage
-                .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
-                .then { $0.clear(range: Subspace(self.getIDAsKey()).range) }
-                .map { _ in () }
-        }
+        )
     }
 
     fileprivate func updateIndices(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
-        let IDKeySubspace = self.getIndexIndexSubspace()
         let future: Future<Void> = Self.storage
             .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
-            .then { $0.get(range: IDKeySubspace.range) }
-            .then { tuple in
-                let (keyValueRecords, transaction) = tuple
-
+            .then { $0.get(range: self.indexIndexSubspace.range) }
+            .then { keyValueRecords, transaction in
                 var result: Future<Void> = eventLoop.newSucceededFuture(result: ())
 
                 for record in keyValueRecords.records {
@@ -137,12 +158,13 @@ public extension Entita2FDBIndexedEntity {
                             )
                         )
                     }
-                    let probablyNewIndexKey = Self.getIndexKeyForIndex(name: indexName, value: propertyValue)
-                    let previousIndexKey = Self.getIndexKeyForIndex(name: indexName, value: indexValue)
+
+                    let probablyNewIndexKey = self.getIndexKeyForIndex(index, name: indexName, value: propertyValue)
+                    let previousIndexKey = self.getIndexKeyForIndex(index, name: indexName, value: indexValue)
                     
                     if previousIndexKey.asFDBKey() != probablyNewIndexKey.asFDBKey() {
                         result = result
-                            .then { transaction.clear(key: previousIndexKey) }
+                            .then { _ in transaction.clear(key: previousIndexKey) }
                             .then { _ in transaction.clear(key: key) }
                             .then { _ in self.createIndex(indexName, for: index, with: transaction, on: eventLoop) }
                     }
@@ -177,7 +199,7 @@ public extension Entita2FDBIndexedEntity {
 
         return Self.storage
             .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
-            .then { $0.get(key: Self.getIndexKeyForIndex(name: name, value: value)) }
+            .then { $0.get(key: Self.getIndexKeyForUniqueIndex(name: name, value: value)) }
             .then { maybeIDBytes, transaction in
                 guard let IDBytes = maybeIDBytes else {
                     return eventLoop.newSucceededFuture(result: nil)
@@ -193,7 +215,7 @@ public extension Entita2FDBIndexedEntity {
 
         return self.storage
             .begin(eventLoop: eventLoop)
-            .then { $0.get(key: Self.getIndexKeyForIndex(name: name, value: value)) }
+            .then { $0.get(key: Self.getIndexKeyForUniqueIndex(name: name, value: value)) }
             .map { maybeIDBytes, _ in maybeIDBytes != nil }
     }
 }

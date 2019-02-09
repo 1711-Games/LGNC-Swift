@@ -83,27 +83,25 @@ public extension Entita2FDBEntity {
             .map { _ in transaction }
     }
 
-    internal static func loadAll(
+    public static func loadAll(
         bySubspace subspace: Subspace,
         limit: Int32 = 0,
         with transaction: AnyTransaction? = nil,
         on eventLoop: EventLoop
-    ) -> Future<[Self.Identifier: Self]> {
-        return storage.loadAll(
+    ) -> Future<[(ID: Self.Identifier, value: Self)]> {
+        return Self.storage.loadAll(
             by: subspace.range,
             limit: limit,
             with: transaction,
             on: eventLoop
         ).thenThrowing { results in
-            Dictionary(
-                uniqueKeysWithValues: try results.records.map {
-                    let instance = try Self(from: $0.value)
-                    return (
-                        instance.getID(),
-                        instance
-                    )
-                }
-            )
+            try results.records.map {
+                let instance = try Self(from: $0.value)
+                return (
+                    ID: instance.getID(),
+                    value: instance
+                )
+            }
         }
     }
 
@@ -111,8 +109,8 @@ public extension Entita2FDBEntity {
         limit: Int32 = 0,
         with transaction: AnyTransaction? = nil,
         on eventLoop: EventLoop
-    ) -> Future<[Self.Identifier: Self]> {
-        return self.loadAll(bySubspace: subspacePrefix, limit: limit, with: transaction, on: eventLoop)
+    ) -> Future<[(ID: Self.Identifier, value: Self)]> {
+        return Self.loadAll(bySubspace: Self.subspacePrefix, limit: limit, with: transaction, on: eventLoop)
     }
 
     public static func loadAll(
@@ -120,8 +118,8 @@ public extension Entita2FDBEntity {
         limit: Int32 = 0,
         with transaction: AnyTransaction? = nil,
         on eventLoop: EventLoop
-    ) -> Future<[Self.Identifier: Self]> {
-        return loadAll(bySubspace: subspacePrefix[key], limit: limit, with: transaction, on: eventLoop)
+    ) -> Future<[(ID: Self.Identifier, value: Self)]> {
+        return Self.loadAll(bySubspace: Self.subspacePrefix[key], limit: limit, with: transaction, on: eventLoop)
     }
 
     public static func loadAllRaw(
@@ -131,7 +129,7 @@ public extension Entita2FDBEntity {
         with transaction: AnyTransaction? = nil,
         on eventLoop: EventLoop
     ) -> Future<KeyValuesResult> {
-        return storage.loadAll(by: subspacePrefix.range, limit: limit, with: transaction, on: eventLoop)
+        return Self.storage.loadAll(by: Self.subspacePrefix.range, limit: limit, with: transaction, on: eventLoop)
     }
 }
 

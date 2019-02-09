@@ -34,6 +34,7 @@ public protocol E2Entity: Codable {
     /// Same as `save`, but with executes `beforeInsert` and `afterInsert` before and after insert respectively
     // Internal method, do not define
     func insert(on eventLoop: EventLoop) -> Future<Void>
+    func save(on eventLoop: EventLoop) -> Future<Void>
     func save(by ID: Identifier?, on eventLoop: EventLoop) -> Future<Void>
     func delete(on eventLoop: EventLoop) -> Future<Void>
     

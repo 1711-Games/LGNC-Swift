@@ -6,7 +6,11 @@ public extension LGNCore {
 
         public subscript(index: String) -> String {
             get {
-                return get(index)!
+                guard let value = self.get(index) else {
+                    LGNCore.log("Value for env key '\(index)' not found")
+                    return ""
+                }
+                return value
             }
             set {
                 values[index] = newValue
