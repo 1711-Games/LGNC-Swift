@@ -15,6 +15,8 @@ public struct LGNC {
     public static var ALLOW_INCOMPLETE_GUARANTEE = false
     public static var ALLOW_ALL_TRANSPORTS = false
 
+    public static var translator: LGNCTranslator = LGNC.Translation.DummyTranslator()
+
     public static func getMeta(from requestInfo: LGNC.RequestInfo) -> Bytes {
         return getMeta(clientAddr: requestInfo.clientAddr, userAgent: requestInfo.userAgent)
     }
