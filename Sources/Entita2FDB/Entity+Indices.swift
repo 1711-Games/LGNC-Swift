@@ -7,63 +7,67 @@ public extension E2 {
         internal let path: PartialKeyPath<M>
         internal let unique: Bool
 
-        public init<V: TuplePackable>(_ path: KeyPath<M, V>, unique: Bool) {
+        public init<V: FDBTuplePackable>(_ path: KeyPath<M, V>, unique: Bool) {
             self.path = path
             self.unique = unique
         }
 
-        internal func getTuplePackableValue(from instance: M) -> TuplePackable? {
-            return (instance[keyPath: self.path] as? TuplePackable)
+        internal func getTuplePackableValue(from instance: M) -> FDBTuplePackable? {
+            return (instance[keyPath: self.path] as? FDBTuplePackable)
         }
     }
 }
 
 public protocol Entita2FDBIndexedEntity: E2FDBEntity {
     static var indices: [String: E2.Index<Self>] { get }
-    static var indexSubspace: Subspace { get }
-    var indexIndexSubspace: Subspace { get }
+    static var indexSubspace: FDB.Subspace { get }
+    var indexIndexSubspace: FDB.Subspace { get }
 
-    func getIndexKeyForIndex(_ index: E2.Index<Self>, name: TuplePackable, value: TuplePackable) -> FDBKey
-    func getIndexIndexKeyForIndex(name: TuplePackable, value: TuplePackable) -> FDBKey
-    static func getIndexKeyForUniqueIndex(name: TuplePackable, value: TuplePackable) -> FDBKey
+    func getIndexKeyForIndex(_ index: E2.Index<Self>, name: FDBTuplePackable, value: FDBTuplePackable) -> AnyFDBKey
+    func getIndexIndexKeyForIndex(name: FDBTuplePackable, value: FDBTuplePackable) -> AnyFDBKey
+    static func getIndexKeyForUniqueIndex(name: FDBTuplePackable, value: FDBTuplePackable) -> AnyFDBKey
 
     static func loadByIndex(
         name: String,
-        value: TuplePackable,
+        value: FDBTuplePackable,
         with transaction: AnyTransaction?,
         on eventLoop: EventLoop
     ) -> Future<Self?>
-    static func existsByIndex(name: String, value: TuplePackable, on eventLoop: EventLoop) -> Future<Bool>
+    static func existsByIndex(name: String, value: FDBTuplePackable, on eventLoop: EventLoop) -> Future<Bool>
 }
 
 public extension Entita2FDBIndexedEntity {
-    public static var indexSubspace: Subspace {
+    public static var indexSubspace: FDB.Subspace {
         return Self.subspace["idx"][Self.entityName]
     }
 
-    public var indexIndexSubspace: Subspace {
+    public var indexIndexSubspace: FDB.Subspace {
         return Self.indexSubspace["idx", self.getID()]
     }
 
-    fileprivate func getIndexValueFrom(index: E2.Index<Self>) -> TuplePackable? {
+    fileprivate func getIndexValueFrom(index: E2.Index<Self>) -> FDBTuplePackable? {
         return index.getTuplePackableValue(from: self)
     }
 
     public static func getGenericIndexSubspaceForIndex(
-        name: TuplePackable,
-        value: TuplePackable
-    ) -> Subspace {
+        name: FDBTuplePackable,
+        value: FDBTuplePackable
+    ) -> FDB.Subspace {
         return Self.indexSubspace[name][value]
     }
 
     public static func getIndexKeyForUniqueIndex(
-        name: TuplePackable,
-        value: TuplePackable
-    ) -> FDBKey {
+        name: FDBTuplePackable,
+        value: FDBTuplePackable
+    ) -> AnyFDBKey {
         return Self.getGenericIndexSubspaceForIndex(name: name, value: value)
     }
 
-    public func getIndexKeyForIndex(_ index: E2.Index<Self>, name: TuplePackable, value: TuplePackable) -> FDBKey {
+    public func getIndexKeyForIndex(
+        _ index: E2.Index<Self>,
+        name: FDBTuplePackable,
+        value: FDBTuplePackable
+    ) -> AnyFDBKey {
         var result = Self.getGenericIndexSubspaceForIndex(name: name, value: value)
 
         if !index.unique {
@@ -73,12 +77,12 @@ public extension Entita2FDBIndexedEntity {
         return result
     }
 
-    public func getIndexIndexKeyForIndex(name: TuplePackable, value: TuplePackable) -> FDBKey {
+    public func getIndexIndexKeyForIndex(name: FDBTuplePackable, value: FDBTuplePackable) -> AnyFDBKey {
         return self.indexIndexSubspace[name][value]
     }
 
     private func createIndex(
-        _ indexName: TuplePackable,
+        _ indexName: FDBTuplePackable,
         for index: E2.Index<Self>,
         with transaction: AnyTransaction?,
         on eventLoop: EventLoop
@@ -129,7 +133,12 @@ public extension Entita2FDBIndexedEntity {
                 var result: Future<Void> = eventLoop.newSucceededFuture(result: ())
 
                 for record in keyValueRecords.records {
-                    let key = Tuple(from: record.key)
+                    let key: FDB.Tuple
+
+                    do {
+                        key = try FDB.Tuple(from: record.key)
+                    } catch { continue }
+
                     let tuples = key.tuple.compactMap { $0 }
                     guard tuples.count >= 2 else {
                         continue
@@ -189,7 +198,7 @@ public extension Entita2FDBIndexedEntity {
 
     public static func loadByIndex(
         name: String,
-        value: TuplePackable,
+        value: FDBTuplePackable,
         with transaction: AnyTransaction? = nil,
         on eventLoop: EventLoop
     ) -> Future<Self?> {
@@ -208,7 +217,7 @@ public extension Entita2FDBIndexedEntity {
             }
     }
 
-    public static func existsByIndex(name: String, value: TuplePackable, on eventLoop: EventLoop) -> Future<Bool> {
+    public static func existsByIndex(name: String, value: FDBTuplePackable, on eventLoop: EventLoop) -> Future<Bool> {
         guard Self.isValidIndex(name: name) else {
             return eventLoop.newSucceededFuture(result: false)
         }

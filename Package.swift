@@ -25,7 +25,7 @@ let package = Package(
         .package(url: "https://github.com/kirilltitov/SwiftMsgPack.git", .branch("master")),
 
         // used by Entita2FDB
-        .package(url: "https://github.com/kirilltitov/FDBSwift.git", .upToNextMajor(from: "2.0.0")),
+        .package(url: "https://github.com/kirilltitov/FDBSwift.git", .branch("master")),
 
         // used by LGNP
         .package(url: "https://github.com/krzyzanowskim/CryptoSwift.git", .upToNextMajor(from: "0.9.0")),

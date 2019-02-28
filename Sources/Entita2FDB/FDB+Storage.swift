@@ -22,7 +22,7 @@ extension FDB: E2Storage {
     }
     
     public func loadAll(
-        by range: RangeFDBKey,
+        by range: FDB.RangeKey,
         limit: Int32 = 0,
         with transaction: AnyTransaction?,
         on eventLoop: EventLoop

@@ -3,11 +3,11 @@ import FDB
 import LGNCore
 import NIO
 
-public protocol Entita2FDBEntity: E2Entity where Storage == FDB, Identifier: TuplePackable {
-    static var subspace: Subspace { get }
+public protocol Entita2FDBEntity: E2Entity where Storage == FDB, Identifier: FDBTuplePackable {
+    static var subspace: FDB.Subspace { get }
 }
 
-extension Transaction: AnyTransaction {}
+extension FDB.Transaction: AnyTransaction {}
 
 public extension Entita2FDBEntity {
     public static var format: E2.Format {
@@ -26,7 +26,7 @@ public extension Entita2FDBEntity {
         return Self.subspacePrefix[ID].asFDBKey()
     }
 
-    public static func doesRelateToThis(tuple: Tuple) -> Bool {
+    public static func doesRelateToThis(tuple: FDB.Tuple) -> Bool {
         let flat = tuple.tuple.compactMap { $0 }
         guard flat.count >= 2 else {
             return false
@@ -41,17 +41,17 @@ public extension Entita2FDBEntity {
         return Self.IDAsKey(ID: self.getID())
     }
 
-    public static var subspacePrefix: Subspace {
+    public static var subspacePrefix: FDB.Subspace {
         return self.subspace[self.entityName]
     }
 
     public static func loadWithTransaction(
         by ID: Identifier,
         on eventLoop: EventLoop
-    ) -> Future<(Self?, Transaction)> {
+    ) -> Future<(Self?, FDB.Transaction)> {
         return storage
             .begin(eventLoop: eventLoop)
-            .then { (transaction) -> Future<(Bytes?, Transaction)> in
+            .then { (transaction) -> Future<(Bytes?, FDB.Transaction)> in
                 self.storage
                     .load(by: Self.IDAsKey(ID: ID), with: transaction, on: eventLoop)
                     .map { maybeBytes in (maybeBytes, transaction) }
@@ -68,9 +68,9 @@ public extension Entita2FDBEntity {
     }
 
     public func save(
-        with transaction: Transaction,
+        with transaction: FDB.Transaction,
         on eventLoop: EventLoop
-    ) -> Future<Transaction> {
+    ) -> Future<FDB.Transaction> {
         return self.getPackedSelf(on: eventLoop)
             .then { payload in
                 Self.storage.save(
@@ -84,7 +84,7 @@ public extension Entita2FDBEntity {
     }
 
     public static func loadAll(
-        bySubspace subspace: Subspace,
+        bySubspace subspace: FDB.Subspace,
         limit: Int32 = 0,
         with transaction: AnyTransaction? = nil,
         on eventLoop: EventLoop
@@ -114,7 +114,7 @@ public extension Entita2FDBEntity {
     }
 
     public static func loadAll(
-        by key: FDBKey,
+        by key: AnyFDBKey,
         limit: Int32 = 0,
         with transaction: AnyTransaction? = nil,
         on eventLoop: EventLoop
@@ -124,11 +124,11 @@ public extension Entita2FDBEntity {
 
     public static func loadAllRaw(
         limit: Int32 = 0,
-        mode _: FDB.StreamingMode = .WantAll,
+        mode _: FDB.StreamingMode = .wantAll,
         iteration _: Int32 = 1,
         with transaction: AnyTransaction? = nil,
         on eventLoop: EventLoop
-    ) -> Future<KeyValuesResult> {
+    ) -> Future<FDB.KeyValuesResult> {
         return Self.storage.loadAll(by: Self.subspacePrefix.range, limit: limit, with: transaction, on: eventLoop)
     }
 }
