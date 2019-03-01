@@ -11,7 +11,7 @@ extension FDB.Transaction: AnyTransaction {}
 
 public extension Entita2FDBEntity {
     public static var format: E2.Format {
-        return .MsgPack
+        return .JSON
     }
     
     public static func begin(on eventLoop: EventLoop) -> Future<AnyTransaction?> {
