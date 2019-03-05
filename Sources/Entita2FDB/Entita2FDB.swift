@@ -13,9 +13,9 @@ public extension Entita2FDBEntity {
     public static var format: E2.Format {
         return .JSON
     }
-    
+
     public static func begin(on eventLoop: EventLoop) -> Future<AnyTransaction?> {
-        return Self.storage.begin(eventLoop: eventLoop).map { $0 }
+        return Self.storage.begin(on: eventLoop).map { $0 }
     }
 
     public static func IDBytesAsKey(bytes: Bytes) -> Bytes {
@@ -49,22 +49,20 @@ public extension Entita2FDBEntity {
         by ID: Identifier,
         on eventLoop: EventLoop
     ) -> Future<(Self?, FDB.Transaction)> {
-        return storage
-            .begin(eventLoop: eventLoop)
-            .then { (transaction) -> Future<(Bytes?, FDB.Transaction)> in
-                self.storage
-                    .load(by: Self.IDAsKey(ID: ID), with: transaction, on: eventLoop)
-                    .map { maybeBytes in (maybeBytes, transaction) }
-            }
-            .thenThrowing { maybeBytes, transaction in
-                guard let bytes = maybeBytes else {
-                    return (nil, transaction)
+        return storage.withTransaction(on: eventLoop) { transaction in
+            self.storage
+                .load(by: Self.IDAsKey(ID: ID), with: transaction, on: eventLoop)
+                .map { maybeBytes in (maybeBytes, transaction) }
+                .thenThrowing { maybeBytes, transaction in
+                    guard let bytes = maybeBytes else {
+                        return (nil, transaction)
+                    }
+                    return (
+                        try Self(from: bytes, format: Self.format),
+                        transaction
+                    )
                 }
-                return (
-                    try Self(from: bytes, format: Self.format),
-                    transaction
-                )
-            }
+        }
     }
 
     public func save(

@@ -222,9 +222,10 @@ public extension Entita2FDBIndexedEntity {
             return eventLoop.newSucceededFuture(result: false)
         }
 
-        return self.storage
-            .begin(eventLoop: eventLoop)
-            .then { $0.get(key: Self.getIndexKeyForUniqueIndex(name: name, value: value)) }
-            .map { maybeIDBytes, _ in maybeIDBytes != nil }
+        return self.storage.withTransaction(on: eventLoop) { transaction in
+            return transaction
+                .get(key: Self.getIndexKeyForUniqueIndex(name: name, value: value))
+                .map { maybeIDBytes, _ in maybeIDBytes != nil }
+        }
     }
 }

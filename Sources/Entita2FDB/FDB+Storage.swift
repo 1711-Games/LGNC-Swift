@@ -2,6 +2,13 @@ import LGNCore
 import FDB
 import NIO
 
+public extension FDB {
+    @available(*, deprecated, renamed: "begin(on:)")
+    public func begin(eventLoop: EventLoop) -> EventLoopFuture<FDB.Transaction> {
+        return self.begin(on: eventLoop)
+    }
+}
+
 extension FDB: E2Storage {
     public func unwrapAnyTransactionOrBegin(
         _ anyTransaction: AnyTransaction?,
@@ -10,10 +17,10 @@ extension FDB: E2Storage {
         if let transaction = anyTransaction as? Transaction {
             return eventLoop.newSucceededFuture(result: transaction)
         } else {
-            return self.begin(eventLoop: eventLoop)
+            return self.begin(on: eventLoop)
         }
     }
-    
+
     public func load(by key: Bytes, with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Bytes?> {
         return self
             .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
