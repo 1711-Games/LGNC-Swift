@@ -47,22 +47,31 @@ public extension Entita2FDBEntity {
 
     public static func loadWithTransaction(
         by ID: Identifier,
+        snapshot: Bool,
         on eventLoop: EventLoop
     ) -> Future<(Self?, FDB.Transaction)> {
         return storage.withTransaction(on: eventLoop) { transaction in
-            self.storage
-                .load(by: Self.IDAsKey(ID: ID), with: transaction, on: eventLoop)
-                .map { maybeBytes in (maybeBytes, transaction) }
-                .thenThrowing { maybeBytes, transaction in
-                    guard let bytes = maybeBytes else {
-                        return (nil, transaction)
-                    }
-                    return (
-                        try Self(from: bytes, format: Self.format),
-                        transaction
-                    )
-                }
+            Self
+                .load(by: ID, with: transaction, snapshot: snapshot, on: eventLoop)
+                .map { ($0, transaction) }
         }
+    }
+
+    public static func load(
+        by ID: Identifier,
+        with transaction: FDB.Transaction,
+        snapshot: Bool,
+        on eventLoop: EventLoop
+    ) -> Future<Self?> {
+        return Self.storage
+            .load(by: Self.IDAsKey(ID: ID), with: transaction, snapshot: snapshot, on: eventLoop)
+            .map { maybeBytes in (maybeBytes, transaction) }
+            .thenThrowing { maybeBytes, transaction in
+                guard let bytes = maybeBytes else {
+                    return nil
+                }
+                return try Self(from: bytes, format: Self.format)
+            }
     }
 
     public func save(
@@ -85,12 +94,14 @@ public extension Entita2FDBEntity {
         bySubspace subspace: FDB.Subspace,
         limit: Int32 = 0,
         with transaction: AnyTransaction? = nil,
+        snapshot: Bool,
         on eventLoop: EventLoop
     ) -> Future<[(ID: Self.Identifier, value: Self)]> {
         return Self.storage.loadAll(
             by: subspace.range,
             limit: limit,
             with: transaction,
+            snapshot: snapshot,
             on: eventLoop
         ).thenThrowing { results in
             try results.records.map {
@@ -106,18 +117,32 @@ public extension Entita2FDBEntity {
     public static func loadAll(
         limit: Int32 = 0,
         with transaction: AnyTransaction? = nil,
+        snapshot: Bool,
         on eventLoop: EventLoop
     ) -> Future<[(ID: Self.Identifier, value: Self)]> {
-        return Self.loadAll(bySubspace: Self.subspacePrefix, limit: limit, with: transaction, on: eventLoop)
+        return Self.loadAll(
+            bySubspace: Self.subspacePrefix,
+            limit: limit,
+            with: transaction,
+            snapshot: snapshot,
+            on: eventLoop
+        )
     }
 
     public static func loadAll(
         by key: AnyFDBKey,
         limit: Int32 = 0,
         with transaction: AnyTransaction? = nil,
+        snapshot: Bool,
         on eventLoop: EventLoop
     ) -> Future<[(ID: Self.Identifier, value: Self)]> {
-        return Self.loadAll(bySubspace: Self.subspacePrefix[key], limit: limit, with: transaction, on: eventLoop)
+        return Self.loadAll(
+            bySubspace: Self.subspacePrefix[key],
+            limit: limit,
+            with: transaction,
+            snapshot: snapshot,
+            on: eventLoop
+        )
     }
 
     public static func loadAllRaw(
@@ -125,9 +150,16 @@ public extension Entita2FDBEntity {
         mode _: FDB.StreamingMode = .wantAll,
         iteration _: Int32 = 1,
         with transaction: AnyTransaction? = nil,
+        snapshot: Bool,
         on eventLoop: EventLoop
     ) -> Future<FDB.KeyValuesResult> {
-        return Self.storage.loadAll(by: Self.subspacePrefix.range, limit: limit, with: transaction, on: eventLoop)
+        return Self.storage.loadAll(
+            by: Self.subspacePrefix.range,
+            limit: limit,
+            with: transaction,
+            snapshot: snapshot,
+            on: eventLoop
+        )
     }
 }
 
