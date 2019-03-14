@@ -2,12 +2,12 @@ import LGNCore
 import FDB
 import NIO
 
-public extension FDB {
-    @available(*, deprecated, renamed: "begin(on:)")
-    public func begin(eventLoop: EventLoop) -> EventLoopFuture<FDB.Transaction> {
-        return self.begin(on: eventLoop)
-    }
-}
+//public extension FDB {
+//    @available(*, deprecated, renamed: "begin(on:)")
+//    public func begin(eventLoop: EventLoop) -> EventLoopFuture<FDB.Transaction> {
+//        return self.begin(on: eventLoop)
+//    }
+//}
 
 extension FDB: E2Storage {
     public func unwrapAnyTransactionOrBegin(
@@ -71,7 +71,7 @@ extension FDB: E2Storage {
     ) -> Future<Void> {
         return self
             .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
-            .then { transaction in transaction.set(key: key, value: bytes) }
+            .then { $0.set(key: key, value: bytes) }
             .map { _ in () }
     }
     

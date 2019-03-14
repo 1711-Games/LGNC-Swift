@@ -6,6 +6,18 @@ import LGNS
 import NIO
 import SwiftMsgPack
 
+public extension EventLoopFuture {
+    func map<U>(
+        file: StaticString = #file,
+        line: UInt = #line,
+        _ keyPath: KeyPath<T, U>
+    ) -> EventLoopFuture<U> {
+        return self.map(file: file, line: line) { (result: T) -> U in
+            return result[keyPath: keyPath]
+        }
+    }
+}
+
 fileprivate extension LGNC {
     fileprivate struct Formatter {
         fileprivate static let formatter: DateFormatter = {
