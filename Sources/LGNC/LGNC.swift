@@ -18,13 +18,18 @@ public struct LGNC {
     public static var translator: LGNCTranslator = LGNC.Translation.DummyTranslator()
 
     public static func getMeta(from requestInfo: LGNC.RequestInfo) -> Bytes {
-        return getMeta(clientAddr: requestInfo.clientAddr, userAgent: requestInfo.userAgent)
+        return self.getMeta(
+            clientAddr: requestInfo.clientAddr,
+            userAgent: requestInfo.userAgent,
+            locale: requestInfo.locale
+        )
     }
 
-    public static func getMeta(clientAddr: String, userAgent: String) -> Bytes {
+    public static func getMeta(clientAddr: String, userAgent: String, locale: LGNCore.Locale) -> Bytes {
         let meta = [
             "ip": clientAddr,
             "ua": userAgent,
+            "lc": locale.rawValue,
         ]
         var metaBytes = Bytes([0, 255])
         for (k, v) in meta {
@@ -36,14 +41,15 @@ public struct LGNC {
 }
 
 public extension LGNC {
-    public struct Entity {}
+    struct Entity {}
 }
 
 public extension LGNC {
-    public struct RequestInfo {
+    struct RequestInfo {
         public let remoteAddr: String
         public let clientAddr: String
         public let userAgent: String
+        public let locale: LGNCore.Locale
         public let uuid: UUID
         public let isSecure: Bool
         public let transport: LGNC.Transport
@@ -53,6 +59,7 @@ public extension LGNC {
             remoteAddr: String,
             clientAddr: String,
             userAgent: String,
+            locale: LGNCore.Locale,
             uuid: UUID,
             isSecure: Bool,
             transport: LGNC.Transport,
@@ -61,6 +68,7 @@ public extension LGNC {
             self.remoteAddr = remoteAddr
             self.clientAddr = clientAddr
             self.userAgent = userAgent
+            self.locale = locale
             self.uuid = uuid
             self.isSecure = isSecure
             self.transport = transport
@@ -71,19 +79,22 @@ public extension LGNC {
             from innerRequestInfo: LGNS.RequestInfo,
             transport: LGNC.Transport
         ) {
-            remoteAddr = innerRequestInfo.remoteAddr
-            clientAddr = innerRequestInfo.clientAddr
-            userAgent = innerRequestInfo.userAgent
-            uuid = innerRequestInfo.uuid
-            isSecure = innerRequestInfo.isSecure
-            eventLoop = innerRequestInfo.eventLoop
-            self.transport = transport
+            self.init(
+                remoteAddr: innerRequestInfo.remoteAddr,
+                clientAddr: innerRequestInfo.clientAddr,
+                userAgent: innerRequestInfo.userAgent,
+                locale: innerRequestInfo.locale,
+                uuid: innerRequestInfo.uuid,
+                isSecure: innerRequestInfo.isSecure,
+                transport: transport,
+                eventLoop: innerRequestInfo.eventLoop
+            )
         }
     }
 }
 
 public extension LGNC.Entity {
-    public final class Result: ContractEntity {
+    final class Result: ContractEntity {
         public static var keyDictionary: [String: String] {
             return [
 //                "success": "a",
@@ -142,7 +153,7 @@ public extension LGNC.Entity {
         public static func initFromResponse<T: ContractEntity>(
             from dictionary: Entita.Dict,
             on eventLoop: EventLoop,
-            type _: T.Type
+            type: T.Type
         ) -> EventLoopFuture<Result> {
             var errors: [String: [ValidatorError]] = [
                 "result": [],
@@ -185,7 +196,7 @@ public extension LGNC.Entity {
                     throw LGNC.E.DecodeError(filteredErrors)
                 }
             } catch {
-                return eventLoop.newFailedFuture(error: error)
+                return eventLoop.makeFailedFuture(error)
             }
 
             let future: Future<T?>
@@ -194,7 +205,7 @@ public extension LGNC.Entity {
                     .initWithValidation(from: _result, on: eventLoop)
                     .map { $0 }
             } else {
-                future = eventLoop.newSucceededFuture(result: nil)
+                future = eventLoop.makeSucceededFuture(nil)
             }
 
             return future.map { (result: T?) in
@@ -250,11 +261,11 @@ public extension LGNC.Entity {
                     throw LGNC.E.DecodeError(filteredErrors)
                 }
             } catch {
-                return eventLoop.newFailedFuture(error: error)
+                return eventLoop.makeFailedFuture(error)
             }
 
-            return eventLoop.newSucceededFuture(
-                result: self.init(
+            return eventLoop.makeSucceededFuture(
+                self.init(
                     result: _result,
                     errors: _errors,
                     meta: _meta,
@@ -282,7 +293,7 @@ public extension LGNC.Entity {
         }
     }
 
-    public final class Error: ContractEntity, ClientError {
+    final class Error: ContractEntity, ClientError {
         public static let keyDictionary: [String: String] = [
 //            "message": "a",
 //            "code": "b",
@@ -343,11 +354,11 @@ public extension LGNC.Entity {
                     throw LGNC.E.DecodeError(filteredErrors)
                 }
             } catch {
-                return eventLoop.newFailedFuture(error: error)
+                return eventLoop.makeFailedFuture(error)
             }
 
-            return eventLoop.newSucceededFuture(
-                result: self.init(
+            return eventLoop.makeSucceededFuture(
+                self.init(
                     message: _message,
                     code: _code
                 )
@@ -369,11 +380,11 @@ public extension LGNC.Entity {
         }
     }
 
-    public final class Empty: ContractEntity {
+    final class Empty: ContractEntity {
         public required init() {}
 
         public static func initWithValidation(from _: Entita.Dict, on eventLoop: EventLoop) -> EventLoopFuture<Empty> {
-            return eventLoop.newSucceededFuture(result: self.init())
+            return eventLoop.makeSucceededFuture(self.init())
         }
 
         public convenience init(from _: Entita.Dict) throws {

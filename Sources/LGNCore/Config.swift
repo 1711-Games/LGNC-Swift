@@ -1,7 +1,7 @@
 public protocol AnyConfigKey: Hashable, RawRepresentable, CaseIterable where RawValue == String {}
 
 public extension LGNCore {
-    public struct Config<Key: AnyConfigKey> {
+    struct Config<Key: AnyConfigKey> {
         public enum E: Error {
             case MissingEntries([Key])
         }
@@ -11,7 +11,7 @@ public extension LGNCore {
         public init(
             env: AppEnv,
             rawConfig: [AnyHashable: String],
-            defaultConfig: [Key: String] = [:]
+            localConfig: [Key: String] = [:]
         ) throws {
             var errors: [Key] = []
             var storage: [Key: String] = [:]
@@ -21,7 +21,7 @@ public extension LGNCore {
 
                 if let _value = rawConfig[key.rawValue] {
                     value = _value
-                } else if env == .local, let _value = defaultConfig[key] {
+                } else if env == .local, let _value = localConfig[key] {
                     value = _value
                 } else {
                     errors.append(key)
@@ -44,6 +44,13 @@ public extension LGNCore {
                 return "__\(key)__MISSING__"
             }
             return value
+        }
+
+        public func get(_ rawKey: String) -> String? {
+            guard let key = Key(rawValue: rawKey) else {
+                return nil
+            }
+            return self[key]
         }
     }
 }

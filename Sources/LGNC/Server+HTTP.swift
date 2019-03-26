@@ -6,7 +6,7 @@ import LGNS
 import NIO
 
 public extension LGNP.Message.ContentType {
-    public init(from HTTPContentType: LGNC.HTTP.ContentType) {
+    init(from HTTPContentType: LGNC.HTTP.ContentType) {
         switch HTTPContentType {
         case .JSON: self = .JSON
         case .XML: self = .XML
@@ -17,7 +17,7 @@ public extension LGNP.Message.ContentType {
 }
 
 public extension Service {
-    public static func serveHTTP(
+    static func serveHTTP(
         at target: LGNS.Server.BindTo? = nil,
         eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
         readTimeout: TimeAmount = .minutes(1),
@@ -51,6 +51,7 @@ public extension Service {
                         remoteAddr: request.remoteAddr,
                         clientAddr: request.remoteAddr,
                         userAgent: request.headers["User-Agent"].first ?? "",
+                        locale: LGNCore.Locale(rawValue: request.headers["Accept-Language"].first),
                         uuid: request.uuid,
                         isSecure: false,
                         transport: .HTTP,
@@ -68,7 +69,7 @@ public extension Service {
                     }
                 }
             } catch {
-                return request.eventLoop.newFailedFuture(error: error)
+                return request.eventLoop.makeFailedFuture(error)
             }
         }
 

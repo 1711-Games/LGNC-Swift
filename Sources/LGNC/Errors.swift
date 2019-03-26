@@ -5,24 +5,24 @@ public protocol ClientError: Error {
 }
 
 public extension Dictionary where Key == String, Value == [ClientError] {
-    public func getExactlyOneErrorFor(field: String) -> ClientError? {
+    func getExactlyOneErrorFor(field: String) -> ClientError? {
         guard let list = self[field], list.count == 1, let result = list.first else {
             return nil
         }
         return result
     }
 
-    public func getGeneralError() -> ClientError? {
+    func getGeneralError() -> ClientError? {
         return getExactlyOneErrorFor(field: "_")
     }
 
-    public func getGeneralErrorCode() -> Int? {
+    func getGeneralErrorCode() -> Int? {
         return getGeneralError()?.getErrorTuple().code
     }
 }
 
 public extension LGNC {
-    public enum E: Error {
+    enum E: Error {
         case DecodeError([String: [ValidatorError]])
         case UnpackError(String)
         case ControllerError(String)
@@ -42,7 +42,7 @@ public extension LGNC {
         }
     }
 
-    public enum ContractError: ClientError {
+    enum ContractError: ClientError {
         case URINotFound(String)
         case TransportNotAllowed(LGNC.Transport)
         case GeneralError(String, Int)

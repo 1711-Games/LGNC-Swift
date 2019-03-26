@@ -11,7 +11,7 @@ public typealias PromiseVoid = EventLoopPromise<Void>
 public struct LGNS {}
 
 public extension LGNS {
-    public enum Address: CustomStringConvertible {
+    enum Address: CustomStringConvertible {
         case ip(host: String, port: Int)
         case unixDomainSocket(path: String)
         case localhost

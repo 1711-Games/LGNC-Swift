@@ -21,40 +21,39 @@ public enum ContractVisibility {
 }
 
 public extension Contract {
-    public typealias InitValidationErrors = [String: [ValidatorError]]
+    typealias InitValidationErrors = [String: [ValidatorError]]
 
-    public static func normalize(
+    static func normalize(
         callback: @escaping (Request, LGNC.RequestInfo) -> Future<Response>
     ) -> (Request, LGNC.RequestInfo) -> Future<Entity> {
         return { callback($0, $1).map { $0 as Entity } }
     }
 
-    public static func futurize(
+    static func futurize(
         callback: @escaping (Request, LGNC.RequestInfo) throws -> Response
     ) -> (Request, LGNC.RequestInfo) -> Future<Response> {
         return { (request, requestInfo) -> Future<Response> in
-            let promise: Promise<Response> = requestInfo.eventLoop.newPromise()
-            do { promise.succeed(result: try callback(request, requestInfo)) }
-            catch { promise.fail(error: error) }
+            let promise: Promise<Response> = requestInfo.eventLoop.makePromise()
+            do { promise.succeed(try callback(request, requestInfo)) }
+            catch { promise.fail(error) }
             return promise.futureResult
         }
     }
 
     // Not to be used directly
-    public static func _invoke(
+    static func _invoke(
         with callback: Optional < (Request, LGNC.RequestInfo) -> Future < Entity>>,
         request: Entita.Dict,
         requestInfo: LGNC.RequestInfo,
         name: String
     ) -> Future<Entity> {
         guard let callback = callback else {
-            return requestInfo.eventLoop.newFailedFuture(error: LGNC.E.ControllerError("No callback for contract '\(name)'"))
+            return requestInfo.eventLoop.makeFailedFuture(LGNC.E.ControllerError("No callback for contract '\(name)'"))
         }
         return Request.initWithValidation(from: request, on: requestInfo.eventLoop)
-            .then { callback($0, requestInfo) }
+            .flatMap { callback($0, requestInfo) }
             .map { $0 as Entity }
     }
 }
 
-public struct Contracts {
-}
+public struct Contracts {}

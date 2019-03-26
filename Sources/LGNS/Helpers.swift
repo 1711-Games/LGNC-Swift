@@ -5,7 +5,7 @@ import NIO
 public typealias FutureVoid = Future<Void>
 
 public extension Channel {
-    public var remoteAddrString: String {
+    var remoteAddrString: String {
         var remoteAddr: String = ""
         if let remoteAddress = self.remoteAddress {
             switch remoteAddress {
@@ -19,7 +19,7 @@ public extension Channel {
 }
 
 public extension ClientBootstrap {
-    public func connect(to address: LGNS.Address) -> Future<Channel> {
+    func connect(to address: LGNS.Address) -> Future<Channel> {
         switch address {
         case let .ip(host, port):
             return connect(host: host, port: port)
@@ -32,7 +32,7 @@ public extension ClientBootstrap {
 }
 
 public extension ServerBootstrap {
-    public func bind(to address: LGNS.Address) -> Future<Channel> {
+    func bind(to address: LGNS.Address) -> Future<Channel> {
         switch address {
         case let .ip(host, port):
             return bind(host: host, port: port)
@@ -58,13 +58,13 @@ internal extension ByteBufferAllocator {
     func allocateBuffer(from string: String, encoding _: String.Encoding = .utf8) -> ByteBuffer {
         let bytes = Bytes(string.utf8)
         var buf = buffer(capacity: bytes.count)
-        buf.write(bytes: bytes)
+        buf.writeBytes(bytes)
         return buf
     }
 
     func allocateBuffer(from bytes: Bytes) -> ByteBuffer {
         var buf = buffer(capacity: bytes.count)
-        buf.write(bytes: bytes)
+        buf.writeBytes(bytes)
         return buf
     }
 

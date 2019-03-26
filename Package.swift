@@ -1,4 +1,4 @@
-// swift-tools-version:4.2
+// swift-tools-version:5.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -16,7 +16,7 @@ let package = Package(
         .library(name: "Entita2FDB", targets: ["Entita2FDB"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-nio.git", .upToNextMajor(from: "1.8.0")),
+        .package(url: "https://github.com/apple/swift-nio.git", .upToNextMajor(from: "2.0.0")),
 
         // used by LGNPContenter
         .package(url: "https://github.com/kirilltitov/MessagePack.git", .branch("master")),

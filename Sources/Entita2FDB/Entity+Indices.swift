@@ -3,7 +3,7 @@ import NIO
 import FDB
 
 public extension E2 {
-    public class Index<M: Entita2FDBIndexedEntity> {
+    class Index<M: Entita2FDBIndexedEntity> {
         internal let path: PartialKeyPath<M>
         internal let unique: Bool
 
@@ -37,11 +37,11 @@ public protocol Entita2FDBIndexedEntity: E2FDBEntity {
 }
 
 public extension Entita2FDBIndexedEntity {
-    public static var indexSubspace: FDB.Subspace {
+    static var indexSubspace: FDB.Subspace {
         return Self.subspace["idx"][Self.entityName]
     }
 
-    public var indexIndexSubspace: FDB.Subspace {
+    var indexIndexSubspace: FDB.Subspace {
         return Self.indexSubspace["idx", self.getID()]
     }
 
@@ -49,21 +49,21 @@ public extension Entita2FDBIndexedEntity {
         return index.getTuplePackableValue(from: self)
     }
 
-    public static func getGenericIndexSubspaceForIndex(
+    static func getGenericIndexSubspaceForIndex(
         name: FDBTuplePackable,
         value: FDBTuplePackable
     ) -> FDB.Subspace {
         return Self.indexSubspace[name][value]
     }
 
-    public static func getIndexKeyForUniqueIndex(
+    static func getIndexKeyForUniqueIndex(
         name: FDBTuplePackable,
         value: FDBTuplePackable
     ) -> AnyFDBKey {
         return Self.getGenericIndexSubspaceForIndex(name: name, value: value)
     }
 
-    public func getIndexKeyForIndex(
+    func getIndexKeyForIndex(
         _ index: E2.Index<Self>,
         name: FDBTuplePackable,
         value: FDBTuplePackable
@@ -77,7 +77,7 @@ public extension Entita2FDBIndexedEntity {
         return result
     }
 
-    public func getIndexIndexKeyForIndex(name: FDBTuplePackable, value: FDBTuplePackable) -> AnyFDBKey {
+    func getIndexIndexKeyForIndex(name: FDBTuplePackable, value: FDBTuplePackable) -> AnyFDBKey {
         return self.indexIndexSubspace[name][value]
     }
 
@@ -88,8 +88,8 @@ public extension Entita2FDBIndexedEntity {
         on eventLoop: EventLoop
     ) -> Future<Void> {
         guard let value = self.getIndexValueFrom(index: index) else {
-            return eventLoop.newFailedFuture(
-                error: E2.E.IndexError(
+            return eventLoop.makeFailedFuture(
+                E2.E.IndexError(
                     "Could not get tuple packable value for index '\(indexName)' in entity '\(Self.entityName)'"
                 )
             )
@@ -97,40 +97,40 @@ public extension Entita2FDBIndexedEntity {
 
         return Self.storage
             .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
-            .then { $0.set(key: self.getIndexKeyForIndex(index, name: indexName, value: value), value: self.getIDAsKey()) }
-            .then { $0.set(key: self.getIndexIndexKeyForIndex(name: indexName, value: value), value: []) }
+            .flatMap { $0.set(key: self.getIndexKeyForIndex(index, name: indexName, value: value), value: self.getIDAsKey()) }
+            .flatMap { $0.set(key: self.getIndexIndexKeyForIndex(name: indexName, value: value), value: []) }
             .map { _ in () }
     }
 
-    public func afterInsert0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
-        return EventLoopFuture<Void>.andAll(
+    func afterInsert0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
+        return EventLoopFuture<Void>.andAllSucceed(
             Self.indices.map { self.createIndex($0.key, for: $0.value, with: transaction, on: eventLoop) },
-            eventLoop: eventLoop
+            on: eventLoop
         )
     }
 
-    public func afterDelete0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
-        return EventLoopFuture<Void>.andAll(
+    func afterDelete0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
+        return EventLoopFuture<Void>.andAllSucceed(
             Self.indices.map { indexName, index in
                 guard let value = self.getIndexValueFrom(index: index) else {
-                    return eventLoop.newSucceededFuture(result: ())
+                    return eventLoop.makeSucceededFuture(())
                 }
                 return Self.storage
                     .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
-                    .then { $0.clear(key: self.getIndexKeyForIndex(index, name: indexName, value: value)) }
-                    .then { $0.clear(key: self.getIndexIndexKeyForIndex(name: indexName, value: value)) }
+                    .flatMap { $0.clear(key: self.getIndexKeyForIndex(index, name: indexName, value: value)) }
+                    .flatMap { $0.clear(key: self.getIndexIndexKeyForIndex(name: indexName, value: value)) }
                     .map { _ in () }
             },
-            eventLoop: eventLoop
+            on: eventLoop
         )
     }
 
     fileprivate func updateIndices(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
         let future: Future<Void> = Self.storage
             .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
-            .then { $0.get(range: self.indexIndexSubspace.range) }
-            .then { keyValueRecords, transaction in
-                var result: Future<Void> = eventLoop.newSucceededFuture(result: ())
+            .flatMap { $0.get(range: self.indexIndexSubspace.range) }
+            .flatMap { keyValueRecords, transaction in
+                var result: Future<Void> = eventLoop.makeSucceededFuture(())
 
                 for record in keyValueRecords.records {
                     let key: FDB.Tuple
@@ -147,22 +147,22 @@ public extension Entita2FDBIndexedEntity {
                     let indexValue = tuples[tuples.count - 1]
                     
                     guard let indexName = indexNameErased as? String else {
-                        return eventLoop.newFailedFuture(
-                            error: E2.E.IndexError(
+                        return eventLoop.makeFailedFuture(
+                            E2.E.IndexError(
                                 "Could not cast '\(indexNameErased)' as String in entity '\(Self.entityName)'"
                             )
                         )
                     }
                     guard let index = Self.indices[indexName] else {
-                        return eventLoop.newFailedFuture(
-                            error: E2.E.IndexError(
+                        return eventLoop.makeFailedFuture(
+                            E2.E.IndexError(
                                 "No index \(indexName) in entity '\(Self.entityName)'"
                             )
                         )
                     }
                     guard let propertyValue = self.getIndexValueFrom(index: index) else {
-                        return eventLoop.newFailedFuture(
-                            error: E2.E.IndexError(
+                        return eventLoop.makeFailedFuture(
+                            E2.E.IndexError(
                                 "Could not get property value for index \(indexName) in entity '\(Self.entityName)'"
                             )
                         )
@@ -173,9 +173,9 @@ public extension Entita2FDBIndexedEntity {
                     
                     if previousIndexKey.asFDBKey() != probablyNewIndexKey.asFDBKey() {
                         result = result
-                            .then { _ in transaction.clear(key: previousIndexKey) }
-                            .then { _ in transaction.clear(key: key) }
-                            .then { _ in self.createIndex(indexName, for: index, with: transaction, on: eventLoop) }
+                            .flatMap { _ in transaction.clear(key: previousIndexKey) }
+                            .flatMap { _ in transaction.clear(key: key) }
+                            .flatMap { _ in self.createIndex(indexName, for: index, with: transaction, on: eventLoop) }
                     }
                 }
 
@@ -184,7 +184,7 @@ public extension Entita2FDBIndexedEntity {
         return future
     }
 
-    public func afterSave0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> EventLoopFuture<Void> {
+    func afterSave0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> EventLoopFuture<Void> {
         return self.updateIndices(with: transaction, on: eventLoop)
     }
 
@@ -196,30 +196,30 @@ public extension Entita2FDBIndexedEntity {
         return true
     }
 
-    public static func loadByIndex(
+    static func loadByIndex(
         name: String,
         value: FDBTuplePackable,
         with transaction: AnyTransaction? = nil,
         on eventLoop: EventLoop
     ) -> Future<Self?> {
         guard Self.isValidIndex(name: name) else {
-            return eventLoop.newSucceededFuture(result: nil)
+            return eventLoop.makeSucceededFuture(nil)
         }
 
         return Self.storage
             .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
-            .then { $0.get(key: Self.getIndexKeyForUniqueIndex(name: name, value: value)) }
-            .then { maybeIDBytes, transaction in
+            .flatMap { $0.get(key: Self.getIndexKeyForUniqueIndex(name: name, value: value)) }
+            .flatMap { maybeIDBytes, transaction in
                 guard let IDBytes = maybeIDBytes else {
-                    return eventLoop.newSucceededFuture(result: nil)
+                    return eventLoop.makeSucceededFuture(nil)
                 }
                 return Self.loadByRaw(IDBytes: IDBytes, with: transaction, on: eventLoop)
             }
     }
 
-    public static func existsByIndex(name: String, value: FDBTuplePackable, on eventLoop: EventLoop) -> Future<Bool> {
+    static func existsByIndex(name: String, value: FDBTuplePackable, on eventLoop: EventLoop) -> Future<Bool> {
         guard Self.isValidIndex(name: name) else {
-            return eventLoop.newSucceededFuture(result: false)
+            return eventLoop.makeSucceededFuture(false)
         }
 
         return self.storage.withTransaction(on: eventLoop) { transaction in

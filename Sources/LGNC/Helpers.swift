@@ -7,19 +7,19 @@ import NIO
 import SwiftMsgPack
 
 public extension EventLoopFuture {
-    func map<U>(
+    func map<NewValue>(
         file: StaticString = #file,
         line: UInt = #line,
-        _ keyPath: KeyPath<T, U>
-    ) -> EventLoopFuture<U> {
-        return self.map(file: file, line: line) { (result: T) -> U in
+        _ keyPath: KeyPath<Value, NewValue>
+    ) -> EventLoopFuture<NewValue> {
+        return self.map(file: file, line: line) { (result: Value) -> NewValue in
             return result[keyPath: keyPath]
         }
     }
 }
 
 fileprivate extension LGNC {
-    fileprivate struct Formatter {
+    struct Formatter {
         fileprivate static let formatter: DateFormatter = {
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd kk:mm:ss.SSSSxxx"
@@ -29,7 +29,7 @@ fileprivate extension LGNC {
 }
 
 public extension Date {
-    public var formatted: String {
+    var formatted: String {
         return LGNC.Formatter.formatter.string(from: self)
     }
 }

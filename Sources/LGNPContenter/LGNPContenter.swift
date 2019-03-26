@@ -12,20 +12,20 @@ public struct LGNPConenter {
 }
 
 public extension Dictionary where Key == String {
-    public func getMsgPack() throws -> Bytes {
+    func getMsgPack() throws -> Bytes {
         return try autoreleasepool {
             var msgpack = Data()
             return try msgpack.pack(self).bytes
         }
     }
 
-    public func getJSON() throws -> Bytes {
+    func getJSON() throws -> Bytes {
         return try autoreleasepool {
             try JSONSerialization.data(withJSONObject: self, options: .prettyPrinted).bytes
         }
     }
 
-    public func pack(to format: LGNP.Message.ContentType) throws -> Bytes {
+    func pack(to format: LGNP.Message.ContentType) throws -> Bytes {
         return try autoreleasepool {
             switch format {
             case .MsgPack: return try self.getMsgPack()
@@ -36,7 +36,7 @@ public extension Dictionary where Key == String {
         }
     }
 
-    public func pack(to format: LGNP.Message.ContentType?) throws -> Bytes {
+    func pack(to format: LGNP.Message.ContentType?) throws -> Bytes {
         guard let format = format else {
             return Bytes()
         }
@@ -64,7 +64,7 @@ extension Sequence where Iterator.Element: OptionalType {
 }
 
 public extension LGNP.Message {
-    public func unpackPayload(
+    func unpackPayload(
         _ allowedContentTypes: [LGNP.Message.ContentType] = LGNP.Message.ContentType.all
     ) throws -> [String: Any] {
         let contentType = self.contentType
@@ -81,11 +81,11 @@ public extension LGNP.Message {
 }
 
 public extension Array where Element == Byte {
-    public var ascii: String {
+    var ascii: String {
         return String(bytes: self, encoding: .ascii)!
     }
 
-    public func unpackFromMsgPack() throws -> [String: Any] {
+    func unpackFromMsgPack() throws -> [String: Any] {
         do {
             let result: [String: Any] = try autoreleasepool {
                 let copy = Data(self) // decoder is bugged and cannot accept sliced Data
@@ -111,7 +111,7 @@ public extension Array where Element == Byte {
         }
     }
 
-    public func unpackFromJSON() throws -> [String: Any] {
+    func unpackFromJSON() throws -> [String: Any] {
         return try autoreleasepool {
             guard let result = (try? JSONSerialization.jsonObject(with: Data(self))) as? [String: Any] else {
                 throw LGNPConenter.E.UnpackError("Could not unpack value from JSON")
@@ -120,7 +120,7 @@ public extension Array where Element == Byte {
         }
     }
 
-    public func unpack() throws -> Any? {
+    func unpack() throws -> Any? {
         return try autoreleasepool {
             try Data(self).unpack()
         }

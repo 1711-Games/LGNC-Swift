@@ -10,7 +10,7 @@ public protocol ContractEntity: Entity {
 }
 
 public extension ContractEntity {
-    public static func reduce(
+    static func reduce(
         validators: [String: [Future<(String, ValidatorError?)>]],
         on eventLoop: EventLoop
     ) -> Future<[String: [ValidatorError]]> {
@@ -18,7 +18,7 @@ public extension ContractEntity {
             .reduce(
                 into: Dictionary(uniqueKeysWithValues: validators.keys.map { ($0, []) }),
                 validators.values.reduce(into: []) { $0.append(contentsOf: $1) },
-                eventLoop: eventLoop
+                on: eventLoop
             ) { carry, result in
                 if let error = result.1 {
                     carry[result.0]!.append(error)

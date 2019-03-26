@@ -1,7 +1,7 @@
 import LGNCore
 
 public extension LGNC {
-    public struct Translation {}
+    struct Translation {}
 }
 
 public protocol LGNCTranslator {
@@ -13,7 +13,7 @@ public protocol LGNCTranslator {
 }
 
 public extension LGNC.Translation {
-    public struct DummyTranslator: LGNCTranslator {
+    struct DummyTranslator: LGNCTranslator {
         @inlinable public func tr(
             _ input: String,
             _ locale: Locale,
@@ -25,7 +25,7 @@ public extension LGNC.Translation {
 }
 
 public extension LGNC.Translation {
-    public enum Locale: String {
+    enum Locale: String {
         case afZA = "af-ZA"
         case amET = "am-ET"
         case arAE = "ar-AE"

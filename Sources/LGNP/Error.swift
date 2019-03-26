@@ -1,5 +1,5 @@
 public extension LGNP {
-    public enum E: Error {
+    enum E: Error {
         case InvalidMessage(String)
         case InvalidMessageProtocol(String)
         case InvalidMessageLength(String)

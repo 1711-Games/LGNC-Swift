@@ -1,5 +1,5 @@
 public extension LGNS {
-    public enum E: Error {
+    enum E: Error {
         case RequiredBitmaskNotSatisfied
         case Timeout
         case ConnectionClosed

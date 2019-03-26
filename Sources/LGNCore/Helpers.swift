@@ -9,25 +9,25 @@ import Foundation
 
 public extension Float {
     /// Rounds the double to decimal places value
-    public func rounded(toPlaces places: Int) -> Float {
+    func rounded(toPlaces places: Int) -> Float {
         let divisor = pow(10.0, Float(places))
         return (self * divisor).rounded() / divisor
     }
 }
 
 public extension UUID {
-    public init(bytes: Bytes) {
+    init(bytes: Bytes) {
         precondition(bytes.count == 16, "You provided \(bytes.count) bytes, exactly 16 is needed for UUID")
         self.init(uuid: bytes.cast())
     }
 
-    public var string: String {
+    var string: String {
         return uuidString
     }
 }
 
 public extension Date {
-    public var timeIntervalSince: TimeInterval {
+    var timeIntervalSince: TimeInterval {
         return -timeIntervalSinceNow
     }
 }

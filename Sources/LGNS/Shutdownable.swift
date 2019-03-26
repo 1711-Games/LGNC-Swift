@@ -22,17 +22,17 @@ public class SignalObserver {
         var futures: [FutureVoid] = []
 
         instances.forEach {
-            let promise: PromiseVoid = self.eventLoop.newPromise()
+            let promise: PromiseVoid = self.eventLoop.makePromise()
             futures.append(promise.futureResult)
             $0.value?.shutdown(promise: promise)
         }
         instances.removeAll()
 
-        return FutureVoid.andAll(futures, eventLoop: eventLoop)
+        return FutureVoid.andAllComplete(futures, on: eventLoop)
     }
 
     public class func add(_ instance: Shutdownable) {
-        lock.withLockVoid {
+        self.lock.withLockVoid {
             self.instances.append(Box(value: instance))
         }
     }

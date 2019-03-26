@@ -15,7 +15,7 @@ public protocol ValidatorError: ValidatorErrorRepresentable {
 }
 
 public extension ValidatorError {
-    public func getErrorTuple() -> (message: String, code: Int) {
+    func getErrorTuple() -> (message: String, code: Int) {
         return (message: message, code: code)
     }
 }
@@ -26,12 +26,12 @@ public struct Validation {
 }
 
 public extension Validation.Error {
-    public struct InvalidType: ValidatorError {
+    struct InvalidType: ValidatorError {
         public let code: Int = 412
         public let message: String = "Type mismatch"
     }
 
-    public struct MissingValue: ValidatorError {
+    struct MissingValue: ValidatorError {
         public let code: Int
         public let message: String
 
@@ -48,13 +48,13 @@ public protocol Validator {
 }
 
 public extension Validator {
-    public func validate(input: Any, on eventLoop: EventLoop) -> Future<ValidatorError?> {
-        return eventLoop.newSucceededFuture(result: validate(input: input))
+    func validate(input: Any, on eventLoop: EventLoop) -> Future<ValidatorError?> {
+        return eventLoop.makeSucceededFuture(validate(input: input))
     }
 }
 
 public extension Validation {
-    public struct Regexp: Validator {
+    struct Regexp: Validator {
         public struct Error: ValidatorError {
             public let code: Int = 412
             public let message: String
@@ -79,7 +79,7 @@ public extension Validation {
         }
     }
 
-    public struct UUID: Validator {
+    struct UUID: Validator {
         public struct Error: ValidatorError {
             public let code: Int = 412
             public let message: String
@@ -102,7 +102,7 @@ public extension Validation {
         }
     }
 
-    public struct In<T: Equatable>: Validator {
+    struct In<T: Equatable>: Validator {
         public struct Error: ValidatorError {
             public let code: Int = 412
             public let message: String
@@ -127,13 +127,13 @@ public extension Validation {
         }
     }
 
-    public enum In2AllowedValues: String {
+    enum In2AllowedValues: String {
         case Male
         case Female
         case AttackHelicopter = "Attack helicopter"
     }
 
-    public struct In2<T: RawRepresentable>: Validator {
+    struct In2<T: RawRepresentable>: Validator {
         public struct Error: ValidatorError {
             public let code: Int = 412
             public let message: String
@@ -160,7 +160,7 @@ public extension Validation {
         }
     }
 
-    public struct Length {
+    struct Length {
         public struct Error: ValidatorError {
             public let code: Int = 416
             public let message: String
@@ -207,7 +207,7 @@ public extension Validation {
         }
     }
 
-    public struct Identical: Validator {
+    struct Identical: Validator {
         public struct Error: ValidatorError {
             public let code: Int = 416
             public let message: String
@@ -232,7 +232,7 @@ public extension Validation {
         }
     }
 
-    public struct Date: Validator {
+    struct Date: Validator {
         public struct Error: ValidatorError {
             public let code: Int = 412
             public let message: String
@@ -259,7 +259,7 @@ public extension Validation {
         }
     }
 
-    public struct Callback<Value>: Validator {
+    struct Callback<Value>: Validator {
         public typealias Callback = (Value, EventLoop) -> Future<(message: String, code: Int)?>
 
         public struct Error: ValidatorError {
@@ -280,7 +280,7 @@ public extension Validation {
 
         public func validate(input: Any, on eventLoop: EventLoop) -> Future<ValidatorError?> {
             guard let value = input as? Value else {
-                return eventLoop.newSucceededFuture(result: Validation.Error.InvalidType())
+                return eventLoop.makeSucceededFuture(Validation.Error.InvalidType())
             }
             return callback(
                 value,
@@ -294,7 +294,7 @@ public extension Validation {
         }
     }
 
-    public struct CallbackWithAllowedValues<AllowedValues: CallbackWithAllowedValuesRepresentable & ValidatorErrorRepresentable>: Validator {
+    struct CallbackWithAllowedValues<AllowedValues: CallbackWithAllowedValuesRepresentable & ValidatorErrorRepresentable>: Validator {
         public typealias Callback = (AllowedValues.InputValue, EventLoop) -> Future<AllowedValues?>
 
         public struct Error: ValidatorError {
@@ -314,7 +314,7 @@ public extension Validation {
 
         public func validate(input: Any, on eventLoop: EventLoop) -> Future<ValidatorError?> {
             guard let value = input as? AllowedValues.InputValue else {
-                return eventLoop.newSucceededFuture(result: Validation.Error.InvalidType())
+                return eventLoop.makeSucceededFuture(Validation.Error.InvalidType())
             }
             return callback(
                 value,

@@ -3,7 +3,7 @@ import LGNP
 import NIO
 
 internal extension LGNS {
-    internal final class LGNPCoder: ChannelDuplexHandler {
+    final class LGNPCoder: ChannelDuplexHandler {
         fileprivate enum State {
             case start, waitingForHeader, waitingForBody
         }
@@ -69,7 +69,7 @@ internal extension LGNS {
                 fallthrough
             case .waitingForHeader:
                 if updateBuffer {
-                    buffer.write(buffer: &input)
+                    buffer.writeBuffer(&input)
                 }
 
                 if
@@ -86,7 +86,7 @@ internal extension LGNS {
                 }
             case .waitingForBody:
                 if updateBuffer {
-                    buffer.write(buffer: &input)
+                    buffer.writeBuffer(&input)
                 }
 
                 if
@@ -133,7 +133,7 @@ internal extension LGNS {
                     promise: promise
                 )
             } catch {
-                promise?.fail(error: error)
+                promise?.fail(error)
             }
         }
     }

@@ -5,7 +5,7 @@ import LGNS
 import NIO
 
 public extension Service {
-    public static func serveLGNS(
+    static func serveLGNS(
         at target: LGNS.Server.BindTo? = nil,
         cryptor: LGNP.Cryptor,
         eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
@@ -47,7 +47,7 @@ public extension Service {
                     }
                 }
             } catch {
-                return info.eventLoop.newFailedFuture(error: error)
+                return info.eventLoop.makeFailedFuture(error)
             }
         }
 

@@ -2,7 +2,7 @@ import LGNCore
 import NIO
 
 public extension E2 {
-    public enum Format: String {
+    enum Format: String {
         case JSON, MsgPack
     }
 }
@@ -31,16 +31,16 @@ public protocol E2Entity: Codable {
     func afterLoad0(on eventLoop: EventLoop) -> Future<Void>
     func afterLoad(on eventLoop: EventLoop) -> Future<Void>
 
-    /// Same as `save`, but with executes `beforeInsert` and `afterInsert` before and after insert respectively
-    // Internal method, do not define
+    /// Same as `save`, but with executes `beforeInsert` and `afterInsert` before and after insert respectively.
+    /// Internal method, do not define
     func insert(on eventLoop: EventLoop) -> Future<Void>
     func save(on eventLoop: EventLoop) -> Future<Void>
     func save(by ID: Identifier?, on eventLoop: EventLoop) -> Future<Void>
     func delete(on eventLoop: EventLoop) -> Future<Void>
     
-    // This method is not intended to be used directly. Use `save` instead.
+    /// This method is not intended to be used directly. Use `save` instead.
     func save0(by ID: Identifier?, with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
-    // This method is not intended to be used directly. Use `delete` instead.
+    /// This method is not intended to be used directly. Use `delete` instead.
     func delete0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
 
     func beforeInsert0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
@@ -66,11 +66,11 @@ public protocol E2Entity: Codable {
 }
 
 public extension E2Entity {
-    public func getID() -> Identifier {
+    func getID() -> Identifier {
         return self[keyPath: Self.IDKey]
     }
 
-    public static func begin(on eventLoop: EventLoop) -> Future<AnyTransaction?> {
-        return eventLoop.newSucceededFuture(result: nil)
+    static func begin(on eventLoop: EventLoop) -> Future<AnyTransaction?> {
+        return eventLoop.makeSucceededFuture(nil)
     }
 }

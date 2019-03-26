@@ -7,20 +7,20 @@ import NIO
 import NIOHTTP1
 
 public extension LGNC {
-    public struct HTTP {
+    struct HTTP {
         public typealias Resolver = (Request) -> Future<Bytes>
     }
 }
 
 public extension LGNC.HTTP {
-    public enum ContentType: String {
+    enum ContentType: String {
         case PlainText = "text/plain"
         case XML = "application/xml"
         case JSON = "application/json"
         case MsgPack = "application/msgpack"
     }
 
-    public struct Request {
+    struct Request {
         public let URI: String
         public let headers: HTTPHeaders
         public let remoteAddr: String
@@ -33,7 +33,7 @@ public extension LGNC.HTTP {
 }
 
 public extension LGNC.HTTP {
-    public class Server: Shutdownable {
+    class Server: Shutdownable {
         public typealias BindTo = LGNS.Address
 
         private let readTimeout: TimeAmount
@@ -58,8 +58,8 @@ public extension LGNC.HTTP {
                 .serverChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
 
                 .childChannelInitializer { channel in
-                    channel.pipeline.configureHTTPServerPipeline(withErrorHandling: true).then {
-                        channel.pipeline.add(handler: Handler(resolver: resolver))
+                    channel.pipeline.configureHTTPServerPipeline(withErrorHandling: true).flatMap {
+                        channel.pipeline.addHandler(Handler(resolver: resolver))
                 } }
 
                 .childChannelOption(ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
@@ -79,7 +79,7 @@ public extension LGNC.HTTP {
         public func serve(at target: BindTo, promise: PromiseVoid? = nil) throws {
             channel = try bootstrap.bind(to: target).wait()
 
-            promise?.succeed(result: ())
+            promise?.succeed(())
 
             try channel.closeFuture.wait()
         }
@@ -109,7 +109,7 @@ fileprivate func httpResponseHead(request: HTTPRequestHead, status: HTTPResponse
 }
 
 internal extension LGNC.HTTP {
-    internal final class Handler: ChannelInboundHandler {
+    final class Handler: ChannelInboundHandler {
         public typealias InboundIn = HTTPServerRequestPart
         public typealias OutboundOut = HTTPServerResponsePart
 
@@ -157,8 +157,8 @@ internal extension LGNC.HTTP {
 
         public func handlerAdded(ctx: ChannelHandlerContext) {
             let message: StaticString = "Hello World!"
-            buffer = ctx.channel.allocator.buffer(capacity: message.count)
-            buffer.write(staticString: message)
+            buffer = ctx.channel.allocator.buffer(capacity: message.utf8CodeUnitCount)
+            buffer.writeStaticString(message)
         }
 
         public func userInboundEventTriggered(ctx: ChannelHandlerContext, event: Any) {
@@ -221,9 +221,9 @@ internal extension LGNC.HTTP {
         private func completeResponse(_ ctx: ChannelHandlerContext, trailers: HTTPHeaders?, promise: EventLoopPromise<Void>?) {
             state.responseComplete()
 
-            let promise = keepAlive ? promise : (promise ?? ctx.eventLoop.newPromise())
+            let promise = keepAlive ? promise : (promise ?? ctx.eventLoop.makePromise())
             if !keepAlive {
-                promise!.futureResult.whenComplete { ctx.close(promise: nil) }
+                promise!.futureResult.whenComplete { _ in ctx.close(promise: nil) }
             }
             handler = nil
 
@@ -248,7 +248,7 @@ internal extension LGNC.HTTP {
                 state.requestComplete()
 
                 var buf = ctx.channel.allocator.buffer(capacity: string.utf8.count)
-                buf.write(string: string)
+                buf.writeString(string)
                 ctx.writeAndFlush(wrapOutboundOut(.body(.byteBuffer(buf))), promise: nil)
                 var trailers: HTTPHeaders?
                 if let trailer = trailer {
@@ -262,7 +262,7 @@ internal extension LGNC.HTTP {
 
         private func sendBadRequest(message: String = "400 Bad Request", to ctx: ChannelHandlerContext) {
             LGNCore.log(message, prefix: uuid.string)
-            buffer.write(string: message)
+            buffer.writeString(message)
             finishRequest(ctx: ctx, status: .badRequest)
         }
 
@@ -278,7 +278,7 @@ internal extension LGNC.HTTP {
                 if bodyBuffer == nil {
                     bodyBuffer = buf
                 } else {
-                    bodyBuffer?.write(buffer: &buf)
+                    bodyBuffer?.writeBuffer(&buf)
                 }
             case .end:
                 guard !errored else {
@@ -349,7 +349,7 @@ internal extension LGNC.HTTP {
                     eventLoop: ctx.eventLoop
                 )
                 let future = resolver(request)
-                future.whenComplete {
+                future.whenComplete { _ in
                     LGNCore.log(
                         "HTTP request '\(request.URI)' execution took \(self.profiler.end().rounded(toPlaces: 5)) s",
                         prefix: self.uuid.string
@@ -360,7 +360,7 @@ internal extension LGNC.HTTP {
                     "Server": "LGNC \(LGNC.VERSION)",
                 ]
                 future.whenSuccess { bytes in
-                    self.buffer.write(bytes: bytes)
+                    self.buffer.writeBytes(bytes)
                     headers["Content-Type"] = request.contentType.rawValue
                     self.finishRequest(
                         ctx: ctx,
@@ -373,7 +373,7 @@ internal extension LGNC.HTTP {
                         "There was an error while processing request '\(request.URI)': \(error)",
                         prefix: self.uuid.string
                     )
-                    self.buffer.write(string: "500 Internal Server Error")
+                    self.buffer.writeString("500 Internal Server Error")
                     self.finishRequest(
                         ctx: ctx,
                         status: .internalServerError,

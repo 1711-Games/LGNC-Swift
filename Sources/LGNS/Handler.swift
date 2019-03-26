@@ -3,7 +3,7 @@ import LGNP
 import NIO
 
 internal extension LGNS {
-    internal class BaseHandler: ChannelInboundHandler {
+    class BaseHandler: ChannelInboundHandler {
         public typealias InboundIn = LGNP.Message
         public typealias InboundOut = LGNP.Message
         public typealias OutboundOut = LGNP.Message
@@ -29,8 +29,8 @@ internal extension LGNS {
             print("FLUSHING ERROR TO CLIENT")
             print("\(#file):\(#line)")
             print(error)
-            let promise: PromiseVoid = ctx.eventLoop.newPromise()
-            promise.futureResult.whenComplete { ctx.close(promise: nil) }
+            let promise: PromiseVoid = ctx.eventLoop.makePromise()
+            promise.futureResult.whenComplete { _ in ctx.close(promise: nil) }
             ctx.writeAndFlush(
                 wrapOutboundOut(
                     LGNP.Message(
@@ -46,7 +46,7 @@ internal extension LGNS {
         }
 
         public func channelInactive(ctx: ChannelHandlerContext) {
-            promise?.fail(error: LGNS.E.ConnectionClosed)
+            self.promise?.fail(LGNS.E.ConnectionClosed)
             ctx.fireChannelInactive()
         }
 
@@ -58,6 +58,7 @@ internal extension LGNS {
 
             var message = unwrapInboundIn(data)
             let remoteAddr = ctx.channel.remoteAddrString
+
             var metaDict: [String: String] = [:]
             if let metaBytes = message.meta, metaBytes.starts(with: BaseHandler.META_SECTION_BYTES) {
                 for line in metaBytes[BaseHandler.META_SECTION_BYTES.count...].split(separator: BaseHandler.EOL) {
@@ -74,22 +75,24 @@ internal extension LGNS {
                     metaDict[key] = value
                 }
             }
+
             let future = resolver(
                 message,
                 RequestInfo(
                     remoteAddr: remoteAddr,
                     clientAddr: metaDict["ip"] ?? remoteAddr,
                     userAgent: metaDict["ua"] ?? "LGNS",
+                    locale: LGNCore.Locale(rawValue: metaDict["lc"]),
                     uuid: message.uuid,
                     isSecure: message.controlBitmask.contains(.encrypted),
                     eventLoop: ctx.eventLoop
                 )
             )
 
-            promise = nil
+            self.promise = nil
 
             if let profiler = profiler {
-                future.whenComplete {
+                future.whenComplete { _ in
                     LGNCore.log(
                         "LGNS \(type(of: self)) request '\(message.URI)' execution took \(profiler.end().rounded(toPlaces: 5)) s",
                         prefix: message.uuid.string
@@ -128,7 +131,7 @@ internal extension LGNS {
         }
     }
 
-    internal final class ServerHandler: BaseHandler {
+    final class ServerHandler: BaseHandler {
         override class var profile: Bool {
             return true
         }
@@ -138,10 +141,10 @@ internal extension LGNS {
         }
     }
 
-    internal class ClientHandler: BaseHandler {
+    class ClientHandler: BaseHandler {
         fileprivate override func handleError(ctx: ChannelHandlerContext, error: LGNS.E) {
             ctx.fireErrorCaught(error)
-            promise?.fail(error: error)
+            promise?.fail(error)
         }
     }
 }

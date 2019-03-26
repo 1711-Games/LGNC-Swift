@@ -1,7 +1,7 @@
 import LGNCore
 
 public extension Identifiable {
-    public var _bytes: Bytes {
+    var _bytes: Bytes {
         return LGNCore.getBytes(self)
     }
 }

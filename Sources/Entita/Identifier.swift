@@ -28,11 +28,11 @@ extension Identifier: CustomStringConvertible {
 }
 
 extension Identifier: Hashable {
-    public var hashValue: Int {
-        return get().hash
-    }
-
-    public static func == (lhs: Identifier, rhs: Identifier) -> Bool {
-        return lhs.get() == rhs.get()
-    }
+//    public var hashValue: Int {
+//        return get().hash
+//    }
+//
+//    public static func == (lhs: Identifier, rhs: Identifier) -> Bool {
+//        return lhs.get() == rhs.get()
+//    }
 }

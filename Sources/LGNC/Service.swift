@@ -39,7 +39,7 @@ public protocol Service {
 }
 
 public extension LGNC {
-    public typealias ServicesRegistry = [
+    typealias ServicesRegistry = [
         String: (
             transports: [Transport: Int],
             contracts: [
@@ -51,14 +51,14 @@ public extension LGNC {
         )
     ]
 
-    public enum Transport: String {
+    enum Transport: String {
         case LGNS, HTTP
         // case LGNSS, HTTPS // once, maybe
     }
 }
 
 public extension Service {
-    public static func executeContract(
+    static func executeContract(
         URI: String,
         uuid: UUID,
         payload: Entita.Dict,
@@ -74,7 +74,7 @@ public extension Service {
             }
             result = contractInfo.executor(requestInfo, payload)
                 .map { LGNC.Entity.Result(from: $0) }
-                .mapIfError { error in
+                .recover { error in
                     do {
                         switch error {
                         case let LGNC.E.UnpackError(error):
@@ -98,15 +98,15 @@ public extension Service {
                     }
                 }
         } catch let error as LGNC.ContractError {
-            result = requestInfo.eventLoop.newSucceededFuture(
-                result: requestInfo.isSecure
+            result = requestInfo.eventLoop.makeSucceededFuture(
+                requestInfo.isSecure
                     ? LGNC.Entity.Result(from: [LGNC.GLOBAL_ERROR_KEY: [error]])
                     : LGNC.Entity.Result.internalError
             )
             LGNCore.log("Contract error: \(error)", prefix: uuid.string)
         } catch let error {
             LGNCore.log("Quite uncaught error: \(error)", prefix: uuid.string)
-            result = requestInfo.eventLoop.newSucceededFuture(result: LGNC.Entity.Result.internalError)
+            result = requestInfo.eventLoop.makeSucceededFuture(LGNC.Entity.Result.internalError)
         }
         return result.map { $0 as Entity }
     }

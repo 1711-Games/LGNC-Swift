@@ -4,7 +4,7 @@ import Gzip
 import LGNCore
 
 public extension LGNP {
-    public struct Cryptor {
+    struct Cryptor {
         private static let MIN_SALT_SIZE = 6
         private static let MAX_SALT_SIZE = 12
         private static let IV_SIZE = AES.blockSize

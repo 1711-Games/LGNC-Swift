@@ -2,7 +2,7 @@ import Foundation
 import LGNCore
 
 public extension LGNP {
-    public struct Message {
+    struct Message {
         public enum ContentType: String {
             case MsgPack, JSON, XML, PlainText
 

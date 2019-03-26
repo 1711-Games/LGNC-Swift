@@ -1,7 +1,7 @@
 import Foundation
 
 public extension DictionaryExtractable {
-    public static var keyDictionary: [String: String] {
+    static var keyDictionary: [String: String] {
         return [:]
     }
 
@@ -9,27 +9,27 @@ public extension DictionaryExtractable {
         return "\(longName):\(shortName)"
     }
 
-    public func getDictionaryKey(_ name: String) -> String {
+    func getDictionaryKey(_ name: String) -> String {
         return Swift.type(of: self).getDictionaryKey(name)
     }
 
-    public static func getDictionaryKey(_ name: String) -> String {
+    static func getDictionaryKey(_ name: String) -> String {
         if Entita.KEY_DICTIONARIES_ENABLED == false {
             return name
         }
         return keyDictionary[name] ?? name
     }
 
-    public static func extract(param name: String, from dictionary: Entita.Dict) -> (key: String, value: Any?) {
+    static func extract(param name: String, from dictionary: Entita.Dict) -> (key: String, value: Any?) {
         let key = getDictionaryKey(name)
         return (key: key, value: dictionary[key])
     }
 
-    public static func getSelfName() -> String {
+    static func getSelfName() -> String {
         return String(reflecting: self).components(separatedBy: ".")[1...].joined(separator: ".")
     }
 
-    public static func extract<T>(
+    static func extract<T>(
         param name: String,
         from dictionary: Entita.Dict
     ) throws -> T {
@@ -40,7 +40,7 @@ public extension DictionaryExtractable {
         return result
     }
 
-    public static func extract<T: DictionaryDecodable>(
+    static func extract<T: DictionaryDecodable>(
         param name: String,
         from dictionary: Entita.Dict,
         isOptional: Bool = false
@@ -56,7 +56,7 @@ public extension DictionaryExtractable {
         return try T(from: rawDict)
     }
 
-    public static func extract<T>(
+    static func extract<T>(
         param name: String,
         from dictionary: Entita.Dict,
         isOptional: Bool = false
@@ -73,7 +73,7 @@ public extension DictionaryExtractable {
         return result
     }
 
-    public static func extract<T: RawRepresentable>(
+    static func extract<T: RawRepresentable>(
         param name: String,
         from dictionary: Entita.Dict
     ) throws -> T {
@@ -89,7 +89,7 @@ public extension DictionaryExtractable {
         return result
     }
 
-    public static func extract<T: DictionaryDecodable>(
+    static func extract<T: DictionaryDecodable>(
         param name: String,
         from dictionary: Entita.Dict
     ) throws -> T {
@@ -101,7 +101,7 @@ public extension DictionaryExtractable {
         return try T(from: rawDict)
     }
 
-    public static func extract<T: DictionaryDecodable>(
+    static func extract<T: DictionaryDecodable>(
         param name: String,
         from dictionary: Entita.Dict
     ) throws -> [T] {
@@ -113,7 +113,7 @@ public extension DictionaryExtractable {
         return try rawList.map { try T(from: $0) }
     }
 
-    public static func extract<T: DictionaryDecodable>(
+    static func extract<T: DictionaryDecodable>(
         param name: String,
         from dictionary: Entita.Dict
     ) throws -> [String: T] {
@@ -125,7 +125,7 @@ public extension DictionaryExtractable {
         return try Dictionary(uniqueKeysWithValues: rawDict.map { key, rawDict in try (key, T(from: rawDict)) })
     }
 
-    public static func extract<T: DictionaryDecodable>(
+    static func extract<T: DictionaryDecodable>(
         param name: String,
         from dictionary: Entita.Dict
     ) throws -> [String: [T]] {
@@ -137,28 +137,28 @@ public extension DictionaryExtractable {
         return try Dictionary(uniqueKeysWithValues: rawDict.map { key, rawDict in try (key, rawDict.map { try T(from: $0) }) })
     }
 
-    public static func extract(
+    static func extract(
         param name: String,
         from dictionary: Entita.Dict
     ) throws -> Double {
         return (try extract(param: name, from: dictionary) as NSNumber).doubleValue
     }
 
-    public static func extract(
+    static func extract(
         param name: String,
         from dictionary: Entita.Dict
     ) throws -> Int {
         return (try extract(param: name, from: dictionary) as NSNumber).intValue
     }
 
-    public static func extract(
+    static func extract(
         param name: String,
         from dictionary: Entita.Dict
     ) throws -> [Int] {
         return (try extract(param: name, from: dictionary) as [NSNumber]).map { $0.intValue }
     }
 
-    public static func extract(
+    static func extract(
         param name: String,
         from dictionary: Entita.Dict
     ) throws -> [String: Int] {
@@ -169,7 +169,7 @@ public extension DictionaryExtractable {
         )
     }
 
-    public static func extractID(
+    static func extractID(
         from dictionary: Entita.Dict,
         as name: String = ENTITA_DEFAULT_ID_LABEL,
         subkey: String? = nil
@@ -183,11 +183,11 @@ public extension DictionaryExtractable {
         return Identifier(try extract(param: name, from: dataset) as String)
     }
 
-    public func extract<T>(param name: String, from dictionary: Entita.Dict) throws -> T {
+    func extract<T>(param name: String, from dictionary: Entita.Dict) throws -> T {
         return try Swift.type(of: self).extract(param: name, from: dictionary)
     }
 
-    public func extractID(
+    func extractID(
         from dictionary: Entita.Dict,
         as _: String = ENTITA_DEFAULT_ID_LABEL,
         subkey: String? = nil

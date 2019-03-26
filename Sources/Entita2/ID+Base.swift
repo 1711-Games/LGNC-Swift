@@ -5,7 +5,7 @@ public protocol Identifiable: Hashable {
 }
 
 public extension E2 {
-    public struct ID<Value: Codable & Hashable>: Identifiable {
+    struct ID<Value: Codable & Hashable>: Identifiable {
         internal let value: Value
 
         public var _bytes: Bytes {

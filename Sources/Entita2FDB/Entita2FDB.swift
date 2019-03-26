@@ -10,23 +10,23 @@ public protocol Entita2FDBEntity: E2Entity where Storage == FDB, Identifier: FDB
 extension FDB.Transaction: AnyTransaction {}
 
 public extension Entita2FDBEntity {
-    public static var format: E2.Format {
+    static var format: E2.Format {
         return .JSON
     }
 
-    public static func begin(on eventLoop: EventLoop) -> Future<AnyTransaction?> {
+    static func begin(on eventLoop: EventLoop) -> Future<AnyTransaction?> {
         return Self.storage.begin(on: eventLoop).map { $0 }
     }
 
-    public static func IDBytesAsKey(bytes: Bytes) -> Bytes {
+    static func IDBytesAsKey(bytes: Bytes) -> Bytes {
         return Self.subspacePrefix[bytes].asFDBKey()
     }
 
-    public static func IDAsKey(ID: Identifier) -> Bytes {
+    static func IDAsKey(ID: Identifier) -> Bytes {
         return Self.subspacePrefix[ID].asFDBKey()
     }
 
-    public static func doesRelateToThis(tuple: FDB.Tuple) -> Bool {
+    static func doesRelateToThis(tuple: FDB.Tuple) -> Bool {
         let flat = tuple.tuple.compactMap { $0 }
         guard flat.count >= 2 else {
             return false
@@ -37,15 +37,15 @@ public extension Entita2FDBEntity {
         return true
     }
 
-    public func getIDAsKey() -> Bytes {
+    func getIDAsKey() -> Bytes {
         return Self.IDAsKey(ID: self.getID())
     }
 
-    public static var subspacePrefix: FDB.Subspace {
+    static var subspacePrefix: FDB.Subspace {
         return self.subspace[self.entityName]
     }
 
-    public static func loadWithTransaction(
+    static func loadWithTransaction(
         by ID: Identifier,
         snapshot: Bool,
         on eventLoop: EventLoop
@@ -57,7 +57,7 @@ public extension Entita2FDBEntity {
         }
     }
 
-    public static func load(
+    static func load(
         by ID: Identifier,
         with transaction: FDB.Transaction,
         snapshot: Bool,
@@ -66,7 +66,7 @@ public extension Entita2FDBEntity {
         return Self.storage
             .load(by: Self.IDAsKey(ID: ID), with: transaction, snapshot: snapshot, on: eventLoop)
             .map { maybeBytes in (maybeBytes, transaction) }
-            .thenThrowing { maybeBytes, transaction in
+            .flatMapThrowing { maybeBytes, transaction in
                 guard let bytes = maybeBytes else {
                     return nil
                 }
@@ -74,12 +74,12 @@ public extension Entita2FDBEntity {
             }
     }
 
-    public func save(
+    func save(
         with transaction: FDB.Transaction,
         on eventLoop: EventLoop
     ) -> Future<FDB.Transaction> {
         return self.getPackedSelf(on: eventLoop)
-            .then { payload in
+            .flatMap { payload in
                 Self.storage.save(
                     bytes: payload,
                     by: self.getIDAsKey(),
@@ -90,7 +90,7 @@ public extension Entita2FDBEntity {
             .map { _ in transaction }
     }
 
-    public static func loadAll(
+    static func loadAll(
         bySubspace subspace: FDB.Subspace,
         limit: Int32 = 0,
         with transaction: AnyTransaction? = nil,
@@ -103,7 +103,7 @@ public extension Entita2FDBEntity {
             with: transaction,
             snapshot: snapshot,
             on: eventLoop
-        ).thenThrowing { results in
+        ).flatMapThrowing { results in
             try results.records.map {
                 let instance = try Self(from: $0.value)
                 return (
@@ -114,7 +114,7 @@ public extension Entita2FDBEntity {
         }
     }
 
-    public static func loadAll(
+    static func loadAll(
         limit: Int32 = 0,
         with transaction: AnyTransaction? = nil,
         snapshot: Bool,
@@ -129,7 +129,7 @@ public extension Entita2FDBEntity {
         )
     }
 
-    public static func loadAll(
+    static func loadAll(
         by key: AnyFDBKey,
         limit: Int32 = 0,
         with transaction: AnyTransaction? = nil,
@@ -145,7 +145,7 @@ public extension Entita2FDBEntity {
         )
     }
 
-    public static func loadAllRaw(
+    static func loadAllRaw(
         limit: Int32 = 0,
         mode _: FDB.StreamingMode = .wantAll,
         iteration _: Int32 = 1,

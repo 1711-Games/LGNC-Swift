@@ -2,19 +2,19 @@ import Foundation
 import LGNCore
 
 public extension E2 {
-    public typealias UUID = ID<Foundation.UUID>
+    typealias UUID = ID<Foundation.UUID>
 }
 
 public extension E2.ID where Value == UUID {
-    public var string: String {
+    var string: String {
         return value.uuidString
     }
 
-    public init(_ uuid: UUID = UUID()) {
+    init(_ uuid: UUID = UUID()) {
         self.init(value: uuid)
     }
 
-    public init?(_ string: String) {
+    init?(_ string: String) {
         guard let uuid = UUID(uuidString: string) else {
             return nil
         }

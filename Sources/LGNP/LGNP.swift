@@ -234,7 +234,7 @@ public struct LGNP {
             salt: salt,
             controlBitmask: controlBitmask
         )
-        guard let URIEndPos = payload.index(of: 0) else {
+        guard let URIEndPos = payload.firstIndex(of: 0) else {
             throw E.URIParsingFailed("Could not find NUL byte dividing URI and payload body")
         }
         let URIBytes = payload[0 ..< URIEndPos]

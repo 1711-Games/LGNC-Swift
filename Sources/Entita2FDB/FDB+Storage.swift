@@ -15,7 +15,7 @@ extension FDB: E2Storage {
         on eventLoop: EventLoop
     ) -> Future<Transaction> {
         if let transaction = anyTransaction as? Transaction {
-            return eventLoop.newSucceededFuture(result: transaction)
+            return eventLoop.makeSucceededFuture(transaction)
         } else {
             return self.begin(on: eventLoop)
         }
@@ -37,7 +37,7 @@ extension FDB: E2Storage {
     ) -> Future<Bytes?> {
         return self
             .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
-            .then { transaction in transaction.get(key: key, snapshot: snapshot) }
+            .flatMap { transaction in transaction.get(key: key, snapshot: snapshot) }
             .map { $0.0 }
     }
     
@@ -59,7 +59,7 @@ extension FDB: E2Storage {
     ) -> Future<KeyValuesResult> {
         return self
             .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
-            .then { $0.get(range: range, limit: limit, snapshot: snapshot) }
+            .flatMap { $0.get(range: range, limit: limit, snapshot: snapshot) }
             .map { $0.0 }
     }
     
@@ -71,14 +71,14 @@ extension FDB: E2Storage {
     ) -> Future<Void> {
         return self
             .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
-            .then { $0.set(key: key, value: bytes) }
+            .flatMap { $0.set(key: key, value: bytes) }
             .map { _ in () }
     }
     
     public func delete(by key: Bytes, with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
         return self
             .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
-            .then { $0.clear(key: key) }
+            .flatMap { $0.clear(key: key) }
             .map { _ in () }
     }
 }

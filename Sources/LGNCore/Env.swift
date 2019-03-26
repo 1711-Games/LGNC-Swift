@@ -1,10 +1,10 @@
 import Foundation
 
 public extension LGNCore {
-    public struct Env {
+    struct Env {
         private var values: [String: String]
 
-        public subscript(index: String) -> String {
+        subscript(index: String) -> String {
             get {
                 guard let value = self.get(index) else {
                     LGNCore.log("Value for env key '\(index)' not found")
@@ -17,19 +17,19 @@ public extension LGNCore {
             }
         }
 
-        public init(values: [String: String]) {
+        init(values: [String: String]) {
             self.values = values
         }
 
-        public func get(_ index: String) -> String? {
+        func get(_ index: String) -> String? {
             return values[index]
         }
 
-        public static func log(_ message: String) {
+        static func log(_ message: String) {
             print(message)
         }
 
-        public static func validateAndUnpack(
+        static func validateAndUnpack(
             params: [String],
             defaultParams: [String: String] = [:]
         ) -> Env {

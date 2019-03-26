@@ -6,11 +6,11 @@ public typealias Time = TimeAmount
 public typealias ControlBitmask = LGNP.Message.ControlBitmask
 
 public extension LGNS {
-    public typealias Resolver = (LGNP.Message, RequestInfo) -> EventLoopFuture<LGNP.Message?>
+    typealias Resolver = (LGNP.Message, RequestInfo) -> EventLoopFuture<LGNP.Message?>
 
-    public static let DEFAULT_PORT = 1711
+    static let DEFAULT_PORT = 1711
 
-    public class Server: Shutdownable {
+    class Server: Shutdownable {
         public typealias BindTo = Address
 
         private let requiredBitmask: LGNP.Message.ControlBitmask
@@ -41,10 +41,10 @@ public extension LGNS {
                 .serverChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
 
                 .childChannelInitializer { channel in
-                    channel.pipeline.add(handler: BackPressureHandler()).then {
-                        channel.pipeline.add(handler: IdleStateHandler(readTimeout: self.readTimeout, writeTimeout: self.writeTimeout)).then {
-                            channel.pipeline.add(handler: LGNS.LGNPCoder(cryptor: self.cryptor, requiredBitmask: self.requiredBitmask)).then {
-                                channel.pipeline.add(handler: LGNS.ServerHandler(resolver: resolver))
+                    channel.pipeline.addHandler(BackPressureHandler()).flatMap {
+                        channel.pipeline.addHandler(IdleStateHandler(readTimeout: self.readTimeout, writeTimeout: self.writeTimeout)).flatMap {
+                            channel.pipeline.addHandler(LGNS.LGNPCoder(cryptor: self.cryptor, requiredBitmask: self.requiredBitmask)).flatMap {
+                                channel.pipeline.addHandler(LGNS.ServerHandler(resolver: resolver))
                 } } } }
 
                 .childChannelOption(ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
@@ -64,7 +64,7 @@ public extension LGNS {
         public func serve(at target: BindTo, promise: PromiseVoid? = nil) throws {
             channel = try bootstrap.bind(to: target).wait()
 
-            promise?.succeed(result: ())
+            promise?.succeed(())
 
             try channel.closeFuture.wait()
         }

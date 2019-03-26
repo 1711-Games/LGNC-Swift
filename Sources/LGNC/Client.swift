@@ -7,7 +7,7 @@ import NIO
 public typealias Address = LGNS.Address
 
 public extension Contract {
-    public static func execute(
+    static func execute(
         at address: Address,
         with request: Self.Request,
         using client: LGNS.Client,
@@ -28,7 +28,7 @@ public extension Contract {
                 payload = Bytes()
             }
         } catch {
-            return eventLoop.newFailedFuture(error: error)
+            return eventLoop.makeFailedFuture(error)
         }
 
         var meta: Bytes?
@@ -47,15 +47,15 @@ public extension Contract {
                 uuid: uuid
             ),
             on: eventLoop
-        ).thenThrowing { responseMessage in
+        ).flatMapThrowing { responseMessage in
             try responseMessage.unpackPayload()
-        }.then { (dict: [String: Any]) -> Future<LGNC.Entity.Result> in
+        }.flatMap { (dict: [String: Any]) -> Future<LGNC.Entity.Result> in
             LGNC.Entity.Result.initFromResponse(
                 from: dict,
                 on: eventLoop,
                 type: Self.Response.self
             )
-        }.thenThrowing { result in
+        }.flatMapThrowing { (result: LGNC.Entity.Result) in
             guard result.success == true else {
                 throw LGNC.E.MultipleError(result.errors)
             }
@@ -63,8 +63,8 @@ public extension Contract {
                 throw LGNC.E.UnpackError("Empty result")
             }
             return resultEntity as! Self.Response
-        }.thenIfErrorThrowing {
-            if case let ChannelError.connectFailed(error) = $0 {
+        }.flatMapErrorThrowing {
+            if let error = $0 as? NIOConnectionError {
                 LGNCore.log("""
                 Could not execute contract '\(self)' on service '\(self.ParentService.self)' \
                 @ \(address): \(error)
