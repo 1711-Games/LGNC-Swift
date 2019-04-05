@@ -13,7 +13,7 @@ public extension Contract {
         using client: LGNS.Client,
         controlBitmask: LGNP.Message.ControlBitmask? = nil,
         uuid: UUID = UUID(),
-        requestInfo: LGNC.RequestInfo? = nil
+        requestInfo: LGNCore.RequestInfo? = nil
     ) -> EventLoopFuture<Self.Response> {
         let controlBitmask = controlBitmask ?? client.controlBitmask
         let payload: Bytes
@@ -24,7 +24,7 @@ public extension Contract {
             if contentType != .PlainText {
                 payload = try [LGNC.ENTITY_KEY: try request.getDictionary()].pack(to: contentType)
             } else {
-                LGNCore.log("Plain text not implemented")
+                requestInfo?.logger.critical("Plain text not implemented")
                 payload = Bytes()
             }
         } catch {
@@ -65,10 +65,10 @@ public extension Contract {
             return resultEntity as! Self.Response
         }.flatMapErrorThrowing {
             if let error = $0 as? NIOConnectionError {
-                LGNCore.log("""
+                requestInfo?.logger.error("""
                 Could not execute contract '\(self)' on service '\(self.ParentService.self)' \
                 @ \(address): \(error)
-                """, prefix: uuid.string)
+                """)
                 throw LGNC.ContractError.RemoteContractExecutionFailed
             }
             throw $0

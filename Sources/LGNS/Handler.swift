@@ -9,6 +9,7 @@ internal extension LGNS {
         public typealias OutboundOut = LGNP.Message
 
         fileprivate var handlerType: StaticString = ""
+        private let logger = Logger(label: "LGNS.BaseHandler")
 
         private static let META_SECTION_BYTES: Bytes = [0, 255]
         private static let EOL: Byte = 10
@@ -78,13 +79,14 @@ internal extension LGNS {
 
             let future = resolver(
                 message,
-                RequestInfo(
+                LGNCore.RequestInfo(
                     remoteAddr: remoteAddr,
                     clientAddr: metaDict["ip"] ?? remoteAddr,
                     userAgent: metaDict["ua"] ?? "LGNS",
-                    locale: LGNCore.Locale(rawValue: metaDict["lc"]),
+                    locale: LGNCore.Translation.Locale(metaDict["lc"]),
                     uuid: message.uuid,
                     isSecure: message.controlBitmask.contains(.encrypted),
+                    transport: .LGNS,
                     eventLoop: ctx.eventLoop
                 )
             )
@@ -93,10 +95,7 @@ internal extension LGNS {
 
             if let profiler = profiler {
                 future.whenComplete { _ in
-                    LGNCore.log(
-                        "LGNS \(type(of: self)) request '\(message.URI)' execution took \(profiler.end().rounded(toPlaces: 5)) s",
-                        prefix: message.uuid.string
-                    )
+                    self.logger.debug("[\(message.uuid.string)] LGNS \(type(of: self)) request '\(message.URI)' execution took \(profiler.end().rounded(toPlaces: 5)) s")
                 }
             }
 

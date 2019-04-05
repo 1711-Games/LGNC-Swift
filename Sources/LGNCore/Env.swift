@@ -7,7 +7,7 @@ public extension LGNCore {
         subscript(index: String) -> String {
             get {
                 guard let value = self.get(index) else {
-                    LGNCore.log("Value for env key '\(index)' not found")
+                    //LGNCore.log("Value for env key '\(index)' not found")
                     return ""
                 }
                 return value

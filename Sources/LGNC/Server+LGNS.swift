@@ -27,7 +27,7 @@ public extension Service {
             readTimeout: readTimeout,
             writeTimeout: writeTimeout
         ) { request, info in
-            LGNCore.log("Serving request at LGNS URI '\(request.URI)'", prefix: request.uuid.string)
+            info.logger.debug("Serving request at LGNS URI '\(request.URI)'")
             do {
                 return self.executeContract(
                     URI: request.URI,
@@ -35,14 +35,14 @@ public extension Service {
                     // what is the reason for it again?
                     // vvvvvvvvvvvvvvv
                     payload: try request.unpackPayload()[LGNC.ENTITY_KEY] as? Entita.Dict ?? Entita.Dict(),
-                    requestInfo: LGNC.RequestInfo(from: info, transport: .LGNS)
+                    requestInfo: info
                 ).map {
                     do {
                         return request.getLikeThis(
                             payload: try $0.getDictionary().pack(to: request.contentType)
                         )
                     } catch {
-                        LGNCore.log("Could not pack entity to \(request.contentType): \(error)", prefix: info.uuid.string)
+                        info.logger.error("Could not pack entity to \(request.contentType): \(error)")
                         return request.getLikeThis(payload: LGNP.ERROR_RESPONSE)
                     }
                 }

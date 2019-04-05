@@ -6,7 +6,7 @@ public typealias Time = TimeAmount
 public typealias ControlBitmask = LGNP.Message.ControlBitmask
 
 public extension LGNS {
-    typealias Resolver = (LGNP.Message, RequestInfo) -> EventLoopFuture<LGNP.Message?>
+    typealias Resolver = (LGNP.Message, LGNCore.RequestInfo) -> EventLoopFuture<LGNP.Message?>
 
     static let DEFAULT_PORT = 1711
 
@@ -21,6 +21,7 @@ public extension LGNS {
         private var bootstrap: ServerBootstrap!
         private var channel: Channel!
         lazy var saltBytes = Bytes(self.cryptor.salt.utf8)
+        private let logger = Logger(label: "LGNS.Server")
 
         public required init(
             cryptor: LGNP.Cryptor,
@@ -56,9 +57,9 @@ public extension LGNS {
         }
 
         public func shutdown(promise: PromiseVoid) {
-            LGNCore.log("LGNS Server: shutting down")
+            self.logger.info("LGNS Server: shutting down")
             channel.close(promise: promise)
-            LGNCore.log("LGNS Server: goodbye")
+            self.logger.info("LGNS Server: goodbye")
         }
 
         public func serve(at target: BindTo, promise: PromiseVoid? = nil) throws {

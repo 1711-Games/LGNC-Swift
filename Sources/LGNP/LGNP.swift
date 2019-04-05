@@ -18,6 +18,8 @@ public struct LGNP {
     public static var MAXIMUM_MESSAGE_LENGTH: LGNP.Message.LengthType = LGNP.Message.LengthType.max
     public static var verbose = false
 
+    private static let logger = Logger(label: "LGNP")
+
     private static func getProtocolLabelBytes() -> Bytes {
         return Bytes(LGNP.PROTOCOL_HEADER.utf8)
     }
@@ -314,7 +316,7 @@ public struct LGNP {
             throw E.SignatureVerificationFailed("Could not generate etalon \(signatureName) signature")
         }
         guard givenSignature == etalonSignature else {
-            LGNCore.log("Given \(signatureName) signature (\(givenSignature.toHexString())) does not match with etalon (\(etalonSignature.toHexString()))")
+            self.logger.error("Given \(signatureName) signature (\(givenSignature.toHexString())) does not match with etalon (\(etalonSignature.toHexString()))")
             throw E.SignatureVerificationFailed("Signature mismatch")
         }
         if verbose {

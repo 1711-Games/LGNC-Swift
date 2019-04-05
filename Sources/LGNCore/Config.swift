@@ -1,3 +1,5 @@
+import Logging
+
 public protocol AnyConfigKey: Hashable, RawRepresentable, CaseIterable where RawValue == String {}
 
 public extension LGNCore {
@@ -7,6 +9,7 @@ public extension LGNCore {
         }
 
         private let storage: [Key: String]
+        private let logger = Logging.Logger(label: "LGNCore.Config")
 
         public init(
             env: AppEnv,
@@ -40,7 +43,7 @@ public extension LGNCore {
 
         public subscript(key: Key) -> String {
             guard let value = self.storage[key] else {
-                LGNCore.log("Config value for key '\(key)' missing (how is this possible?)")
+                self.logger.alert("Config value for key '\(key)' missing (how is this possible?)")
                 return "__\(key)__MISSING__"
             }
             return value

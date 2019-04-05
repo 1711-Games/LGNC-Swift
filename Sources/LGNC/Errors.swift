@@ -1,4 +1,5 @@
 import Foundation
+import LGNCore
 
 public protocol ClientError: Error {
     func getErrorTuple() -> (message: String, code: Int)
@@ -44,7 +45,7 @@ public extension LGNC {
 
     enum ContractError: ClientError {
         case URINotFound(String)
-        case TransportNotAllowed(LGNC.Transport)
+        case TransportNotAllowed(LGNCore.Transport)
         case GeneralError(String, Int)
         case RemoteContractExecutionFailed
         case InternalError

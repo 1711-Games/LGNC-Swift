@@ -6,11 +6,11 @@ import LGNS
 import NIO
 
 public protocol Service {
-    typealias Executor = (LGNC.RequestInfo, Entita.Dict) -> Future<Entity>
+    typealias Executor = (LGNCore.RequestInfo, Entita.Dict) -> Future<Entity>
 
     static var keyDictionary: [String: Entita.Dict] { get }
     static var contractMap: Contract.Map { get }
-    static var transports: [LGNC.Transport: Int] { get }
+    static var transports: [LGNCore.Transport: Int] { get }
     static var info: [String: String] { get }
 
     static func checkContractsCallbacks() -> Bool
@@ -18,7 +18,7 @@ public protocol Service {
         URI: String,
         uuid: UUID,
         payload: Entita.Dict,
-        requestInfo: LGNC.RequestInfo
+        requestInfo: LGNCore.RequestInfo
     ) -> Future<Entity>
     static func serveLGNS(
         at target: LGNS.Server.BindTo?,
@@ -41,20 +41,15 @@ public protocol Service {
 public extension LGNC {
     typealias ServicesRegistry = [
         String: (
-            transports: [Transport: Int],
+            transports: [LGNCore.Transport: Int],
             contracts: [
                 String: (
                     visibility: ContractVisibility,
-                    transports: [Transport]
+                    transports: [LGNCore.Transport]
                 )
             ]
         )
     ]
-
-    enum Transport: String {
-        case LGNS, HTTP
-        // case LGNSS, HTTPS // once, maybe
-    }
 }
 
 public extension Service {
@@ -62,7 +57,7 @@ public extension Service {
         URI: String,
         uuid: UUID,
         payload: Entita.Dict,
-        requestInfo: LGNC.RequestInfo
+        requestInfo: LGNCore.RequestInfo
     ) -> Future<Entity> {
         let result: Future<LGNC.Entity.Result>
         do {
@@ -78,7 +73,7 @@ public extension Service {
                     do {
                         switch error {
                         case let LGNC.E.UnpackError(error):
-                            LGNCore.log(error, prefix: requestInfo.uuid.string)
+                            requestInfo.logger.error("\(error)")
                             throw LGNC.E.clientError("Invalid request")
                         case let LGNC.E.MultipleError(errors):
                             throw LGNC.E.MultipleError(errors) // rethrow
@@ -87,13 +82,13 @@ public extension Service {
                         case let error as ClientError:
                             throw LGNC.E.MultipleError([LGNC.GLOBAL_ERROR_KEY: [error]])
                         default:
-                            LGNCore.log("Uncaught error: \(error)", prefix: uuid.string)
+                            requestInfo.logger.error("Uncaught error: \(error)")
                             throw LGNC.E.MultipleError([LGNC.GLOBAL_ERROR_KEY: [LGNC.ContractError.InternalError]])
                         }
                     } catch let LGNC.E.MultipleError(errors) {
                         return LGNC.Entity.Result(from: errors)
                     } catch {
-                        LGNCore.log("Extremely unexpected error: \(error)", prefix: requestInfo.uuid.string)
+                        requestInfo.logger.critical("Extremely unexpected error: \(error)")
                         return LGNC.Entity.Result.internalError
                     }
                 }
@@ -103,9 +98,9 @@ public extension Service {
                     ? LGNC.Entity.Result(from: [LGNC.GLOBAL_ERROR_KEY: [error]])
                     : LGNC.Entity.Result.internalError
             )
-            LGNCore.log("Contract error: \(error)", prefix: uuid.string)
+            requestInfo.logger.error("Contract error: \(error)")
         } catch let error {
-            LGNCore.log("Quite uncaught error: \(error)", prefix: uuid.string)
+            requestInfo.logger.critical("Quite uncaught error: \(error)")
             result = requestInfo.eventLoop.makeSucceededFuture(LGNC.Entity.Result.internalError)
         }
         return result.map { $0 as Entity }
@@ -130,7 +125,7 @@ public extension Service {
         return address
     }
 
-    internal static func validate(transport: LGNC.Transport) throws {
+    internal static func validate(transport: LGNCore.Transport) throws {
         guard let _ = self.transports[transport] else {
             throw LGNC.E.ServiceError("Transport \(transport) not supported for service")
         }

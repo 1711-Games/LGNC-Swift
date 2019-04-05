@@ -35,7 +35,17 @@ public extension Service {
             readTimeout: readTimeout,
             writeTimeout: writeTimeout
         ) { request in
-            LGNCore.log("Serving request at HTTP URI '\(request.URI)'", prefix: request.uuid.string)
+            let requestInfo = LGNCore.RequestInfo(
+                remoteAddr: request.remoteAddr,
+                clientAddr: request.remoteAddr,
+                userAgent: request.headers["User-Agent"].first ?? "",
+                locale: LGNCore.Translation.Locale(request.headers["Accept-Language"].first),
+                uuid: request.uuid,
+                isSecure: false,
+                transport: .HTTP,
+                eventLoop: request.eventLoop
+            )
+            requestInfo.logger.debug("Serving request at HTTP URI '\(request.URI)'")
             do {
                 let payload: Entita.Dict
                 switch request.contentType {
@@ -47,24 +57,12 @@ public extension Service {
                     URI: request.URI,
                     uuid: request.uuid,
                     payload: payload,
-                    requestInfo: LGNC.RequestInfo(
-                        remoteAddr: request.remoteAddr,
-                        clientAddr: request.remoteAddr,
-                        userAgent: request.headers["User-Agent"].first ?? "",
-                        locale: LGNCore.Locale(rawValue: request.headers["Accept-Language"].first),
-                        uuid: request.uuid,
-                        isSecure: false,
-                        transport: .HTTP,
-                        eventLoop: request.eventLoop
-                    )
+                    requestInfo: requestInfo
                 ).map {
                     do {
                         return try $0.getDictionary().pack(to: LGNP.Message.ContentType(from: request.contentType))
                     } catch {
-                        LGNCore.log(
-                            "Could not pack entity to \(request.contentType): \(error)",
-                            prefix: request.uuid.string
-                        )
+                        requestInfo.logger.critical("Could not pack entity to \(request.contentType): \(error)")
                         return "500 Internal Server Error".bytes
                     }
                 }

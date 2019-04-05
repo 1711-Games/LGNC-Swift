@@ -15,9 +15,9 @@ public struct LGNC {
     public static var ALLOW_INCOMPLETE_GUARANTEE = false
     public static var ALLOW_ALL_TRANSPORTS = false
 
-    public static var translator: LGNCTranslator = LGNC.Translation.DummyTranslator()
+    public static var translator: LGNCTranslator = LGNCore.Translation.DummyTranslator()
 
-    public static func getMeta(from requestInfo: LGNC.RequestInfo) -> Bytes {
+    public static func getMeta(from requestInfo: LGNCore.RequestInfo) -> Bytes {
         return self.getMeta(
             clientAddr: requestInfo.clientAddr,
             userAgent: requestInfo.userAgent,
@@ -25,7 +25,7 @@ public struct LGNC {
         )
     }
 
-    public static func getMeta(clientAddr: String, userAgent: String, locale: LGNCore.Locale) -> Bytes {
+    public static func getMeta(clientAddr: String, userAgent: String, locale: LGNCore.Translation.Locale) -> Bytes {
         let meta = [
             "ip": clientAddr,
             "ua": userAgent,
@@ -42,55 +42,6 @@ public struct LGNC {
 
 public extension LGNC {
     struct Entity {}
-}
-
-public extension LGNC {
-    struct RequestInfo {
-        public let remoteAddr: String
-        public let clientAddr: String
-        public let userAgent: String
-        public let locale: LGNCore.Locale
-        public let uuid: UUID
-        public let isSecure: Bool
-        public let transport: LGNC.Transport
-        public var eventLoop: EventLoop
-
-        public init(
-            remoteAddr: String,
-            clientAddr: String,
-            userAgent: String,
-            locale: LGNCore.Locale,
-            uuid: UUID,
-            isSecure: Bool,
-            transport: LGNC.Transport,
-            eventLoop: EventLoop
-        ) {
-            self.remoteAddr = remoteAddr
-            self.clientAddr = clientAddr
-            self.userAgent = userAgent
-            self.locale = locale
-            self.uuid = uuid
-            self.isSecure = isSecure
-            self.transport = transport
-            self.eventLoop = eventLoop
-        }
-
-        public init(
-            from innerRequestInfo: LGNS.RequestInfo,
-            transport: LGNC.Transport
-        ) {
-            self.init(
-                remoteAddr: innerRequestInfo.remoteAddr,
-                clientAddr: innerRequestInfo.clientAddr,
-                userAgent: innerRequestInfo.userAgent,
-                locale: innerRequestInfo.locale,
-                uuid: innerRequestInfo.uuid,
-                isSecure: innerRequestInfo.isSecure,
-                transport: transport,
-                eventLoop: innerRequestInfo.eventLoop
-            )
-        }
-    }
 }
 
 public extension LGNC.Entity {

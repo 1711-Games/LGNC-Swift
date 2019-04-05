@@ -190,7 +190,8 @@ public extension Entita2FDBIndexedEntity {
 
     private static func isValidIndex(name: String) -> Bool {
         guard let _ = Self.indices[name] else {
-            LGNCore.log("Index '\(name)' not found in entity '\(Self.entityName)' (available indices: \(Self.indices.keys.joined(separator: ", ")))")
+            let additionalInfo = "(available indices: \(Self.indices.keys.joined(separator: ", ")))"
+            Logger(label: "E2FDB").error("Index '\(name)' not found in entity '\(Self.entityName)' \(additionalInfo)")
             return false
         }
         return true

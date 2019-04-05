@@ -40,6 +40,7 @@ public extension LGNC.HTTP {
         private let writeTimeout: TimeAmount
         private let eventLoopGroup: EventLoopGroup
         private var bootstrap: ServerBootstrap!
+        private var logger: Logger = Logger(label: "LGNC.HTTP")
 
         private var channel: Channel!
 
@@ -71,9 +72,9 @@ public extension LGNC.HTTP {
         }
 
         public func shutdown(promise: PromiseVoid) {
-            LGNCore.log("HTTP Server: shutting down")
+            self.logger.info("HTTP Server: shutting down")
             channel.close(promise: promise)
-            LGNCore.log("HTTP Server: goodbye")
+            self.logger.info("HTTP Server: goodbye")
         }
 
         public func serve(at target: BindTo, promise: PromiseVoid? = nil) throws {
@@ -144,6 +145,7 @@ internal extension LGNC.HTTP {
 
         private var uuid: UUID!
         private var profiler: LGNCore.Profiler!
+        private var logger: Logger = Logger(label: "LGNC.HTTP.Handler")
 
         private var errored: Bool = false
 
@@ -190,8 +192,9 @@ internal extension LGNC.HTTP {
             case let .head(request):
                 bodyBuffer = nil
 
-                uuid = UUID()
-                profiler = LGNCore.Profiler.begin()
+                self.uuid = UUID()
+                self.logger[metadataKey: "UUID"] = "\(self.uuid.string)"
+                self.profiler = LGNCore.Profiler.begin()
 
                 keepAlive = request.isKeepAlive
 
@@ -261,7 +264,7 @@ internal extension LGNC.HTTP {
         }
 
         private func sendBadRequest(message: String = "400 Bad Request", to ctx: ChannelHandlerContext) {
-            LGNCore.log(message, prefix: uuid.string)
+            self.logger.debug("Bad request: \(message)")
             buffer.writeString(message)
             finishRequest(ctx: ctx, status: .badRequest)
         }
@@ -290,7 +293,7 @@ internal extension LGNC.HTTP {
                 buffer.clear()
 
                 guard infoSavedRequestHead!.method == .POST else {
-                    sendBadRequest(message: "400 Bad Request (POST method only)", to: ctx)
+                    self.sendBadRequest(message: "400 Bad Request (POST method only)", to: ctx)
                     return
                 }
 
@@ -298,7 +301,7 @@ internal extension LGNC.HTTP {
                     let contentTypeString = self.infoSavedRequestHead!.headers["Content-Type"].first,
                     let contentType = ContentType(rawValue: contentTypeString.lowercased())
                 else {
-                    sendBadRequest(message: "400 Bad Request (Content-Type header missing)", to: ctx)
+                    self.sendBadRequest(message: "400 Bad Request (Content-Type header missing)", to: ctx)
                     return
                 }
 
@@ -350,9 +353,8 @@ internal extension LGNC.HTTP {
                 )
                 let future = resolver(request)
                 future.whenComplete { _ in
-                    LGNCore.log(
-                        "HTTP request '\(request.URI)' execution took \(self.profiler.end().rounded(toPlaces: 5)) s",
-                        prefix: self.uuid.string
+                    self.logger.debug(
+                        "HTTP request '\(request.URI)' execution took \(self.profiler.end().rounded(toPlaces: 5)) s"
                     )
                 }
                 var headers = [
@@ -369,10 +371,7 @@ internal extension LGNC.HTTP {
                     )
                 }
                 future.whenFailure { error in
-                    LGNCore.log(
-                        "There was an error while processing request '\(request.URI)': \(error)",
-                        prefix: self.uuid.string
-                    )
+                    self.logger.error("There was an error while processing request '\(request.URI)': \(error)")
                     self.buffer.writeString("500 Internal Server Error")
                     self.finishRequest(
                         ctx: ctx,

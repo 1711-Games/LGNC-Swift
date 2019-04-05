@@ -1,4 +1,5 @@
 import Foundation
+import Logging
 import NIO
 
 public typealias Future = EventLoopFuture
@@ -20,7 +21,7 @@ public enum AppEnv: String, CaseIterable {
             return env
         }
 
-        LGNCore.log("Falling back to \(self.local) environment")
+        Logger(label: "LGNCore.AppEnv").info("Falling back to \(self.local) environment")
 
         return .local
     }
