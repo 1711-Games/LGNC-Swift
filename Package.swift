@@ -17,13 +17,13 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio.git", .upToNextMajor(from: "2.0.0")),
-        .package(url: "https://github.com/apple/swift-log.git", .branch("master")),
+        .package(url: "https://github.com/kirilltitov/swift-log.git", .upToNextMajor(from: "0.0.0")),
 
         // used by LGNPContenter
-        .package(url: "https://github.com/kirilltitov/MessagePack.git", .branch("master")),
+        .package(url: "https://github.com/kirilltitov/MessagePack.git", .upToNextMajor(from: "2.0.0")),
 
         // used by Entita2
-        .package(url: "https://github.com/kirilltitov/SwiftMsgPack.git", .branch("master")),
+        .package(url: "https://github.com/kirilltitov/SwiftMsgPack.git", .upToNextMajor(from: "2.0.0")),
 
         // used by Entita2FDB
         .package(url: "https://github.com/kirilltitov/FDBSwift.git", .upToNextMajor(from: "3.0.0")),

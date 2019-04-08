@@ -43,7 +43,7 @@ public extension LGNCore {
 
         public subscript(key: Key) -> String {
             guard let value = self.storage[key] else {
-                self.logger.alert("Config value for key '\(key)' missing (how is this possible?)")
+                self.logger.critical("Config value for key '\(key)' missing (how is this possible?)")
                 return "__\(key)__MISSING__"
             }
             return value
