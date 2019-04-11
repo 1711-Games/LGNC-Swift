@@ -30,7 +30,7 @@ public extension Array where Element == Byte {
     }
 
     mutating func addNul() {
-        append(0)
+        self.append(0)
     }
 
     func cast<Result>(file: StaticString = #file, line: Int = #line) -> Result {
@@ -44,10 +44,10 @@ public extension Array where Element == Byte {
     }
 
     mutating func append(_ bytes: Bytes) {
-        append(contentsOf: bytes)
+        self.append(contentsOf: bytes)
     }
 
     mutating func prepend(_ bytes: Bytes) {
-        insert(contentsOf: bytes, at: 0)
+        self.insert(contentsOf: bytes, at: 0)
     }
 }

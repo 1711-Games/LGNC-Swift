@@ -1,7 +1,7 @@
 import Foundation
 
 public extension LGNCore {
-    struct Env {
+    struct _Env {
         private var values: [String: String]
 
         subscript(index: String) -> String {
@@ -32,7 +32,7 @@ public extension LGNCore {
         static func validateAndUnpack(
             params: [String],
             defaultParams: [String: String] = [:]
-        ) -> Env {
+        ) -> _Env {
             var result: [String: String] = [:]
             var errors: [String] = []
             for name in params {
@@ -50,7 +50,7 @@ public extension LGNCore {
                 }
                 exit(1)
             }
-            return Env(values: result)
+            return _Env(values: result)
         }
     }
 }

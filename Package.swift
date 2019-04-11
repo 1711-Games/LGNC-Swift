@@ -17,7 +17,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio.git", .upToNextMajor(from: "2.0.0")),
-        .package(url: "https://github.com/kirilltitov/swift-log.git", .upToNextMajor(from: "0.0.0")),
+        .package(url: "https://github.com/apple/swift-log.git", .upToNextMajor(from: "1.0.0")),
 
         // used by LGNPContenter
         .package(url: "https://github.com/kirilltitov/MessagePack.git", .upToNextMajor(from: "2.0.0")),

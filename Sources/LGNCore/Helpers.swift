@@ -17,7 +17,10 @@ public extension Float {
 
 public extension UUID {
     init(bytes: Bytes) {
-        precondition(bytes.count == 16, "You provided \(bytes.count) bytes, exactly 16 is needed for UUID")
+        precondition(
+            bytes.count == MemoryLayout<UUID>.size,
+            "You provided \(bytes.count) bytes, exactly \(MemoryLayout<UUID>.size) is needed for UUID"
+        )
         self.init(uuid: bytes.cast())
     }
 
