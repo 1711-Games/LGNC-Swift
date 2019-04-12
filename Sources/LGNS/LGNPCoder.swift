@@ -36,11 +36,11 @@ internal extension LGNS {
             self.validateRequiredBitmask = validateRequiredBitmask
         }
 
-        public func userInboundEventTriggered(ctx: ChannelHandlerContext, event: Any) {
+        public func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
             if event is IdleStateHandler.IdleStateEvent {
-                ctx.fireErrorCaught(LGNS.E.Timeout)
+                context.fireErrorCaught(LGNS.E.Timeout)
             }
-            ctx.fireUserInboundEventTriggered(event)
+            context.fireUserInboundEventTriggered(event)
         }
 
         private func parseHeaderAndLength(from input: Bytes, _: ChannelHandlerContext) throws {
@@ -52,12 +52,12 @@ internal extension LGNS {
             )
         }
 
-        public func errorCaught(ctx: ChannelHandlerContext, error: Error) {
-            ctx.close(promise: nil)
-            ctx.fireErrorCaught(error)
+        public func errorCaught(context: ChannelHandlerContext, error: Error) {
+            context.close(promise: nil)
+            context.fireErrorCaught(error)
         }
 
-        public func channelRead(ctx: ChannelHandlerContext, data: NIOAny) {
+        public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
             var input = unwrapInboundIn(data)
             var updateBuffer = true
 
@@ -76,11 +76,11 @@ internal extension LGNS {
                     buffer.readableBytes >= LGNPCoder.MESSAGE_HEADER_LENGTH,
                     let headerBytes = self.buffer.readBytes(length: LGNPCoder.MESSAGE_HEADER_LENGTH) {
                     do {
-                        try parseHeaderAndLength(from: headerBytes, ctx)
+                        try parseHeaderAndLength(from: headerBytes, context)
                         state = .waitingForBody
                         fallthrough
                     } catch {
-                        ctx.fireErrorCaught(error)
+                        context.fireErrorCaught(error)
                         return
                     }
                 }
@@ -102,28 +102,28 @@ internal extension LGNS {
                             salt: salt
                         )
                         if message.containsError {
-                            ctx.fireErrorCaught(LGNS.E.LGNPError(message.payloadAsString))
+                            context.fireErrorCaught(LGNS.E.LGNPError(message.payloadAsString))
                             return
                         }
                         guard !validateRequiredBitmask || message.controlBitmask.isSuperset(of: requiredBitmask) else {
-                            ctx.fireErrorCaught(LGNS.E.RequiredBitmaskNotSatisfied)
+                            context.fireErrorCaught(LGNS.E.RequiredBitmaskNotSatisfied)
                             return
                         }
-                        ctx.fireChannelRead(wrapInboundOut(message))
+                        context.fireChannelRead(wrapInboundOut(message))
 
                         state = .start
                     } catch {
-                        ctx.fireErrorCaught(error)
+                        context.fireErrorCaught(error)
                     }
                 }
             }
         }
 
-        public func write(ctx: ChannelHandlerContext, data: NIOAny, promise: PromiseVoid?) {
+        public func write(context: ChannelHandlerContext, data: NIOAny, promise: PromiseVoid?) {
             do {
-                ctx.write(
+                context.write(
                     wrapOutboundOut(
-                        ctx.channel.allocator.allocateBuffer(
+                        context.channel.allocator.allocateBuffer(
                             from: try LGNP.encode(
                                 message: unwrapOutboundIn(data),
                                 with: cryptor

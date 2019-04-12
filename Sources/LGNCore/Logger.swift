@@ -1,10 +1,48 @@
 import Foundation
 import Logging
 
+extension Logging.Logger.MetadataValue: Encodable {
+    public func encode(to encoder: Encoder) throws {
+        switch self {
+        case let .string(string):
+            try string.encode(to: encoder)
+        case let .stringConvertible(stringConvertible):
+            try stringConvertible.description.encode(to: encoder)
+        case let .dictionary(metadata):
+            try metadata.encode(to: encoder)
+        case let .array(array):
+            try array.encode(to: encoder)
+        }
+    }
+}
+
 public extension LGNCore {
     struct Logger: LogHandler {
-        public var metadata: Logging.Logger.Metadata = [:]
-        public var logLevel: Logging.Logger.Level = .info
+        enum E: Error {
+            case DataToJSONConvertionError
+        }
+
+        public var metadata = Logging.Logger.Metadata()
+
+        public static var logLevel: Logging.Logger.Level = .info
+
+        private var _logLevel: Logging.Logger.Level? = nil
+        public var logLevel: Logging.Logger.Level {
+            get {
+                return self._logLevel ?? Logger.logLevel
+            }
+            set {
+                self._logLevel = newValue
+            }
+        }
+
+        private let encoder = JSONEncoder()
+
+        public var label: String
+
+        public init(label: String) {
+            self.label = label
+        }
 
         public subscript(metadataKey key: String) -> Logging.Logger.Metadata.Value? {
             get {
@@ -25,30 +63,32 @@ public extension LGNCore {
         ) {
             let date = Date().description.replacingOccurrences(of: " +0000", with: "")
             let _file = file.split(separator: "/").last!
+            let preamble = "\(date) @ \(_file):\(line)"
 
-            let metadataString: String
+            var prettyMetadata: String? = nil
+            var mergedMetadata = self.metadata
             if let metadata = metadata {
-                // TODO: safer metadataString
-                let jsonData = try! JSONSerialization.data(withJSONObject: metadata)
-                metadataString = " | Metadata: \(String(data: jsonData, encoding: .ascii)!)"
-            } else {
-                metadataString = ""
+                mergedMetadata = self.metadata.merging(metadata, uniquingKeysWith: { _, new in new })
+            }
+            if !mergedMetadata.isEmpty {
+                do {
+                    let JSONData = try self.encoder.encode(mergedMetadata)
+                    guard let string = String(data: JSONData, encoding: .ascii) else {
+                        throw E.DataToJSONConvertionError
+                    }
+                    prettyMetadata = string
+                } catch {
+                    print("Could not encode metadata '\(mergedMetadata)' to JSON: \(error)")
+                }
             }
 
-            print("[\(date) @ \(_file):\(line)]: \(message)\(metadataString)")
-        }
-    }
-}
+            let _label: String = (self.logLevel <= .debug ? label : nil).map { " [\($0)]" } ?? ""
 
-public extension LGNCore {
-    static func _log(_ message: String, prefix: String? = nil, file: String = #file, line: Int = #line) {
-        let _file = file.split(separator: "/").last!
-        let _prefix: String
-        if let prefix = prefix {
-            _prefix = " [\(prefix)]"
-        } else {
-            _prefix = ""
+            print("[\(preamble)]\(_label) [\(level)]: \(message)\(prettyMetadata.map { " (metadata: \($0))" } ?? "")")
         }
-        print("[\(Date().description.replacingOccurrences(of: " +0000", with: "")) @ \(_file):\(line)]\(_prefix): \(message)")
+
+        private func prettify(_ metadata: Logging.Logger.Metadata) -> String? {
+            return !metadata.isEmpty ? metadata.map { "\($0)=\($1)" }.joined(separator: " ") : nil
+        }
     }
 }

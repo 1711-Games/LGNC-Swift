@@ -30,7 +30,16 @@ public extension LGNS {
                 .connectTimeout(.seconds(3))
                 .channelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
                 .channelInitializer { channel in
-                    channel.pipeline.addHandler(IdleStateHandler(readTimeout: self.readTimeout, writeTimeout: self.writeTimeout, allTimeout: self.readTimeout)).flatMap {
+                    channel.pipeline.addHandlers(
+                        IdleStateHandler(readTimeout: self.readTimeout, writeTimeout: self.writeTimeout, allTimeout: self.readTimeout),
+                        LGNS.LGNPCoder(cryptor: self.cryptor, requiredBitmask: self.controlBitmask, validateRequiredBitmask: false),
+                        LGNS.ClientHandler(promise: resultPromise) { message, _ in
+                            resultPromise.succeed(message)
+                            channel.close(promise: nil)
+                            return self.eventLoopGroup.next().makeSucceededFuture(nil)
+                        }
+                    )
+                    /*channel.pipeline.addHandler(IdleStateHandler(readTimeout: self.readTimeout, writeTimeout: self.writeTimeout, allTimeout: self.readTimeout)).flatMap {
                         channel.pipeline.addHandler(LGNS.LGNPCoder(cryptor: self.cryptor, requiredBitmask: self.controlBitmask, validateRequiredBitmask: false)).flatMap {
                             channel.pipeline.addHandler(
                                 LGNS.ClientHandler(promise: resultPromise) { message, _ in
@@ -39,7 +48,7 @@ public extension LGNS {
                                     return self.eventLoopGroup.next().makeSucceededFuture(nil)
                                 }
                             )
-                } } }
+                } }*/ }
                 .connect(to: address)
             connectPromise.whenSuccess { channel in
                 _ = channel.writeAndFlush(message)

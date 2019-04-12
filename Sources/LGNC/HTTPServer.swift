@@ -157,13 +157,13 @@ internal extension LGNC.HTTP {
             self.resolver = resolver
         }
 
-        public func handlerAdded(ctx: ChannelHandlerContext) {
+        public func handlerAdded(context: ChannelHandlerContext) {
             let message: StaticString = "Hello World!"
-            buffer = ctx.channel.allocator.buffer(capacity: message.utf8CodeUnitCount)
+            buffer = context.channel.allocator.buffer(capacity: message.utf8CodeUnitCount)
             buffer.writeStaticString(message)
         }
 
-        public func userInboundEventTriggered(ctx: ChannelHandlerContext, event: Any) {
+        public func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
             switch event {
             case let evt as ChannelEvent where evt == ChannelEvent.inputClosed:
                 // The remote peer half-closed the channel. At this time, any
@@ -172,19 +172,19 @@ internal extension LGNC.HTTP {
                 // will close the channel immediately.
                 switch state {
                 case .idle, .waitingForRequestBody:
-                    ctx.close(promise: nil)
+                    context.close(promise: nil)
                 case .sendingResponse:
                     keepAlive = false
                 }
             default:
-                ctx.fireUserInboundEventTriggered(event)
+                context.fireUserInboundEventTriggered(event)
             }
         }
 
-        public func channelRead(ctx: ChannelHandlerContext, data: NIOAny) {
+        public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
             let reqPart = unwrapInboundIn(data)
             if let handler = self.handler {
-                handler(ctx, reqPart)
+                handler(context, reqPart)
                 return
             }
 
@@ -201,40 +201,40 @@ internal extension LGNC.HTTP {
                 if [.POST, .GET].contains(request.method) {
                     handler = defaultHandler
                 } else {
-                    handler = { ctx, req in
+                    handler = { context, req in
                         self.handleJustWrite(
-                            ctx: ctx,
+                            context: context,
                             request: req,
                             statusCode: .notImplemented,
                             string: "501 Not Implemented"
                         )
                     }
                 }
-                handler!(ctx, reqPart)
+                handler!(context, reqPart)
             case .body:
                 break
             case .end:
                 state.requestComplete()
                 let content = HTTPServerResponsePart.body(.byteBuffer(buffer!.slice()))
-                ctx.write(wrapOutboundOut(content), promise: nil)
-                completeResponse(ctx, trailers: nil, promise: nil)
+                context.write(wrapOutboundOut(content), promise: nil)
+                completeResponse(context, trailers: nil, promise: nil)
             }
         }
 
-        private func completeResponse(_ ctx: ChannelHandlerContext, trailers: HTTPHeaders?, promise: EventLoopPromise<Void>?) {
+        private func completeResponse(_ context: ChannelHandlerContext, trailers: HTTPHeaders?, promise: EventLoopPromise<Void>?) {
             state.responseComplete()
 
-            let promise = keepAlive ? promise : (promise ?? ctx.eventLoop.makePromise())
+            let promise = keepAlive ? promise : (promise ?? context.eventLoop.makePromise())
             if !keepAlive {
-                promise!.futureResult.whenComplete { _ in ctx.close(promise: nil) }
+                promise!.futureResult.whenComplete { _ in context.close(promise: nil) }
             }
             handler = nil
 
-            ctx.writeAndFlush(wrapOutboundOut(.end(trailers)), promise: promise)
+            context.writeAndFlush(wrapOutboundOut(.end(trailers)), promise: promise)
         }
 
         private func handleJustWrite(
-            ctx: ChannelHandlerContext,
+            context: ChannelHandlerContext,
             request: HTTPServerRequestPart,
             statusCode: HTTPResponseStatus = .ok,
             string: String,
@@ -244,32 +244,32 @@ internal extension LGNC.HTTP {
             switch request {
             case let .head(request):
                 state.requestReceived()
-                ctx.writeAndFlush(wrapOutboundOut(.head(httpResponseHead(request: request, status: statusCode))), promise: nil)
+                context.writeAndFlush(wrapOutboundOut(.head(httpResponseHead(request: request, status: statusCode))), promise: nil)
             case .body(buffer: _):
                 ()
             case .end:
                 state.requestComplete()
 
-                var buf = ctx.channel.allocator.buffer(capacity: string.utf8.count)
+                var buf = context.channel.allocator.buffer(capacity: string.utf8.count)
                 buf.writeString(string)
-                ctx.writeAndFlush(wrapOutboundOut(.body(.byteBuffer(buf))), promise: nil)
+                context.writeAndFlush(wrapOutboundOut(.body(.byteBuffer(buf))), promise: nil)
                 var trailers: HTTPHeaders?
                 if let trailer = trailer {
                     trailers = HTTPHeaders()
                     trailers?.add(name: trailer.0, value: trailer.1)
                 }
 
-                completeResponse(ctx, trailers: trailers, promise: nil)
+                completeResponse(context, trailers: trailers, promise: nil)
             }
         }
 
-        private func sendBadRequest(message: String = "400 Bad Request", to ctx: ChannelHandlerContext) {
+        private func sendBadRequest(message: String = "400 Bad Request", to context: ChannelHandlerContext) {
             self.logger.debug("Bad request: \(message)")
             buffer.writeString(message)
-            finishRequest(ctx: ctx, status: .badRequest)
+            finishRequest(context: context, status: .badRequest)
         }
 
-        private func defaultHandler(_ ctx: ChannelHandlerContext, _ request: HTTPServerRequestPart) {
+        private func defaultHandler(_ context: ChannelHandlerContext, _ request: HTTPServerRequestPart) {
             switch request {
             case let .head(req):
                 infoSavedRequestHead = req
@@ -293,7 +293,7 @@ internal extension LGNC.HTTP {
                 buffer.clear()
 
                 guard infoSavedRequestHead!.method == .POST else {
-                    self.sendBadRequest(message: "400 Bad Request (POST method only)", to: ctx)
+                    self.sendBadRequest(message: "400 Bad Request (POST method only)", to: context)
                     return
                 }
 
@@ -301,7 +301,7 @@ internal extension LGNC.HTTP {
                     let contentTypeString = self.infoSavedRequestHead!.headers["Content-Type"].first,
                     let contentType = ContentType(rawValue: contentTypeString.lowercased())
                 else {
-                    self.sendBadRequest(message: "400 Bad Request (Content-Type header missing)", to: ctx)
+                    self.sendBadRequest(message: "400 Bad Request (Content-Type header missing)", to: context)
                     return
                 }
 
@@ -328,28 +328,28 @@ internal extension LGNC.HTTP {
                  case .MsgPack: payloadBytes = try payloadDict.getMsgPack()
                  case .JSON: payloadBytes = try payloadDict.getJSON()
                  default:
-                 self.sendBadRequest(message: "400 Bad Request (Invalid Content-Type)", to: ctx)
+                 self.sendBadRequest(message: "400 Bad Request (Invalid Content-Type)", to: context)
                  return
                  }
                  } catch {
                  LGNCore.log("Error while packing query: \(error)", prefix: self.uuid.string)
-                 self.sendBadRequest(message: "400 Bad Request (Invalid Content-Type)", to: ctx)
+                 self.sendBadRequest(message: "400 Bad Request (Invalid Content-Type)", to: context)
                  return
                  }
                  } */ else {
-                    sendBadRequest(to: ctx)
+                    sendBadRequest(to: context)
                     return
                 }
 
                 let request = Request(
                     URI: uri,
                     headers: infoSavedRequestHead!.headers,
-                    remoteAddr: ctx.channel.remoteAddrString,
+                    remoteAddr: context.channel.remoteAddrString,
                     body: payloadBytes,
                     uuid: uuid,
                     contentType: contentType,
                     method: infoSavedRequestHead!.method,
-                    eventLoop: ctx.eventLoop
+                    eventLoop: context.eventLoop
                 )
                 let future = resolver(request)
                 future.whenComplete { _ in
@@ -365,7 +365,7 @@ internal extension LGNC.HTTP {
                     self.buffer.writeBytes(bytes)
                     headers["Content-Type"] = request.contentType.rawValue
                     self.finishRequest(
-                        ctx: ctx,
+                        context: context,
                         status: .ok,
                         additionalHeaders: headers
                     )
@@ -374,7 +374,7 @@ internal extension LGNC.HTTP {
                     self.logger.error("There was an error while processing request '\(request.URI)': \(error)")
                     self.buffer.writeString("500 Internal Server Error")
                     self.finishRequest(
-                        ctx: ctx,
+                        context: context,
                         status: .internalServerError,
                         additionalHeaders: headers
                     )
@@ -383,7 +383,7 @@ internal extension LGNC.HTTP {
         }
 
         private func finishRequest(
-            ctx: ChannelHandlerContext,
+            context: ChannelHandlerContext,
             status: HTTPResponseStatus,
             additionalHeaders: [String: String] = [:]
         ) {
@@ -392,9 +392,9 @@ internal extension LGNC.HTTP {
             additionalHeaders.forEach {
                 headers.add(name: $0.key, value: $0.value)
             }
-            ctx.write(wrapOutboundOut(.head(httpResponseHead(request: infoSavedRequestHead!, status: status, headers: headers))), promise: nil)
-            ctx.write(wrapOutboundOut(.body(.byteBuffer(buffer))), promise: nil)
-            completeResponse(ctx, trailers: nil, promise: nil)
+            context.write(wrapOutboundOut(.head(httpResponseHead(request: infoSavedRequestHead!, status: status, headers: headers))), promise: nil)
+            context.write(wrapOutboundOut(.body(.byteBuffer(buffer))), promise: nil)
+            completeResponse(context, trailers: nil, promise: nil)
         }
     }
 }

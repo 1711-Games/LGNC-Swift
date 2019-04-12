@@ -65,7 +65,7 @@ public extension Contract {
             return resultEntity as! Self.Response
         }.flatMapErrorThrowing {
             if let error = $0 as? NIOConnectionError {
-                requestInfo?.logger.error("""
+                (requestInfo?.logger ?? Logger(label: "LGNC.Client")).error("""
                 Could not execute contract '\(self)' on service '\(self.ParentService.self)' \
                 @ \(address): \(error)
                 """)

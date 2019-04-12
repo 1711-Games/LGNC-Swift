@@ -26,13 +26,13 @@ internal extension LGNS {
             self.resolver = resolver
         }
 
-        internal func sendError(to ctx: ChannelHandlerContext, error: LGNS.E) {
+        internal func sendError(to context: ChannelHandlerContext, error: LGNS.E) {
             print("FLUSHING ERROR TO CLIENT")
             print("\(#file):\(#line)")
             print(error)
-            let promise: PromiseVoid = ctx.eventLoop.makePromise()
-            promise.futureResult.whenComplete { _ in ctx.close(promise: nil) }
-            ctx.writeAndFlush(
+            let promise: PromiseVoid = context.eventLoop.makePromise()
+            promise.futureResult.whenComplete { _ in context.close(promise: nil) }
+            context.writeAndFlush(
                 wrapOutboundOut(
                     LGNP.Message(
                         URI: "",
@@ -43,22 +43,22 @@ internal extension LGNS {
                 ),
                 promise: promise
             )
-            // ctx.fireErrorCaught(error)
+            // context.fireErrorCaught(error)
         }
 
-        public func channelInactive(ctx: ChannelHandlerContext) {
+        public func channelInactive(context: ChannelHandlerContext) {
             self.promise?.fail(LGNS.E.ConnectionClosed)
-            ctx.fireChannelInactive()
+            context.fireChannelInactive()
         }
 
-        public func channelRead(ctx: ChannelHandlerContext, data: NIOAny) {
+        public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
             var profiler: LGNCore.Profiler?
             if type(of: self).profile == true {
                 profiler = LGNCore.Profiler.begin()
             }
 
             var message = unwrapInboundIn(data)
-            let remoteAddr = ctx.channel.remoteAddrString
+            let remoteAddr = context.channel.remoteAddrString
 
             var metaDict: [String: String] = [:]
             if let metaBytes = message.meta, metaBytes.starts(with: BaseHandler.META_SECTION_BYTES) {
@@ -87,7 +87,7 @@ internal extension LGNS {
                     uuid: message.uuid,
                     isSecure: message.controlBitmask.contains(.encrypted),
                     transport: .LGNS,
-                    eventLoop: ctx.eventLoop
+                    eventLoop: context.eventLoop
                 )
             )
 
@@ -100,32 +100,32 @@ internal extension LGNS {
             }
 
             future.whenFailure {
-                self.errorCaught(ctx: ctx, error: $0)
+                self.errorCaught(context: context, error: $0)
             }
 
             future.whenSuccess {
                 guard let message = $0 else {
                     return
                 }
-                ctx.writeAndFlush(self.wrapInboundOut(message), promise: nil)
+                context.writeAndFlush(self.wrapInboundOut(message), promise: nil)
                 if !message.controlBitmask.contains(.keepAlive) {
-                    ctx.close(promise: nil)
+                    context.close(promise: nil)
                 }
             }
         }
 
         // this must be overriden by ClientHandler and ServerHandler
-        fileprivate func handleError(ctx _: ChannelHandlerContext, error _: LGNS.E) {
+        fileprivate func handleError(context _: ChannelHandlerContext, error _: LGNS.E) {
             // noop
         }
 
-        func errorCaught(ctx: ChannelHandlerContext, error: Error) {
+        func errorCaught(context: ChannelHandlerContext, error: Error) {
             dump("ERROR CAUGHT: \(error)")
             if let error = error as? LGNS.E {
-                handleError(ctx: ctx, error: error)
+                handleError(context: context, error: error)
             } else {
                 print("Unknown error: \(error)")
-                handleError(ctx: ctx, error: LGNS.E.UnknownError("\(error)"))
+                handleError(context: context, error: LGNS.E.UnknownError("\(error)"))
             }
         }
     }
@@ -135,14 +135,14 @@ internal extension LGNS {
             return true
         }
 
-        fileprivate override func handleError(ctx: ChannelHandlerContext, error: LGNS.E) {
-            sendError(to: ctx, error: error)
+        fileprivate override func handleError(context: ChannelHandlerContext, error: LGNS.E) {
+            sendError(to: context, error: error)
         }
     }
 
     class ClientHandler: BaseHandler {
-        fileprivate override func handleError(ctx: ChannelHandlerContext, error: LGNS.E) {
-            ctx.fireErrorCaught(error)
+        fileprivate override func handleError(context: ChannelHandlerContext, error: LGNS.E) {
+            context.fireErrorCaught(error)
             promise?.fail(error)
         }
     }
