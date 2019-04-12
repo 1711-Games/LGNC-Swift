@@ -21,8 +21,12 @@ public enum AppEnv: String, CaseIterable {
             return env
         }
 
-        Logger(label: "LGNCore.AppEnv").info("Falling back to \(self.local) environment")
-
-        return .local
+        #if os(macOS)
+            Logger(label: "LGNCore.AppEnv").info("Falling back to \(self.local) environment")
+            return .local
+        #else
+            Logger(label: "LGNCore.AppEnv").info("APP_ENV must be set explicitly in non-macOS environment")
+            exit(1)
+        #endif
     }
 }
