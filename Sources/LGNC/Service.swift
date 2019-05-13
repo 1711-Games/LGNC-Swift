@@ -103,6 +103,7 @@ public extension Service {
             requestInfo.logger.critical("Quite uncaught error: \(error)")
             result = requestInfo.eventLoop.makeSucceededFuture(LGNC.Entity.Result.internalError)
         }
+
         return result.map { $0 as Entity }
     }
 

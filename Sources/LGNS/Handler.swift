@@ -15,13 +15,16 @@ internal extension LGNS {
         private static let EOL: Byte = 10
 
         private let resolver: LGNS.Resolver
-        fileprivate var promise: PromiseLGNP?
+        fileprivate var promise: Promise<(LGNP.Message, LGNCore.RequestInfo)>?
 
         fileprivate class var profile: Bool {
             return false
         }
 
-        public init(promise: PromiseLGNP? = nil, resolver: @escaping Resolver) {
+        public init(
+            promise: Promise<(LGNP.Message, LGNCore.RequestInfo)>? = nil,
+            resolver: @escaping Resolver
+        ) {
             self.promise = promise
             self.resolver = resolver
         }
@@ -82,8 +85,12 @@ internal extension LGNS {
                 LGNCore.RequestInfo(
                     remoteAddr: remoteAddr,
                     clientAddr: metaDict["ip"] ?? remoteAddr,
+                    clientID: metaDict["cid"],
                     userAgent: metaDict["ua"] ?? "LGNS",
-                    locale: LGNCore.Translation.Locale(metaDict["lc"]),
+                    locale: LGNCore.i18n.Locale(
+                        maybeLocale: metaDict["lc"],
+                        allowedLocales: LGNCore.i18n.translator.allowedLocales
+                    ),
                     uuid: message.uuid,
                     isSecure: message.controlBitmask.contains(.encrypted),
                     transport: .LGNS,

@@ -8,8 +8,16 @@ public extension LGNCore {
             case MissingEntries([Key])
         }
 
+        public static var empty: Config {
+            return Config(storage: [:])
+        }
+
         private let storage: [Key: String]
         private let logger = Logging.Logger(label: "LGNCore.Config")
+
+        fileprivate init(storage: [Key: String]) {
+            self.storage = storage
+        }
 
         public init(
             env: AppEnv,
@@ -38,7 +46,7 @@ public extension LGNCore {
                 throw E.MissingEntries(errors)
             }
 
-            self.storage = storage
+            self.init(storage: storage)
         }
 
         public subscript(key: Key) -> String {

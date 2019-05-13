@@ -8,7 +8,7 @@ import NIOHTTP1
 
 public extension LGNC {
     struct HTTP {
-        public typealias Resolver = (Request) -> Future<Bytes>
+        public typealias Resolver = (Request) -> Future<(body: Bytes, headers: [(name: String, value: String)])>
     }
 }
 
@@ -288,9 +288,9 @@ internal extension LGNC.HTTP {
                     return
                 }
 
-                state.requestComplete()
+                self.state.requestComplete()
 
-                buffer.clear()
+                self.buffer.clear()
 
                 guard infoSavedRequestHead!.method == .POST else {
                     self.sendBadRequest(message: "400 Bad Request (POST method only)", to: context)
@@ -309,35 +309,8 @@ internal extension LGNC.HTTP {
                 let payloadBytes: Bytes
                 if var buffer = self.bodyBuffer, let bytes = buffer.readBytes(length: buffer.readableBytes) {
                     payloadBytes = bytes
-                } /* else if uri.contains("?"), let params = URLComponents(string: String(uri))?.queryItems {
-                 let payloadDict = Dictionary(
-                 uniqueKeysWithValues: params
-                 .map { (param) -> (String, Any)? in
-                 guard let value = param.value else {
-                 return nil
-                 }
-                 return (
-                 param.name,
-                 (value.isNumber ? (Int(value) ?? -1) : value) as Any
-                 )
-                 }
-                 .compactMap { $0 }
-                 )
-                 do {
-                 switch contentType {
-                 case .MsgPack: payloadBytes = try payloadDict.getMsgPack()
-                 case .JSON: payloadBytes = try payloadDict.getJSON()
-                 default:
-                 self.sendBadRequest(message: "400 Bad Request (Invalid Content-Type)", to: context)
-                 return
-                 }
-                 } catch {
-                 LGNCore.log("Error while packing query: \(error)", prefix: self.uuid.string)
-                 self.sendBadRequest(message: "400 Bad Request (Invalid Content-Type)", to: context)
-                 return
-                 }
-                 } */ else {
-                    sendBadRequest(to: context)
+                } else {
+                    self.sendBadRequest(to: context)
                     return
                 }
 
@@ -361,9 +334,14 @@ internal extension LGNC.HTTP {
                     "LGNC-UUID": self.uuid.string,
                     "Server": "LGNC \(LGNC.VERSION)",
                 ]
-                future.whenSuccess { bytes in
-                    self.buffer.writeBytes(bytes)
+                future.whenSuccess { (body, additionalHeaders) in
+                    self.buffer.writeBytes(body)
                     headers["Content-Type"] = request.contentType.rawValue
+
+                    for (name, value) in additionalHeaders {
+                        headers[name] = value
+                    }
+
                     self.finishRequest(
                         context: context,
                         status: .ok,

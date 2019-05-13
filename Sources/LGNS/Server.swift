@@ -42,11 +42,13 @@ public extension LGNS {
                 .serverChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
 
                 .childChannelInitializer { channel in
-                    channel.pipeline.addHandler(BackPressureHandler()).flatMap {
-                        channel.pipeline.addHandler(IdleStateHandler(readTimeout: self.readTimeout, writeTimeout: self.writeTimeout)).flatMap {
-                            channel.pipeline.addHandler(LGNS.LGNPCoder(cryptor: self.cryptor, requiredBitmask: self.requiredBitmask)).flatMap {
-                                channel.pipeline.addHandler(LGNS.ServerHandler(resolver: resolver))
-                } } } }
+                    channel.pipeline.addHandlers(
+                        BackPressureHandler(),
+                        IdleStateHandler(readTimeout: self.readTimeout, writeTimeout: self.writeTimeout),
+                        LGNS.LGNPCoder(cryptor: self.cryptor, requiredBitmask: self.requiredBitmask),
+                        LGNS.ServerHandler(resolver: resolver)
+                    )
+                }
 
                 .childChannelOption(ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
                 .childChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)

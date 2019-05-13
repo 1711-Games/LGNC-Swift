@@ -11,8 +11,9 @@ public extension LGNCore {
     struct RequestInfo {
         public let remoteAddr: String
         public let clientAddr: String
+        public let clientID: String?
         public let userAgent: String
-        public let locale: LGNCore.Translation.Locale
+        public let locale: LGNCore.i18n.Locale
         public let uuid: UUID
         public let isSecure: Bool
         public let transport: Transport
@@ -22,8 +23,9 @@ public extension LGNCore {
         public init(
             remoteAddr: String,
             clientAddr: String,
+            clientID: String? = nil,
             userAgent: String,
-            locale: LGNCore.Translation.Locale,
+            locale: LGNCore.i18n.Locale,
             uuid: UUID,
             isSecure: Bool,
             transport: Transport,
@@ -31,6 +33,7 @@ public extension LGNCore {
         ) {
             self.remoteAddr = remoteAddr
             self.clientAddr = clientAddr
+            self.clientID = clientID
             self.userAgent = userAgent
             self.locale = locale
             self.uuid = uuid
@@ -39,7 +42,7 @@ public extension LGNCore {
             self.eventLoop = eventLoop
 
             self.logger = Logging.Logger(label: "LGNC.RequestInfo")
-            logger[metadataKey: "UUID"] = "\(self.uuid.string)"
+            logger[metadataKey: "requestID"] = "\(self.uuid.string)"
         }
     }
 }

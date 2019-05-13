@@ -39,7 +39,10 @@ public extension Service {
                 remoteAddr: request.remoteAddr,
                 clientAddr: request.remoteAddr,
                 userAgent: request.headers["User-Agent"].first ?? "",
-                locale: LGNCore.Translation.Locale(request.headers["Accept-Language"].first),
+                locale: LGNCore.i18n.Locale(
+                    maybeLocale: request.headers["Accept-Language"].first,
+                    allowedLocales: LGNCore.i18n.translator.allowedLocales
+                ),
                 uuid: request.uuid,
                 isSecure: false,
                 transport: .HTTP,
@@ -59,12 +62,19 @@ public extension Service {
                     payload: payload,
                     requestInfo: requestInfo
                 ).map {
+                    let body: Bytes
+                    let headers: [(name: String, value: String)] = [
+                        ("Content-Language", requestInfo.locale.rawValue)
+                    ]
+
                     do {
-                        return try $0.getDictionary().pack(to: LGNP.Message.ContentType(from: request.contentType))
+                        body = try $0.getDictionary().pack(to: LGNP.Message.ContentType(from: request.contentType))
                     } catch {
                         requestInfo.logger.critical("Could not pack entity to \(request.contentType): \(error)")
-                        return "500 Internal Server Error".bytes
+                        body = "500 Internal Server Error".bytes
                     }
+
+                    return (body: body, headers: headers)
                 }
             } catch {
                 return request.eventLoop.makeFailedFuture(error)

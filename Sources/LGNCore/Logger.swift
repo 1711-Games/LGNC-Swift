@@ -16,6 +16,29 @@ extension Logging.Logger.MetadataValue: Encodable {
     }
 }
 
+public extension Logging.Logger.Level {
+    init?(string: String) {
+        switch string {
+        case "trace":
+            self = .trace
+        case "debug":
+            self = .debug
+        case "info":
+            self = .info
+        case "notice":
+            self = .notice
+        case "warning":
+            self = .warning
+        case "error":
+            self = .error
+        case "critical":
+            self = .critical
+        default:
+            return nil
+        }
+    }
+}
+
 public extension LGNCore {
     struct Logger: LogHandler {
         enum E: Error {
@@ -63,7 +86,7 @@ public extension LGNCore {
         ) {
             let date = Date().description.replacingOccurrences(of: " +0000", with: "")
             let _file = file.split(separator: "/").last!
-            let preamble = "\(date) @ \(_file):\(line)"
+            let preamble = "\(date) @ \(_file.replacingOccurrences(of: ".swift", with: "")):\(line)"
 
             var prettyMetadata: String? = nil
             var mergedMetadata = self.metadata

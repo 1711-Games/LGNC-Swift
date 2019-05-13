@@ -1,31 +1,181 @@
+import Logging
+
 public extension LGNCore {
-    struct Translation {}
-}
+    struct i18n {
+        public static var translator: LGNCTranslator = DummyTranslator()
 
-public protocol LGNCTranslator {
-    func tr(
-        _ input: String,
-        _ locale: LGNCore.Translation.Locale,
-        _ interpolation: [String: Any]...
-    ) -> String
-}
-
-public extension LGNCore.Translation {
-    struct DummyTranslator: LGNCTranslator {
-        public init() {}
-
-        @inlinable public func tr(
-            _ input: String,
-            _ locale: Locale,
-            _ interpolations: [String: Any]...
+        @inlinable public static func tr(
+            _ key: String,
+            _ locale: LGNCore.i18n.Locale,
+            _ interpolations: [String: Any] = [:]
         ) -> String {
-            return input
+            return self.translator.tr(key, locale, interpolations)
         }
     }
 }
 
-public extension LGNCore.Translation {
-    typealias AvailableLocales = [Locale]
+public protocol LGNCTranslator {
+    var allowedLocales: LGNCore.i18n.AllowedLocales { get }
+
+    func tr(
+        _ key: String,
+        _ locale: LGNCore.i18n.Locale,
+        _ interpolations: [String: Any]
+    ) -> String
+}
+
+public extension LGNCore.i18n {
+    struct DummyTranslator: LGNCTranslator {
+        public let allowedLocales: LGNCore.i18n.AllowedLocales = []
+
+        public init() {}
+
+        @inlinable public func tr(
+            _ key: String,
+            _ locale: Locale,
+            _ interpolations: [String: Any]
+        ) -> String {
+            return interpolate(input: key, interpolations: interpolations)
+        }
+    }
+}
+
+@usableFromInline internal func interpolate(input: String, interpolations: [String: Any]) -> String {
+    var result = input
+
+    // Early exit if there are no placeholders
+    if !input.contains("{") || interpolations.isEmpty {
+        return result
+    }
+
+    for (name, value) in interpolations {
+        result = result.replacingOccurrences(of: "{\(name)}", with: "\(value)")
+    }
+
+    return result
+}
+
+public extension LGNCore.i18n {
+    struct FactoryTranslator: LGNCTranslator {
+        public let allowedLocales: LGNCore.i18n.AllowedLocales
+
+        internal var logger = Logger(label: "LGNCore.FactoryTranslator")
+        internal var phrases: [Locale: Phrases]
+
+        public init(
+            phrases: [Locale: Phrases],
+            allowedLocales: LGNCore.i18n.AllowedLocales
+        ) {
+            self.phrases = phrases
+            self.allowedLocales = allowedLocales
+        }
+
+        public func tr(
+            _ key: String,
+            _ locale: LGNCore.i18n.Locale,
+            _ interpolations: [String : Any]
+        ) -> String {
+            guard let phrase = self.phrases[locale]?[key] else {
+                return key
+            }
+
+            let translation: String
+            if phrase.isPlural {
+                var numericInterpolation: Int?
+                for (_, value) in interpolations {
+                    if let int = value as? Int {
+                        numericInterpolation = int
+                        break
+                    }
+                }
+                if let numericInterpolation = numericInterpolation {
+                    translation = self.choosePlural(key: key, phrase: phrase, locale: locale, num: numericInterpolation)
+                } else {
+                    translation = phrase.other
+                }
+            } else {
+                translation = phrase.other
+            }
+
+            return interpolate(input: translation, interpolations: interpolations)
+        }
+
+        internal func choosePlural(key: String, phrase: Phrase, locale: Locale, num: Int) -> String {
+            let result: String?
+
+            switch locale {
+            case .enUS:
+                result = num == 1 ? phrase.one : phrase.other
+            case .ruRU, .ukUA:
+                let mod10 = num % 10
+                let mod100 = num % 100
+
+                if mod10 == 1 && mod100 != 11 {
+                    result = phrase.one
+                } else if (2...4).contains(mod10) && !(12...14).contains(mod100) {
+                    result = phrase.few
+                } else if mod10 == 0 || (5...9).contains(mod10) || (12...14).contains(mod100) {
+                    result = phrase.many
+                } else {
+                    result = phrase.other
+                }
+            default:
+                self.logger.notice(
+                    "Pluralization for given locale isn't yet imlemented",
+                    metadata: [
+                        "locale": "\(locale)",
+                        "key": "\(key)",
+                    ]
+                )
+
+                result = phrase.other
+            }
+
+            return result ?? phrase.other
+        }
+    }
+}
+
+public extension LGNCore.i18n {
+    typealias AllowedLocales = [Locale]
+    typealias Phrases = [String: Phrase]
+
+    struct Phrase: Codable, ExpressibleByStringLiteral {
+        public let zero: String?
+        public let one: String?
+        public let two: String?
+        public let few: String?
+        public let many: String?
+        public let other: String
+
+        public let isPlural: Bool
+
+        public init(
+            zero: String? = nil,
+            one: String? = nil,
+            two: String? = nil,
+            few: String? = nil,
+            many: String? = nil,
+            other: String
+        ) {
+            self.zero = zero
+            self.one = one
+            self.two = two
+            self.few = few
+            self.many = many
+            self.other = other
+
+            self.isPlural = zero != nil || one != nil || two != nil || few != nil || many != nil
+        }
+
+        public init(_ other: String) {
+            self.init(other: other)
+        }
+
+        public init(stringLiteral: String) {
+            self.init(other: stringLiteral)
+        }
+    }
 
     enum Locale: String {
         case afZA = "af-ZA"
@@ -239,18 +389,17 @@ public extension LGNCore.Translation {
         case zhTW = "zh-TW"
         case zuZA = "zu-ZA"
 
-        public init(_ maybeLocale: String?, default: Locale = .enUS) {
-            guard let rawLocale = maybeLocale else {
+        public static let `default`: Locale = .enUS
+
+        public init(maybeLocale: String?, allowedLocales: AllowedLocales, default: Locale = Locale.default) {
+            guard
+                let rawLocale = maybeLocale,
+                let instance = Locale(rawValue: rawLocale),
+                allowedLocales.contains(instance)
+            else {
                 self = `default`
                 return
             }
-            if let instance = Locale(rawValue: rawLocale) {
-                self = instance
-                return
-            }
-
-            let instance: Locale = `default`
-            Logger(label: "LGNCore.AppEnv").error("Invalid locale: \(rawLocale), falling back to \(instance)")
             self = instance
         }
     }

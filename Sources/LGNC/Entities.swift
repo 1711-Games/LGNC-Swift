@@ -6,7 +6,7 @@ public extension Contracts {
 }
 
 public protocol ContractEntity: Entity {
-    static func initWithValidation(from dictionary: Entita.Dict, on eventLoop: EventLoop) -> Future<Self>
+    static func initWithValidation(from dictionary: Entita.Dict, requestInfo: LGNCore.RequestInfo) -> Future<Self>
 }
 
 public extension ContractEntity {

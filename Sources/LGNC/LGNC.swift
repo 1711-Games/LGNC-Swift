@@ -15,22 +15,42 @@ public struct LGNC {
     public static var ALLOW_INCOMPLETE_GUARANTEE = false
     public static var ALLOW_ALL_TRANSPORTS = false
 
-    public static var translator: LGNCTranslator = LGNCore.Translation.DummyTranslator()
+    public static var translator: LGNCTranslator = LGNCore.i18n.DummyTranslator()
 
-    public static func getMeta(from requestInfo: LGNCore.RequestInfo) -> Bytes {
+    public static func getMeta(
+        from requestInfo: LGNCore.RequestInfo?,
+        clientID: String? = nil
+    ) -> Bytes? {
         return self.getMeta(
-            clientAddr: requestInfo.clientAddr,
-            userAgent: requestInfo.userAgent,
-            locale: requestInfo.locale
+            clientAddr: requestInfo?.clientAddr,
+            clientID: clientID,
+            userAgent: requestInfo?.userAgent,
+            locale: requestInfo?.locale
         )
     }
 
-    public static func getMeta(clientAddr: String, userAgent: String, locale: LGNCore.Translation.Locale) -> Bytes {
-        let meta = [
-            "ip": clientAddr,
-            "ua": userAgent,
-            "lc": locale.rawValue,
-        ]
+    public static func getMeta(
+        clientAddr: String? = nil,
+        clientID: String? = nil,
+        userAgent: String? = nil,
+        locale: LGNCore.i18n.Locale? = nil
+    ) -> Bytes? {
+        var meta: [String: String] = [:]
+        if let clientAddr = clientAddr {
+            meta["ip"] = clientAddr
+        }
+        if let clientID = clientID {
+            meta["cid"] = clientID
+        }
+        if let userAgent = userAgent {
+            meta["ua"] = userAgent
+        }
+        if let locale = locale {
+            meta["lc"] = locale.rawValue
+        }
+        if meta.isEmpty {
+            return nil
+        }
         var metaBytes = Bytes([0, 255])
         for (k, v) in meta {
             metaBytes.append(contentsOf: Bytes("\(k)\u{00}\(v)".replacingOccurrences(of: "\n", with: "").utf8))
@@ -67,7 +87,7 @@ public extension LGNC.Entity {
 
         public let result: Entity?
         public let errors: [String: [Error]]
-        public let meta: [String: String]
+        public var meta: [String: String]
         public let success: Bool
 
         public required init(
@@ -103,9 +123,10 @@ public extension LGNC.Entity {
 
         public static func initFromResponse<T: ContractEntity>(
             from dictionary: Entita.Dict,
-            on eventLoop: EventLoop,
+            requestInfo: LGNCore.RequestInfo,
             type: T.Type
         ) -> EventLoopFuture<Result> {
+            let eventLoop = requestInfo.eventLoop
             var errors: [String: [ValidatorError]] = [
                 "result": [],
                 "errors": [],
@@ -153,7 +174,7 @@ public extension LGNC.Entity {
             let future: Future<T?>
             if let _result = _result {
                 future = T
-                    .initWithValidation(from: _result, on: eventLoop)
+                    .initWithValidation(from: _result, requestInfo: requestInfo)
                     .map { $0 }
             } else {
                 future = eventLoop.makeSucceededFuture(nil)
@@ -169,7 +190,10 @@ public extension LGNC.Entity {
             }
         }
 
-        public static func initWithValidation(from dictionary: Entita.Dict, on eventLoop: EventLoop) -> EventLoopFuture<Result> {
+        public static func initWithValidation(
+            from dictionary: Entita.Dict,
+            requestInfo: LGNCore.RequestInfo
+        ) -> EventLoopFuture<Result> {
             var errors: [String: [ValidatorError]] = [
                 "result": [],
                 "errors": [],
@@ -212,10 +236,10 @@ public extension LGNC.Entity {
                     throw LGNC.E.DecodeError(filteredErrors)
                 }
             } catch {
-                return eventLoop.makeFailedFuture(error)
+                return requestInfo.eventLoop.makeFailedFuture(error)
             }
 
-            return eventLoop.makeSucceededFuture(
+            return requestInfo.eventLoop.makeSucceededFuture(
                 self.init(
                     result: _result,
                     errors: _errors,
@@ -278,7 +302,10 @@ public extension LGNC.Entity {
             return (message: message, code: code)
         }
 
-        public static func initWithValidation(from dictionary: Entita.Dict, on eventLoop: EventLoop) -> EventLoopFuture<Error> {
+        public static func initWithValidation(
+            from dictionary: Entita.Dict,
+            requestInfo: LGNCore.RequestInfo
+        ) -> EventLoopFuture<Error> {
             var errors: [String: [ValidatorError]] = [
                 "message": [],
                 "code": [],
@@ -305,10 +332,10 @@ public extension LGNC.Entity {
                     throw LGNC.E.DecodeError(filteredErrors)
                 }
             } catch {
-                return eventLoop.makeFailedFuture(error)
+                return requestInfo.eventLoop.makeFailedFuture(error)
             }
 
-            return eventLoop.makeSucceededFuture(
+            return requestInfo.eventLoop.makeSucceededFuture(
                 self.init(
                     message: _message,
                     code: _code
@@ -334,8 +361,11 @@ public extension LGNC.Entity {
     final class Empty: ContractEntity {
         public required init() {}
 
-        public static func initWithValidation(from _: Entita.Dict, on eventLoop: EventLoop) -> EventLoopFuture<Empty> {
-            return eventLoop.makeSucceededFuture(self.init())
+        public static func initWithValidation(
+            from _: Entita.Dict,
+            requestInfo: LGNCore.RequestInfo
+        ) -> EventLoopFuture<Empty> {
+            return requestInfo.eventLoop.makeSucceededFuture(self.init())
         }
 
         public convenience init(from _: Entita.Dict) throws {

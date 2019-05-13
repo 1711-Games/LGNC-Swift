@@ -11,10 +11,12 @@ public extension Contract {
         at address: Address,
         with request: Self.Request,
         using client: LGNS.Client,
+        as clientID: String? = nil,
         controlBitmask: LGNP.Message.ControlBitmask? = nil,
         uuid: UUID = UUID(),
         requestInfo: LGNCore.RequestInfo? = nil
     ) -> EventLoopFuture<Self.Response> {
+        let logger = requestInfo?.logger ?? client.logger
         let controlBitmask = controlBitmask ?? client.controlBitmask
         let payload: Bytes
         let contentType = controlBitmask.contentType
@@ -24,35 +26,37 @@ public extension Contract {
             if contentType != .PlainText {
                 payload = try [LGNC.ENTITY_KEY: try request.getDictionary()].pack(to: contentType)
             } else {
-                requestInfo?.logger.critical("Plain text not implemented")
+                logger.critical("Plain text not implemented")
                 payload = Bytes()
             }
         } catch {
             return eventLoop.makeFailedFuture(error)
         }
 
-        var meta: Bytes?
-        if let requestInfo = requestInfo {
-            meta = LGNC.getMeta(from: requestInfo)
-        }
+        logger.debug(
+            "Executing remote contract lgns://\(address)/\(URI)",
+            metadata: [
+                "requestID": "\(uuid.string)",
+            ]
+        )
 
         return client.request(
             at: address,
             with: LGNP.Message(
                 URI: URI,
                 payload: payload,
-                meta: meta,
+                meta: LGNC.getMeta(from: requestInfo, clientID: clientID),
                 salt: client.cryptor.salt.bytes,
                 controlBitmask: controlBitmask,
                 uuid: uuid
             ),
             on: eventLoop
-        ).flatMapThrowing { responseMessage in
-            try responseMessage.unpackPayload()
-        }.flatMap { (dict: [String: Any]) -> Future<LGNC.Entity.Result> in
+        ).flatMapThrowing { responseMessage, responseRequestInfo in
+            (try responseMessage.unpackPayload(), responseRequestInfo)
+        }.flatMap { (dict: [String: Any], responseRequestInfo: LGNCore.RequestInfo) -> Future<LGNC.Entity.Result> in
             LGNC.Entity.Result.initFromResponse(
                 from: dict,
-                on: eventLoop,
+                requestInfo: responseRequestInfo,
                 type: Self.Response.self
             )
         }.flatMapThrowing { (result: LGNC.Entity.Result) in

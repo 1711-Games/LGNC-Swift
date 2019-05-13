@@ -50,7 +50,7 @@ public extension Contract {
         guard let callback = callback else {
             return requestInfo.eventLoop.makeFailedFuture(LGNC.E.ControllerError("No callback for contract '\(name)'"))
         }
-        return Request.initWithValidation(from: request, on: requestInfo.eventLoop)
+        return Request.initWithValidation(from: request, requestInfo: requestInfo)
             .flatMap { callback($0, requestInfo) }
             .map { $0 as Entity }
     }
