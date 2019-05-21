@@ -60,6 +60,9 @@ public extension Service {
         requestInfo: LGNCore.RequestInfo
     ) -> Future<Entity> {
         let result: Future<LGNC.Entity.Result>
+
+        let profiler = LGNCore.Profiler.begin()
+
         do {
             guard let contractInfo = self.contractMap[URI] else {
                 throw LGNC.ContractError.URINotFound(URI)
@@ -67,7 +70,8 @@ public extension Service {
             guard LGNC.ALLOW_ALL_TRANSPORTS == true || contractInfo.transports.contains(requestInfo.transport) else {
                 throw LGNC.ContractError.TransportNotAllowed(requestInfo.transport)
             }
-            result = contractInfo.executor(requestInfo, payload)
+            result = contractInfo
+                .executor(requestInfo, payload)
                 .map { LGNC.Entity.Result(from: $0) }
                 .recover { error in
                     do {
@@ -102,6 +106,23 @@ public extension Service {
         } catch let error {
             requestInfo.logger.critical("Quite uncaught error: \(error)")
             result = requestInfo.eventLoop.makeSucceededFuture(LGNC.Entity.Result.internalError)
+        }
+
+        result.whenComplete { result in
+            let resultString: String
+            switch result {
+            case .failure(_):
+                resultString = "Failure"
+            case .success(_):
+                resultString = "Success"
+            }
+
+            let transport = requestInfo.transport.rawValue
+            let executionTime = profiler.end().rounded(toPlaces: 4)
+
+            requestInfo.logger.info(
+                "[\(resultString)] Contract \(transport) '\(URI)' execution took \(executionTime)s"
+            )
         }
 
         return result.map { $0 as Entity }

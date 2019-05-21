@@ -12,8 +12,31 @@ public struct LGNC {
     public static let ID_KEY = "a"
     public static let GLOBAL_ERROR_KEY = "_"
 
-    public static var ALLOW_INCOMPLETE_GUARANTEE = false
-    public static var ALLOW_ALL_TRANSPORTS = false
+    private static let logger = Logger(label: "LGNC.Internal")
+
+    /// Allows service startup without all contracts guaranteed.
+    ///
+    /// Intended to be used only for early development stages
+    public static var ALLOW_INCOMPLETE_GUARANTEE = false {
+        didSet {
+            if self.ALLOW_INCOMPLETE_GUARANTEE == true {
+                self.logger.warning(
+                    "LGNC.ALLOW_INCOMPLETE_GUARANTEE is set to true, service may bootstrap without all contracts guaranteed"
+                )
+            }
+        }
+    }
+
+    /// If set to `true`, `Transports` directive in LGNC scheme is ignored, and all contracts can be executed via HTTP
+    ///
+    /// Intended to be used only for early development stages
+    public static var ALLOW_ALL_TRANSPORTS = false {
+        didSet {
+            if self.ALLOW_ALL_TRANSPORTS == true {
+                self.logger.warning("LGNC.ALLOW_ALL_TRANSPORTS is set to true, all contracts may be executed via HTTP")
+            }
+        }
+    }
 
     public static var translator: LGNCTranslator = LGNCore.i18n.DummyTranslator()
 
