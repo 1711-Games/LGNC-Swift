@@ -10,14 +10,14 @@ public extension DictionaryExtractable {
     }
 
     func getDictionaryKey(_ name: String) -> String {
-        return Swift.type(of: self).getDictionaryKey(name)
+        return Self.getDictionaryKey(name)
     }
 
     static func getDictionaryKey(_ name: String) -> String {
         if Entita.KEY_DICTIONARIES_ENABLED == false {
             return name
         }
-        return keyDictionary[name] ?? name
+        return self.keyDictionary[name] ?? name
     }
 
     static func extract(param name: String, from dictionary: Entita.Dict) -> (key: String, value: Any?) {
