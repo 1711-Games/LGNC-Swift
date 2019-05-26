@@ -121,7 +121,7 @@ public extension Service {
             let executionTime = profiler.end().rounded(toPlaces: 4)
 
             requestInfo.logger.info(
-                "[\(resultString)] Contract \(transport) '\(URI)' execution took \(executionTime)s"
+                "[\(transport)] [\(URI)] [\(resultString)] \(executionTime)s"
             )
         }
 
