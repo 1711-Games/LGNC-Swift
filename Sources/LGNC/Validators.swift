@@ -189,7 +189,7 @@ public extension Validation {
                     return Validation.Error.InvalidType()
                 }
                 guard value.count >= length else {
-                    return Length.Error(message: self.message._t(locale, ["Locale": self.length]))
+                    return Length.Error(message: self.message._t(locale, ["Length": self.length]))
                 }
                 return nil
             }
@@ -209,7 +209,7 @@ public extension Validation {
                     return Validation.Error.InvalidType()
                 }
                 guard value.count <= length else {
-                    return Length.Error(message: self.message._t(locale, ["Locale": self.length]))
+                    return Length.Error(message: self.message._t(locale, ["Length": self.length]))
                 }
                 return nil
             }
