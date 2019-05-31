@@ -22,8 +22,7 @@ public extension ValidatorError {
 }
 
 public struct Validation {
-    public struct Error {
-    }
+    public struct Error {}
 }
 
 internal extension String {
@@ -35,15 +34,19 @@ internal extension String {
 public extension Validation.Error {
     struct InvalidType: ValidatorError {
         public let code: Int = 412
-        public let message: String = "Type mismatch"
+        public let message: String
+
+        public init(message: String = "Type mismatch", _ locale: LGNCore.i18n.Locale) {
+            self.message = message._t(locale)
+        }
     }
 
     struct MissingValue: ValidatorError {
         public let code: Int
         public let message: String
 
-        public init(message: String = "Value missing", code: Int = 412) {
-            self.message = message
+        public init(_ locale: LGNCore.i18n.Locale, message: String = "Value missing", code: Int = 412) {
+            self.message = message._t(locale)
             self.code = code
         }
     }
@@ -85,7 +88,7 @@ public extension Validation {
 
         public func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {
             guard let value = input as? String else {
-                return Validation.Error.InvalidType()
+                return Validation.Error.InvalidType(locale)
             }
             guard value.range(of: pattern, options: .regularExpression) != nil else {
                 return Error(message: self.message._t(locale))
@@ -108,7 +111,7 @@ public extension Validation {
 
         public func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {
             guard let value = input as? String else {
-                return Validation.Error.InvalidType()
+                return Validation.Error.InvalidType(locale)
             }
             guard let _ = Foundation.UUID(uuidString: value) else {
                 return Error(message: self.message._t(locale))
@@ -133,39 +136,12 @@ public extension Validation {
 
         public func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {
             guard let value = input as? T else {
-                return Validation.Error.InvalidType()
+                return Validation.Error.InvalidType(locale)
             }
             guard allowedValues.contains(value) else {
                 return Error(message: self.message._t(locale))
             }
             return nil
-        }
-    }
-
-    struct In2<T: RawRepresentable>: Validator {
-        public struct Error: ValidatorError {
-            public let code: Int = 412
-            public let message: String
-        }
-
-        public let message: String
-
-        public init(message: String = "Invalid value") {
-            self.message = message
-        }
-
-        public func validate(_ input: T.RawValue, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {
-            guard let _ = T(rawValue: input) else {
-                return Error(message: self.message._t(locale))
-            }
-            return nil
-        }
-
-        public func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {
-            guard let value = input as? T.RawValue else {
-                return Validation.Error.InvalidType()
-            }
-            return validate(value, locale)
         }
     }
 
@@ -186,7 +162,7 @@ public extension Validation {
 
             public func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {
                 guard let value = input as? String else {
-                    return Validation.Error.InvalidType()
+                    return Validation.Error.InvalidType(locale)
                 }
                 guard value.count >= length else {
                     return Length.Error(message: self.message._t(locale, ["Length": self.length]))
@@ -206,7 +182,7 @@ public extension Validation {
 
             public func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {
                 guard let value = input as? String else {
-                    return Validation.Error.InvalidType()
+                    return Validation.Error.InvalidType(locale)
                 }
                 guard value.count <= length else {
                     return Length.Error(message: self.message._t(locale, ["Length": self.length]))
@@ -232,7 +208,7 @@ public extension Validation {
 
         public func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {
             guard let left = input as? String else {
-                return Validation.Error.InvalidType()
+                return Validation.Error.InvalidType(locale)
             }
             guard left == right else {
                 return Error(message: self.message._t(locale))
@@ -257,7 +233,7 @@ public extension Validation {
 
         public func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {
             guard let value = input as? String else {
-                return Validation.Error.InvalidType()
+                return Validation.Error.InvalidType(locale)
             }
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = format
@@ -293,7 +269,7 @@ public extension Validation {
             on eventLoop: EventLoop
         ) -> Future<ValidatorError?> {
             guard let value = input as? Value else {
-                return eventLoop.makeSucceededFuture(Validation.Error.InvalidType())
+                return eventLoop.makeSucceededFuture(Validation.Error.InvalidType(locale))
             }
             return callback(
                 value,
@@ -333,7 +309,7 @@ public extension Validation {
             on eventLoop: EventLoop
         ) -> Future<ValidatorError?> {
             guard let value = input as? AllowedValues.InputValue else {
-                return eventLoop.makeSucceededFuture(Validation.Error.InvalidType())
+                return eventLoop.makeSucceededFuture(Validation.Error.InvalidType(locale))
             }
             return callback(
                 value,

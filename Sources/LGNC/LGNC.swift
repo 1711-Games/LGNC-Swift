@@ -165,25 +165,25 @@ public extension LGNC.Entity {
                 do {
                     _result = try Result.extract(param: "result", from: dictionary, isOptional: true)
                 } catch Entita.E.ExtractError {
-                    errors["result"]?.append(Validation.Error.MissingValue())
+                    errors["result"]?.append(Validation.Error.MissingValue(requestInfo.locale))
                 }
 
                 do {
                     _errors = try Result.extract(param: "errors", from: dictionary)
                 } catch Entita.E.ExtractError {
-                    errors["errors"]?.append(Validation.Error.MissingValue())
+                    errors["errors"]?.append(Validation.Error.MissingValue(requestInfo.locale))
                 }
 
                 do {
                     _meta = try Result.extract(param: "meta", from: dictionary)
                 } catch Entita.E.ExtractError {
-                    errors["meta"]?.append(Validation.Error.MissingValue())
+                    errors["meta"]?.append(Validation.Error.MissingValue(requestInfo.locale))
                 }
 
                 do {
                     _success = try Result.extract(param: "success", from: dictionary)
                 } catch Entita.E.ExtractError {
-                    errors["success"]?.append(Validation.Error.MissingValue())
+                    errors["success"]?.append(Validation.Error.MissingValue(requestInfo.locale))
                 }
 
                 let filteredErrors = errors.filter({ _, value in value.count > 0 })
@@ -233,25 +233,25 @@ public extension LGNC.Entity {
                 do {
                     _result = try Result.extract(param: "result", from: dictionary, isOptional: true)
                 } catch Entita.E.ExtractError {
-                    errors["result"]?.append(Validation.Error.MissingValue())
+                    errors["result"]?.append(Validation.Error.MissingValue(requestInfo.locale))
                 }
 
                 do {
                     _errors = try Result.extract(param: "errors", from: dictionary)
                 } catch Entita.E.ExtractError {
-                    errors["errors"]?.append(Validation.Error.MissingValue())
+                    errors["errors"]?.append(Validation.Error.MissingValue(requestInfo.locale))
                 }
 
                 do {
                     _meta = try Result.extract(param: "meta", from: dictionary)
                 } catch Entita.E.ExtractError {
-                    errors["meta"]?.append(Validation.Error.MissingValue())
+                    errors["meta"]?.append(Validation.Error.MissingValue(requestInfo.locale))
                 }
 
                 do {
                     _success = try Result.extract(param: "success", from: dictionary)
                 } catch Entita.E.ExtractError {
-                    errors["success"]?.append(Validation.Error.MissingValue())
+                    errors["success"]?.append(Validation.Error.MissingValue(requestInfo.locale))
                 }
 
                 let filteredErrors = errors.filter({ _, value in value.count > 0 })
@@ -341,13 +341,13 @@ public extension LGNC.Entity {
                 do {
                     _message = try Error.extract(param: "message", from: dictionary)
                 } catch Entita.E.ExtractError {
-                    errors["message"]?.append(Validation.Error.MissingValue())
+                    errors["message"]?.append(Validation.Error.MissingValue(requestInfo.locale))
                 }
 
                 do {
                     _code = try Error.extract(param: "code", from: dictionary)
                 } catch Entita.E.ExtractError {
-                    errors["code"]?.append(Validation.Error.MissingValue())
+                    errors["code"]?.append(Validation.Error.MissingValue(requestInfo.locale))
                 }
 
                 let filteredErrors = errors.filter({ _, value in value.count > 0 })
