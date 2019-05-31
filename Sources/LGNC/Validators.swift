@@ -278,7 +278,7 @@ public extension Validation {
                 guard let errorTuple = $0 else {
                     return nil
                 }
-                return Error(code: errorTuple.code, message: errorTuple.message)
+                return Error(code: errorTuple.code, message: errorTuple.message._t(locale))
             }
         }
     }
@@ -319,7 +319,7 @@ public extension Validation {
                     return nil
                 }
                 let errorTuple = error.getErrorTuple()
-                return Error(code: errorTuple.code, message: errorTuple.message)
+                return Error(code: errorTuple.code, message: errorTuple.message._t(locale))
             }
         }
     }
