@@ -76,7 +76,7 @@ public extension LGNCore.i18n {
             _ interpolations: [String : Any]
         ) -> String {
             guard let phrase = self.phrases[locale]?[key] else {
-                return key
+                return interpolate(input: key, interpolations: interpolations)
             }
 
             let translation: String
