@@ -272,19 +272,19 @@ internal extension LGNC.HTTP {
         private func defaultHandler(_ context: ChannelHandlerContext, _ request: HTTPServerRequestPart) {
             switch request {
             case let .head(req):
-                infoSavedRequestHead = req
-                infoSavedBodyBytes = 0
+                self.infoSavedRequestHead = req
+                self.infoSavedBodyBytes = 0
 
-                state.requestReceived()
+                self.state.requestReceived()
             case var .body(buffer: buf):
-                infoSavedBodyBytes += buf.readableBytes
-                if bodyBuffer == nil {
-                    bodyBuffer = buf
+                self.infoSavedBodyBytes += buf.readableBytes
+                if self.bodyBuffer == nil {
+                    self.bodyBuffer = buf
                 } else {
-                    bodyBuffer?.writeBuffer(&buf)
+                    self.bodyBuffer?.writeBuffer(&buf)
                 }
             case .end:
-                guard !errored else {
+                guard !self.errored else {
                     return
                 }
 
@@ -317,14 +317,14 @@ internal extension LGNC.HTTP {
                 let request = Request(
                     URI: uri,
                     headers: infoSavedRequestHead!.headers,
-                    remoteAddr: context.channel.remoteAddrString,
+                    remoteAddr: self.infoSavedRequestHead!.headers["X-Real-IP"].first ?? context.channel.remoteAddrString,
                     body: payloadBytes,
                     uuid: uuid,
                     contentType: contentType,
                     method: infoSavedRequestHead!.method,
                     eventLoop: context.eventLoop
                 )
-                let future = resolver(request)
+                let future = self.resolver(request)
                 future.whenComplete { _ in
                     self.logger.debug(
                         "HTTP request '\(request.URI)' execution took \(self.profiler.end().rounded(toPlaces: 5)) s"

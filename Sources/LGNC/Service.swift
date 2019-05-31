@@ -117,11 +117,12 @@ public extension Service {
                 resultString = "Success"
             }
 
+            let clientAddr = requestInfo.clientAddr
             let transport = requestInfo.transport.rawValue
             let executionTime = profiler.end().rounded(toPlaces: 4)
 
             requestInfo.logger.info(
-                "[\(transport)] [\(URI)] [\(resultString)] \(executionTime)s"
+                "[\(clientAddr)] [\(transport)] [\(URI)] [\(resultString)] \(executionTime)s"
             )
         }
 
