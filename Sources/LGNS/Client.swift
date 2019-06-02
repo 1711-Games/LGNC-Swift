@@ -49,6 +49,7 @@ public extension LGNS {
                 _ = channel.writeAndFlush(message)
             }
             connectPromise.whenFailure(resultPromise.fail)
+
             return resultPromise.futureResult
         }
 

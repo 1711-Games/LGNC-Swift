@@ -15,7 +15,8 @@ public extension Contract {
         controlBitmask: LGNP.Message.ControlBitmask? = nil,
         uuid: UUID = UUID(),
         requestInfo: LGNCore.RequestInfo? = nil
-    ) -> EventLoopFuture<Self.Response> {
+    ) -> Future<Self.Response> {
+        let profiler = LGNCore.Profiler.begin()
         let logger = requestInfo?.logger ?? client.logger
         let controlBitmask = controlBitmask ?? client.controlBitmask
         let payload: Bytes
@@ -40,7 +41,7 @@ public extension Contract {
             ]
         )
 
-        return client.request(
+        let result: Future<Self.Response> = client.request(
             at: address,
             with: LGNP.Message(
                 URI: URI,
@@ -77,5 +78,13 @@ public extension Contract {
             }
             throw $0
         }
+
+        result.whenComplete { _ in
+            logger.info(
+                "Remote contract 'lgns://\(address)/\(URI)' execution took \(profiler.end().rounded(toPlaces: 4))s"
+            )
+        }
+
+        return result
     }
 }
