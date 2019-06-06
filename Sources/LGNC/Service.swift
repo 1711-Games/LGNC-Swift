@@ -109,20 +109,12 @@ public extension Service {
         }
 
         result.whenComplete { result in
-            let resultString: String
-            switch result {
-            case .failure(_):
-                resultString = "Failure"
-            case .success(_):
-                resultString = "Success"
-            }
-
             let clientAddr = requestInfo.clientAddr
             let transport = requestInfo.transport.rawValue
             let executionTime = profiler.end().rounded(toPlaces: 4)
 
             requestInfo.logger.info(
-                "[\(clientAddr)] [\(transport)] [\(URI)] [\(resultString)] \(executionTime)s"
+                "[\(clientAddr)] [\(transport)] [\(URI)] \(executionTime)s"
             )
         }
 

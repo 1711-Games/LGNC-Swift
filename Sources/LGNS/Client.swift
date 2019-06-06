@@ -30,6 +30,9 @@ public extension LGNS {
             with message: LGNP.Message
         ) -> Future<(LGNP.Message, LGNCore.RequestInfo)> {
             let resultPromise: Promise<(LGNP.Message, LGNCore.RequestInfo)> = eventLoopGroup.next().makePromise()
+
+            let connectProfiler = LGNCore.Profiler.begin()
+
             let connectPromise = ClientBootstrap(group: eventLoopGroup)
                 .connectTimeout(.seconds(3))
                 .channelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
@@ -49,6 +52,18 @@ public extension LGNS {
                 _ = channel.writeAndFlush(message)
             }
             connectPromise.whenFailure(resultPromise.fail)
+
+            connectPromise.whenComplete { result in
+                let resultString: String
+                switch result {
+                case .success(_): resultString = "succeeded"
+                case .failure(_): resultString = "failed"
+                }
+
+                self.logger.debug(
+                    "Connection to \(address) \(resultString) in \(connectProfiler.end().rounded(toPlaces: 4))s"
+                )
+            }
             return resultPromise.futureResult
         }
 
