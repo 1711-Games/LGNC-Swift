@@ -25,7 +25,7 @@ public extension Dictionary where Key == String {
         }
     }
 
-    func pack(to format: LGNP.Message.ContentType) throws -> Bytes {
+    func pack(to format: LGNCore.ContentType) throws -> Bytes {
         return try autoreleasepool {
             switch format {
             case .MsgPack: return try self.getMsgPack()
@@ -36,7 +36,7 @@ public extension Dictionary where Key == String {
         }
     }
 
-    func pack(to format: LGNP.Message.ContentType?) throws -> Bytes {
+    func pack(to format: LGNCore.ContentType?) throws -> Bytes {
         guard let format = format else {
             return Bytes()
         }
@@ -65,7 +65,7 @@ extension Sequence where Iterator.Element: OptionalType {
 
 public extension LGNP.Message {
     func unpackPayload(
-        _ allowedContentTypes: [LGNP.Message.ContentType] = LGNP.Message.ContentType.all
+        _ allowedContentTypes: [LGNCore.ContentType] = LGNCore.ContentType.all
     ) throws -> [String: Any] {
         let contentType = self.contentType
         guard allowedContentTypes.contains(contentType) else {

@@ -9,15 +9,15 @@ public protocol Service {
     typealias Executor = (LGNCore.RequestInfo, Entita.Dict) -> Future<Entity>
 
     static var keyDictionary: [String: Entita.Dict] { get }
-    static var contractMap: Contract.Map { get }
+    static var contractMap: [String: SomeContract.Type] { get }
     static var transports: [LGNCore.Transport: Int] { get }
     static var info: [String: String] { get }
+    static var guaranteeStatuses: [String: Bool] { get set }
 
     static func checkContractsCallbacks() -> Bool
     static func executeContract(
         URI: String,
-        uuid: UUID,
-        payload: Entita.Dict,
+        dict: Entita.Dict,
         requestInfo: LGNCore.RequestInfo
     ) -> Future<Entity>
     static func serveLGNS(
@@ -53,10 +53,21 @@ public extension LGNC {
 }
 
 public extension Service {
+    static func checkContractsCallbacks() -> Bool {
+        return self.guaranteeStatuses
+            .filter { URI, status in
+                if status == true {
+                    return false
+                }
+                Logger(label: "LGNC.Contracts.Checkin").error("Contract '\(URI)' is not guaranteed")
+                return true
+            }
+            .count == 0
+    }
+
     static func executeContract(
         URI: String,
-        uuid: UUID,
-        payload: Entita.Dict,
+        dict: Entita.Dict,
         requestInfo: LGNCore.RequestInfo
     ) -> Future<Entity> {
         let result: Future<LGNC.Entity.Result>
@@ -71,7 +82,7 @@ public extension Service {
                 throw LGNC.ContractError.TransportNotAllowed(requestInfo.transport)
             }
             result = contractInfo
-                .executor(requestInfo, payload)
+                .invoke(with: dict, requestInfo: requestInfo)
                 .map { LGNC.Entity.Result(from: $0) }
                 .recover { error in
                     do {
@@ -127,8 +138,9 @@ public extension Service {
         }
     }
 
-    internal static func unwrapAddress(from target: LGNS.Address?) throws -> LGNS.Address {
-        let address: Address
+    internal static func unwrapAddress(from target: LGNCore.Address?) throws -> LGNCore.Address {
+        let address: LGNCore.Address
+
         if let target = target {
             address = target
         } else {
@@ -137,6 +149,7 @@ public extension Service {
             }
             address = .port(port)
         }
+
         return address
     }
 

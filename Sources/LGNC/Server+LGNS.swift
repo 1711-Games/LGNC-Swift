@@ -31,10 +31,7 @@ public extension Service {
             do {
                 return self.executeContract(
                     URI: request.URI,
-                    uuid: request.uuid,
-                    // what is the reason for it again?
-                    // vvvvvvvvvvvvvvv
-                    payload: try request.unpackPayload()[LGNC.ENTITY_KEY] as? Entita.Dict ?? Entita.Dict(),
+                    dict: try request.unpackPayload(),
                     requestInfo: info
                 ).map {
                     do {

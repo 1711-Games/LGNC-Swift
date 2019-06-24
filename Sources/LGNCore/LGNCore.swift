@@ -30,3 +30,36 @@ public enum AppEnv: String, CaseIterable {
         #endif
     }
 }
+
+public extension LGNCore {
+    enum Address: CustomStringConvertible {
+        case ip(host: String, port: Int)
+        case unixDomainSocket(path: String)
+        case localhost
+
+        public static func port(_ port: Int) -> Address {
+            return ip(host: "0.0.0.0", port: port)
+        }
+
+        public var description: String {
+            switch self {
+            case let .ip(host, port):
+                return "\(host):\(port)"
+            case let .unixDomainSocket(path):
+                return "unix://\(path)"
+            default:
+                return "unknown address"
+            }
+        }
+    }
+}
+
+public extension LGNCore {
+    enum ContentType: String {
+        case MsgPack, JSON, XML, PlainText
+
+        public static var all: [ContentType] {
+            return [.MsgPack, .JSON, .XML, .PlainText]
+        }
+    }
+}

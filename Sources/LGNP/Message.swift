@@ -3,14 +3,6 @@ import LGNCore
 
 public extension LGNP {
     struct Message {
-        public enum ContentType: String {
-            case MsgPack, JSON, XML, PlainText
-
-            public static var all: [ContentType] {
-                return [.MsgPack, .JSON, .XML, .PlainText]
-            }
-        }
-
         public typealias LengthType = UInt32
 
         public struct ControlBitmask: OptionSet {
@@ -45,7 +37,7 @@ public extension LGNP {
                     || contains(.signatureRIPEMD320)
             }
 
-            public var contentType: ContentType {
+            public var contentType: LGNCore.ContentType {
                 if contains(.contentTypeMsgPack) {
                     return .MsgPack
                 } else if contains(.contentTypeJSON) {
@@ -82,7 +74,7 @@ public extension LGNP {
             }
         }
 
-        public var contentType: ContentType {
+        public var contentType: LGNCore.ContentType {
             return controlBitmask.contentType
         }
 

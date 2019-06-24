@@ -11,7 +11,7 @@ public extension LGNS {
     static let DEFAULT_PORT = 1711
 
     class Server: Shutdownable {
-        public typealias BindTo = Address
+        public typealias BindTo = LGNCore.Address
 
         private let requiredBitmask: LGNP.Message.ControlBitmask
         private let readTimeout: TimeAmount

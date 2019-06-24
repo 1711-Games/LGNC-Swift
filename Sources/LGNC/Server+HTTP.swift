@@ -5,17 +5,6 @@ import LGNPContenter
 import LGNS
 import NIO
 
-public extension LGNP.Message.ContentType {
-    init(from HTTPContentType: LGNC.HTTP.ContentType) {
-        switch HTTPContentType {
-        case .JSON: self = .JSON
-        case .XML: self = .XML
-        case .MsgPack: self = .MsgPack
-        case .PlainText: self = .PlainText
-        }
-    }
-}
-
 public extension Service {
     static func serveHTTP(
         at target: LGNS.Server.BindTo? = nil,
@@ -34,7 +23,7 @@ public extension Service {
             eventLoopGroup: eventLoopGroup,
             readTimeout: readTimeout,
             writeTimeout: writeTimeout
-        ) { request in
+        ) { (request: LGNC.HTTP.Request) in
             let requestInfo = LGNCore.RequestInfo(
                 remoteAddr: request.remoteAddr,
                 clientAddr: request.remoteAddr,
@@ -58,8 +47,7 @@ public extension Service {
                 }
                 return self.executeContract(
                     URI: request.URI,
-                    uuid: request.uuid,
-                    payload: payload,
+                    dict: payload,
                     requestInfo: requestInfo
                 ).map {
                     let body: Bytes
@@ -68,7 +56,7 @@ public extension Service {
                     ]
 
                     do {
-                        body = try $0.getDictionary().pack(to: LGNP.Message.ContentType(from: request.contentType))
+                        body = try $0.getDictionary().pack(to: request.contentType)
                     } catch {
                         requestInfo.logger.critical("Could not pack entity to \(request.contentType): \(error)")
                         body = "500 Internal Server Error".bytes

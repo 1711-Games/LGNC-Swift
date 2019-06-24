@@ -1,4 +1,5 @@
 import LGNCore
+import Entita
 import LGNP
 import NIO
 
@@ -26,7 +27,7 @@ public extension LGNS {
         }
 
         public func request(
-            at address: LGNS.Address,
+            at address: LGNCore.Address,
             with message: LGNP.Message
         ) -> Future<(LGNP.Message, LGNCore.RequestInfo)> {
             let resultPromise: Promise<(LGNP.Message, LGNCore.RequestInfo)> = eventLoopGroup.next().makePromise()
@@ -68,7 +69,7 @@ public extension LGNS {
         }
 
         public func request(
-            at address: LGNS.Address,
+            at address: LGNCore.Address,
             with message: LGNP.Message,
             on eventLoop: EventLoop
         ) -> Future<(LGNP.Message, LGNCore.RequestInfo)> {

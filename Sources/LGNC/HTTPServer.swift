@@ -12,21 +12,30 @@ public extension LGNC {
     }
 }
 
-public extension LGNC.HTTP {
-    enum ContentType: String {
-        case PlainText = "text/plain"
-        case XML = "application/xml"
-        case JSON = "application/json"
-        case MsgPack = "application/msgpack"
-    }
+public extension LGNCore.ContentType {
+    init?(from HTTPHeader: String) {
+        let result: LGNCore.ContentType
 
+        switch HTTPHeader {
+        case "text/plain": result = .PlainText
+        case "application/xml": result = .XML
+        case "application/json": result = .JSON
+        case "application/msgpack": result = .MsgPack
+        default: return nil
+        }
+
+        self = result
+    }
+}
+
+public extension LGNC.HTTP {
     struct Request {
         public let URI: String
         public let headers: HTTPHeaders
         public let remoteAddr: String
         public let body: Bytes
         public let uuid: UUID
-        public let contentType: ContentType
+        public let contentType: LGNCore.ContentType
         public let method: HTTPMethod
         public let eventLoop: EventLoop
     }
@@ -34,8 +43,6 @@ public extension LGNC.HTTP {
 
 public extension LGNC.HTTP {
     class Server: Shutdownable {
-        public typealias BindTo = LGNS.Address
-
         private let readTimeout: TimeAmount
         private let writeTimeout: TimeAmount
         private let eventLoopGroup: EventLoopGroup
@@ -77,7 +84,7 @@ public extension LGNC.HTTP {
             self.logger.info("HTTP Server: goodbye")
         }
 
-        public func serve(at target: BindTo, promise: PromiseVoid? = nil) throws {
+        public func serve(at target: LGNCore.Address, promise: PromiseVoid? = nil) throws {
             channel = try bootstrap.bind(to: target).wait()
 
             promise?.succeed(())
@@ -299,7 +306,7 @@ internal extension LGNC.HTTP {
 
                 guard
                     let contentTypeString = self.infoSavedRequestHead!.headers["Content-Type"].first,
-                    let contentType = ContentType(rawValue: contentTypeString.lowercased())
+                    let contentType = LGNCore.ContentType.init(from: contentTypeString.lowercased())
                 else {
                     self.sendBadRequest(message: "400 Bad Request (Content-Type header missing)", to: context)
                     return

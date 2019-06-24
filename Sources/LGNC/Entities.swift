@@ -2,8 +2,7 @@ import Entita
 import Foundation
 import LGNS
 
-public extension Contracts {
-}
+public extension Contracts {}
 
 public protocol ContractEntity: Entity {
     static func initWithValidation(from dictionary: Entita.Dict, requestInfo: LGNCore.RequestInfo) -> Future<Self>

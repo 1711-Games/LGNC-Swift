@@ -19,7 +19,7 @@ public extension Channel {
 }
 
 public extension ClientBootstrap {
-    func connect(to address: LGNS.Address) -> Future<Channel> {
+    func connect(to address: LGNCore.Address) -> Future<Channel> {
         switch address {
         case let .ip(host, port):
             return connect(host: host, port: port)
@@ -32,7 +32,7 @@ public extension ClientBootstrap {
 }
 
 public extension ServerBootstrap {
-    func bind(to address: LGNS.Address) -> Future<Channel> {
+    func bind(to address: LGNCore.Address) -> Future<Channel> {
         switch address {
         case let .ip(host, port):
             return bind(host: host, port: port)

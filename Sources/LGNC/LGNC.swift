@@ -8,7 +8,6 @@ import NIO
 public struct LGNC {
     public static let VERSION = "0.1.0a"
 
-    public static let ENTITY_KEY = "a"
     public static let ID_KEY = "a"
     public static let GLOBAL_ERROR_KEY = "_"
 
