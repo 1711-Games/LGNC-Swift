@@ -44,5 +44,28 @@ public extension LGNCore {
             self.logger = Logging.Logger(label: "LGNC.RequestInfo")
             logger[metadataKey: "requestID"] = "\(self.uuid.string)"
         }
+
+        public func clone(
+            remoteAddr: String? = nil,
+            clientAddr: String? = nil,
+            clientID: String? = nil,
+            userAgent: String? = nil,
+            locale: LGNCore.i18n.Locale? = nil,
+            uuid: UUID? = nil,
+            isSecure: Bool? = nil,
+            transport: Transport? = nil
+        ) -> RequestInfo {
+            return RequestInfo(
+                remoteAddr: remoteAddr ?? self.remoteAddr,
+                clientAddr: clientAddr ?? self.clientAddr,
+                clientID: clientID ?? self.clientID,
+                userAgent: userAgent ?? self.userAgent,
+                locale: locale ?? self.locale,
+                uuid: uuid ?? self.uuid,
+                isSecure: isSecure ?? self.isSecure,
+                transport: transport ?? self.transport,
+                eventLoop: self.eventLoop
+            )
+        }
     }
 }

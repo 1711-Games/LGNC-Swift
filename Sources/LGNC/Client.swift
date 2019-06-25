@@ -193,7 +193,7 @@ public extension Contract {
         at address: LGNCore.Address,
         with request: Self.Request,
         using client: LGNCClient,
-        as clientID: String? = nil,
+        //as clientID: String? = nil,
         requestInfo: LGNCore.RequestInfo? = nil
     ) -> Future<Self.Response> {
         let profiler = LGNCore.Profiler.begin()

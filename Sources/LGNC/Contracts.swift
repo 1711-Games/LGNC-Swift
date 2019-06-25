@@ -117,4 +117,4 @@ public extension Contract {
     }
 }
 
-public struct Contracts {}
+public enum Contracts {}
