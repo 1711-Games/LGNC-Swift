@@ -1,3 +1,4 @@
+import Foundation
 import Logging
 
 public extension LGNCore {
@@ -401,6 +402,10 @@ public extension LGNCore.i18n {
                 return
             }
             self = instance
+        }
+
+        public var foundationLocale: Foundation.Locale {
+            return Foundation.Locale(identifier: self.rawValue.replacingOccurrences(of: "-", with: "_"))
         }
     }
 }
