@@ -63,13 +63,6 @@ extension LGNS.Client: LGNCClient {
             return eventLoop.makeFailedFuture(error)
         }
 
-        logger.debug(
-            "Executing remote contract \(transport.rawValue.lowercased())://\(address)/\(C.URI)",
-            metadata: [
-                "requestID": "\(requestInfo.uuid.string)",
-            ]
-        )
-
         return self
             .request(
                 at: address,
@@ -95,7 +88,11 @@ public extension LGNC.Client {
         eventLoop: EventLoop
     ) -> LGNCore.RequestInfo {
         if let requestInfo = maybeRequestInfo {
-            return requestInfo
+            if transport == requestInfo.transport {
+                return requestInfo
+            }
+
+            return requestInfo.clone(transport: transport)
         }
 
         return LGNCore.RequestInfo(
@@ -132,7 +129,7 @@ public extension LGNC.Client {
         ) -> Future<(Entita.Dict, LGNCore.RequestInfo)> {
             let requestInfo = LGNC.Client.getRequestInfo(
                 from: maybeRequestInfo,
-                transport: transport ?? C.preferredTransport,
+                transport: C.preferredTransport,
                 eventLoop: eventLoop
             )
 
@@ -194,11 +191,25 @@ public extension Contract {
         with request: Self.Request,
         using client: LGNCClient,
         //as clientID: String? = nil,
-        requestInfo: LGNCore.RequestInfo? = nil
+        requestInfo maybeRequestInfo: LGNCore.RequestInfo? = nil
     ) -> Future<Self.Response> {
         let profiler = LGNCore.Profiler.begin()
-        let eventLoop = requestInfo?.eventLoop ?? client.eventLoopGroup.next()
-        let logger = requestInfo?.logger ?? client.logger
+        let eventLoop = maybeRequestInfo?.eventLoop ?? client.eventLoopGroup.next()
+        let logger = maybeRequestInfo?.logger ?? client.logger
+        let transport = Self.preferredTransport
+
+        let requestInfo = LGNC.Client.getRequestInfo(
+            from: maybeRequestInfo,
+            transport: transport,
+            eventLoop: eventLoop
+        )
+
+        requestInfo.logger.debug(
+            "Executing remote contract \(transport.rawValue.lowercased())://\(address)/\(Self.URI)",
+            metadata: [
+                "requestID": "\(requestInfo.uuid.string)",
+            ]
+        )
 
         let dict: Entita.Dict
         do {
@@ -230,9 +241,9 @@ public extension Contract {
             return resultEntity as! Self.Response
         }.flatMapErrorThrowing {
             if let error = $0 as? NIOConnectionError {
-                (requestInfo?.logger ?? Logger(label: "LGNC.Client")).error("""
-                Could not execute contract '\(self)' on service '\(self.ParentService.self)' \
-                @ \(address): \(error)
+                logger.error("""
+                    Could not execute contract '\(self)' on service '\(self.ParentService.self)' \
+                    @ \(address): \(error)
                 """)
                 throw LGNC.ContractError.RemoteContractExecutionFailed
             }

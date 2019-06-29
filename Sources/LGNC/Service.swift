@@ -6,8 +6,6 @@ import LGNS
 import NIO
 
 public protocol Service {
-    typealias Executor = (LGNCore.RequestInfo, Entita.Dict) -> Future<Entity>
-
     static var keyDictionary: [String: Entita.Dict] { get }
     static var contractMap: [String: SomeContract.Type] { get }
     static var transports: [LGNCore.Transport: Int] { get }
