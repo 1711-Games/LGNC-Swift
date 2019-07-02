@@ -62,12 +62,10 @@ public extension DictionaryExtractable {
         isOptional: Bool = false
     ) throws -> T? {
         let resultTuple: (key: String, value: Any?) = extract(param: name, from: dictionary)
+        if isOptional && resultTuple.value == nil {
+            return nil
+        }
         guard let result = resultTuple.value as? T else {
-            // print(T.self)
-            // print("\(#line)")
-            if isOptional {
-                return nil
-            }
             throw Entita.E.ExtractError(formatFieldKey(name, resultTuple.key), resultTuple.value)
         }
         return result

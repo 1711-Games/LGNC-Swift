@@ -9,6 +9,7 @@ public protocol ContractEntity: Entity {
 }
 
 public extension ContractEntity {
+    // deprecated
     static func reduce(
         validators: [String: [Future<(String, ValidatorError?)>]],
         on eventLoop: EventLoop
@@ -25,5 +26,38 @@ public extension ContractEntity {
             }.map {
                 $0.filter { $0.value.count > 0 }
             }
+    }
+
+    static func reduce(
+        validators: [String: Future<Void>],
+        requestInfo: LGNCore.RequestInfo
+        ) -> Future<[String: ValidatorError]> {
+        return Future.reduce(
+            into: [:],
+            validators.map { (key: String, future: Future<Void>) -> Future<(String, ValidatorError?)> in
+                future
+                    .map { nil }
+                    .flatMapErrorThrowing { (error: Error) -> ValidatorError? in
+                        if error is Validation.Error.SkipMissingOptionalValueValidators {
+                            return nil
+                        }
+                        if error is Entita.E {
+                            return Validation.Error.MissingValue(requestInfo.locale)
+                        }
+                        if !(error is ValidatorError) {
+                            requestInfo.logger.error("Unknown error while parsing contract entity: \(error)")
+                            return Validation.Error.UnknownError(requestInfo.locale)
+                        }
+                        return (error as! ValidatorError)
+                    }
+                    .map { maybeError in (key, maybeError) }
+            },
+            on: requestInfo.eventLoop,
+            { carry, resultTuple in
+                if let error = resultTuple.1 {
+                    carry[resultTuple.0] = error
+                }
+        }
+        )
     }
 }

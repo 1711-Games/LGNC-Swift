@@ -32,6 +32,15 @@ internal extension String {
 }
 
 public extension Validation.Error {
+    struct UnknownError: ValidatorError {
+        public let code: Int = 400
+        public let message: String
+
+        public init(message: String = "Unknown error", _ locale: LGNCore.i18n.Locale) {
+            self.message = message._t(locale)
+        }
+    }
+
     struct InvalidType: ValidatorError {
         public let code: Int = 412
         public let message: String
@@ -39,6 +48,13 @@ public extension Validation.Error {
         public init(message: String = "Type mismatch", _ locale: LGNCore.i18n.Locale) {
             self.message = message._t(locale)
         }
+    }
+
+    struct SkipMissingOptionalValueValidators: ValidatorError {
+        public let code: Int = 200
+        public let message: String = "Skip all validators"
+
+        public init() {}
     }
 
     struct MissingValue: ValidatorError {
