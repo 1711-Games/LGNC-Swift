@@ -1,5 +1,15 @@
 import NIO
 
+public extension EventLoopFuture {
+    func mapThrowing<NewValue>(
+        file: StaticString = #file,
+        line: UInt = #line,
+        _ callback: @escaping (Value) throws -> NewValue
+    ) -> Future<NewValue> {
+        return self.flatMapThrowing(file: file, line: line, callback)
+    }
+}
+
 public extension EventLoop {
     /// Creates and returns a new void `EventLoopFuture` that is already marked as success.
     /// Notifications will be done using this `EventLoop` as execution `NIOThread`.
