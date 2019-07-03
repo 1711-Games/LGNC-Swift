@@ -149,67 +149,64 @@ public extension LGNC.Entity {
             type: T.Type
         ) -> EventLoopFuture<Result> {
             let eventLoop = requestInfo.eventLoop
-            var errors: [String: [ValidatorError]] = [
-                "result": [],
-                "errors": [],
-                "meta": [],
-                "success": [],
+
+            let errors: [String: [LGNC.Entity.Error]]? = try? self.extract(param: "errors", from: dictionary)
+            let result: Entita.Dict?? = try? self.extract(param: "result", from: dictionary, isOptional: true)
+            let meta: [String: String]? = try? self.extract(param: "meta", from: dictionary)
+            let success: Bool? = try? self.extract(param: "success", from: dictionary)
+
+            let validatorFutures: [String: Future<Void>] = [
+                "result": eventLoop.submit {
+                    let _: Entita.Dict? = try self.extract(param: "result", from: dictionary, isOptional: true)
+                    guard let result = result else {
+                        throw Validation.Error.MissingValue(requestInfo.locale)
+                    }
+                    if result == nil {
+                        throw Validation.Error.SkipMissingOptionalValueValidators()
+                    }
+                },
+                "errors": eventLoop.submit {
+                    guard let _ = errors else {
+                        throw Validation.Error.MissingValue(requestInfo.locale)
+                    }
+                },
+                "meta": eventLoop.submit {
+                    guard let _ = meta else {
+                        throw Validation.Error.MissingValue(requestInfo.locale)
+                    }
+                },
+                "success": eventLoop.submit {
+                    guard let _ = success else {
+                        throw Validation.Error.MissingValue(requestInfo.locale)
+                    }
+                },
             ]
-            var _result: Entita.Dict?
-            var _errors: [String: [Error]] = [:]
-            var _meta: [String: String] = [:]
-            var _success: Bool!
 
-            do {
-                do {
-                    _result = try Result.extract(param: "result", from: dictionary, isOptional: true)
-                } catch Entita.E.ExtractError {
-                    errors["result"]?.append(Validation.Error.MissingValue(requestInfo.locale))
+            return self
+                .reduce(validators: validatorFutures, requestInfo: requestInfo)
+                .flatMap {
+                    guard $0.count == 0 else {
+                        return eventLoop.makeFailedFuture(LGNC.E.DecodeError($0.mapValues { [$0] }))
+                    }
+
+                    let future: Future<T?>
+                    if let result = result {
+                        future = T
+                            .initWithValidation(from: result!, requestInfo: requestInfo)
+                            .map { $0 }
+                    } else {
+                        future = eventLoop.makeSucceededFuture(nil)
+                    }
+
+                    return future.map { (result: T?) in
+                        self.init(
+                            result: result,
+                            errors: errors!,
+                            meta: meta!,
+                            success: success!
+                        )
+                    }
                 }
-
-                do {
-                    _errors = try Result.extract(param: "errors", from: dictionary)
-                } catch Entita.E.ExtractError {
-                    errors["errors"]?.append(Validation.Error.MissingValue(requestInfo.locale))
-                }
-
-                do {
-                    _meta = try Result.extract(param: "meta", from: dictionary)
-                } catch Entita.E.ExtractError {
-                    errors["meta"]?.append(Validation.Error.MissingValue(requestInfo.locale))
-                }
-
-                do {
-                    _success = try Result.extract(param: "success", from: dictionary)
-                } catch Entita.E.ExtractError {
-                    errors["success"]?.append(Validation.Error.MissingValue(requestInfo.locale))
-                }
-
-                let filteredErrors = errors.filter({ _, value in value.count > 0 })
-                guard filteredErrors.count == 0 else {
-                    throw LGNC.E.DecodeError(filteredErrors)
-                }
-            } catch {
-                return eventLoop.makeFailedFuture(error)
-            }
-
-            let future: Future<T?>
-            if let _result = _result {
-                future = T
-                    .initWithValidation(from: _result, requestInfo: requestInfo)
-                    .map { $0 }
-            } else {
-                future = eventLoop.makeSucceededFuture(nil)
-            }
-
-            return future.map { (result: T?) in
-                self.init(
-                    result: result,
-                    errors: _errors,
-                    meta: _meta,
-                    success: _success
-                )
-            }
         }
 
         public static func initWithValidation(

@@ -22,7 +22,7 @@ public extension DictionaryExtractable {
 
     static func extract(param name: String, from dictionary: Entita.Dict) -> (key: String, value: Any?) {
         let key = getDictionaryKey(name)
-        return (key: key, value: dictionary[key])
+        return (key: key, value: dictionary[key] ?? nil)
     }
 
     static func getSelfName() -> String {
@@ -61,7 +61,7 @@ public extension DictionaryExtractable {
         from dictionary: Entita.Dict,
         isOptional: Bool = false
     ) throws -> T? {
-        let resultTuple: (key: String, value: Any?) = extract(param: name, from: dictionary)
+        let resultTuple: (key: String, value: Any?) = self.extract(param: name, from: dictionary)
         if isOptional && resultTuple.value == nil {
             return nil
         }
@@ -117,7 +117,7 @@ public extension DictionaryExtractable {
     ) throws -> [String: T] {
         let key = getDictionaryKey(name)
         guard let rawDict = dictionary[key] as? [String: Entita.Dict] else {
-            // print("\(#line)")
+//            print("\(#line)")
             throw Entita.E.ExtractError(formatFieldKey(name, key), nil)
         }
         return try Dictionary(uniqueKeysWithValues: rawDict.map { key, rawDict in try (key, T(from: rawDict)) })
@@ -129,7 +129,7 @@ public extension DictionaryExtractable {
     ) throws -> [String: [T]] {
         let key = getDictionaryKey(name)
         guard let rawDict = dictionary[key] as? [String: [Entita.Dict]] else {
-            // print("\(#line)")
+//            print("\(#line)")
             throw Entita.E.ExtractError(formatFieldKey(name, key), nil)
         }
         return try Dictionary(uniqueKeysWithValues: rawDict.map { key, rawDict in try (key, rawDict.map { try T(from: $0) }) })
@@ -139,14 +139,21 @@ public extension DictionaryExtractable {
         param name: String,
         from dictionary: Entita.Dict
     ) throws -> Double {
-        return (try extract(param: name, from: dictionary) as NSNumber).doubleValue
+        return (try self.extract(param: name, from: dictionary) as NSNumber).doubleValue
     }
 
     static func extract(
         param name: String,
         from dictionary: Entita.Dict
     ) throws -> Int {
-        return (try extract(param: name, from: dictionary) as NSNumber).intValue
+        return (try self.extract(param: name, from: dictionary) as NSNumber).intValue
+    }
+
+    static func extract(
+        param name: String,
+        from dictionary: Entita.Dict
+    ) throws -> Int? {
+        return (try self.extract(param: name, from: dictionary)) as Int
     }
 
     static func extract(
