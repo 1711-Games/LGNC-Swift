@@ -81,7 +81,7 @@ public extension Service {
             }
             result = contractInfo
                 .invoke(with: dict, requestInfo: requestInfo)
-                .map { LGNC.Entity.Result(from: $0) }
+                .map { response, meta in LGNC.Entity.Result(from: response, meta: meta) }
                 .recover { error in
                     do {
                         switch error {

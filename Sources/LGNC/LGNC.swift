@@ -87,6 +87,8 @@ public extension LGNC {
 }
 
 public extension LGNC.Entity {
+    typealias Meta = [String: String]
+
     final class Result: ContractEntity {
         public static var keyDictionary: [String: String] {
             return [
@@ -109,7 +111,7 @@ public extension LGNC.Entity {
 
         public let result: Entity?
         public let errors: [String: [Error]]
-        public var meta: [String: String]
+        public var meta: Meta
         public let success: Bool
 
         public required init(
@@ -139,8 +141,8 @@ public extension LGNC.Entity {
             }))
         }
 
-        public convenience init(from entity: Entity, success: Bool = true) {
-            self.init(result: entity, errors: [:], meta: [:], success: success)
+        public convenience init(from entity: Entity, meta: Meta = [:], success: Bool = true) {
+            self.init(result: entity, errors: [:], meta: meta, success: success)
         }
 
         public static func initFromResponse<T: ContractEntity>(
@@ -152,7 +154,7 @@ public extension LGNC.Entity {
 
             let errors: [String: [LGNC.Entity.Error]]? = try? self.extract(param: "errors", from: dictionary)
             let result: Entita.Dict?? = try? self.extract(param: "result", from: dictionary, isOptional: true)
-            let meta: [String: String]? = try? self.extract(param: "meta", from: dictionary)
+            let meta: Meta? = try? self.extract(param: "meta", from: dictionary)
             let success: Bool? = try? self.extract(param: "success", from: dictionary)
 
             let validatorFutures: [String: Future<Void>] = [
