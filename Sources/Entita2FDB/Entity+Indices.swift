@@ -130,6 +130,10 @@ public extension Entita2FDBIndexedEntity {
             .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
             .flatMap { $0.get(range: self.indexIndexSubspace.range) }
             .flatMap { keyValueRecords, transaction in
+                print("self.indexIndexSubspace.range")
+                dump(self.indexIndexSubspace.range)
+                print("keyValueRecords")
+                dump(keyValueRecords)
                 var result: Future<Void> = eventLoop.makeSucceededFuture(())
 
                 for record in keyValueRecords.records {
@@ -156,14 +160,14 @@ public extension Entita2FDBIndexedEntity {
                     guard let index = Self.indices[indexName] else {
                         return eventLoop.makeFailedFuture(
                             E2.E.IndexError(
-                                "No index \(indexName) in entity '\(Self.entityName)'"
+                                "No index '\(indexName)' in entity '\(Self.entityName)'"
                             )
                         )
                     }
                     guard let propertyValue = self.getIndexValueFrom(index: index) else {
                         return eventLoop.makeFailedFuture(
                             E2.E.IndexError(
-                                "Could not get property value for index \(indexName) in entity '\(Self.entityName)'"
+                                "Could not get property value for index '\(indexName)' in entity '\(Self.entityName)'"
                             )
                         )
                     }
