@@ -130,8 +130,8 @@ public extension Entita2FDBIndexedEntity {
             .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
             .flatMap { $0.get(range: self.indexIndexSubspace.range) }
             .flatMap { keyValueRecords, transaction in
-                print("self.indexIndexSubspace.range")
-                dump(self.indexIndexSubspace.range)
+                print("self.indexIndexSubspace")
+                dump(self.indexIndexSubspace)
                 print("keyValueRecords")
                 dump(keyValueRecords)
                 var result: Future<Void> = eventLoop.makeSucceededFuture(())
