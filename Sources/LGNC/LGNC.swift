@@ -152,14 +152,14 @@ public extension LGNC.Entity {
         ) -> EventLoopFuture<Result> {
             let eventLoop = requestInfo.eventLoop
 
-            let errors: [String: [LGNC.Entity.Error]]? = try? self.extract(param: "errors", from: dictionary)
-            let result: Entita.Dict?? = try? self.extract(param: "result", from: dictionary, isOptional: true)
-            let meta: Meta? = try? self.extract(param: "meta", from: dictionary)
-            let success: Bool? = try? self.extract(param: "success", from: dictionary)
+            let errors: [String: [LGNC.Entity.Error]]? = try? (self.extract(param: "errors", from: dictionary) as [String: [LGNC.Entity.Error]])
+            let result: Entita.Dict?? = try? (self.extract(param: "result", from: dictionary, isOptional: true))
+            let meta: Meta? = try? (self.extract(param: "meta", from: dictionary) as Meta)
+            let success: Bool? = try? (self.extract(param: "success", from: dictionary) as Bool)
 
             let validatorFutures: [String: Future<Void>] = [
                 "result": eventLoop.submit {
-                    let _: Entita.Dict? = try self.extract(param: "result", from: dictionary, isOptional: true)
+                    let _: Entita.Dict? = try (self.extract(param: "result", from: dictionary, isOptional: true) as Entita.Dict?)
                     guard let result = result else {
                         throw Validation.Error.MissingValue(requestInfo.locale)
                     }

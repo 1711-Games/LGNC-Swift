@@ -9,6 +9,11 @@ public extension DictionaryExtractable {
         return "\(longName):\(shortName)"
     }
 
+    fileprivate static func _has(_ name: String, in dictionary: Entita.Dict) -> Bool {
+        let flattened = self.extract(param: name, from: dictionary).value.flattened
+        return flattened != nil && !(flattened is NSNull)
+    }
+
     func getDictionaryKey(_ name: String) -> String {
         return Self.getDictionaryKey(name)
     }
@@ -21,7 +26,7 @@ public extension DictionaryExtractable {
     }
 
     static func extract(param name: String, from dictionary: Entita.Dict) -> (key: String, value: Any?) {
-        let key = getDictionaryKey(name)
+        let key = Self.getDictionaryKey(name)
         return (key: key, value: dictionary[key] ?? nil)
     }
 
@@ -33,7 +38,10 @@ public extension DictionaryExtractable {
         param name: String,
         from dictionary: Entita.Dict
     ) throws -> T {
-        let resultTuple: (key: String, value: Any?) = extract(param: name, from: dictionary)
+        let resultTuple: (key: String, value: Any?) = self.extract(
+            param: name,
+            from: dictionary
+        )
         guard let result = resultTuple.value as? T else {
             throw Entita.E.ExtractError(formatFieldKey(name, resultTuple.key), resultTuple.value)
         }
@@ -45,7 +53,7 @@ public extension DictionaryExtractable {
         from dictionary: Entita.Dict,
         isOptional: Bool = false
     ) throws -> T? {
-        let key = getDictionaryKey(name)
+        let key = self.getDictionaryKey(name)
         guard let rawDict = dictionary[key] as? [String: Any] else {
             if isOptional {
                 return nil
@@ -59,10 +67,10 @@ public extension DictionaryExtractable {
     static func extract<T>(
         param name: String,
         from dictionary: Entita.Dict,
-        isOptional: Bool = false
+        isOptional: Bool
     ) throws -> T? {
         let resultTuple: (key: String, value: Any?) = self.extract(param: name, from: dictionary)
-        if isOptional && resultTuple.value == nil {
+        if isOptional && resultTuple.value.flattened == nil {
             return nil
         }
         guard let result = resultTuple.value as? T else {
@@ -151,8 +159,12 @@ public extension DictionaryExtractable {
 
     static func extract(
         param name: String,
-        from dictionary: Entita.Dict
+        from dictionary: Entita.Dict,
+        isOptional: Bool = false
     ) throws -> Int? {
+        if isOptional && !self._has(name, in: dictionary) {
+            return nil
+        }
         return (try self.extract(param: name, from: dictionary)) as Int
     }
 
