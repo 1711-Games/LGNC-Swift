@@ -126,14 +126,12 @@ public extension Entita2FDBIndexedEntity {
     }
 
     fileprivate func updateIndices(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
-        let future: Future<Void> = Self.storage
+        let logger = Logger(label: "\(Self.self)")
+
+        return Self.storage
             .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
             .flatMap { $0.get(range: self.indexIndexSubspace.range) }
             .flatMap { keyValueRecords, transaction in
-                print("self.indexIndexSubspace")
-                dump(self.indexIndexSubspace)
-                print("keyValueRecords")
-                dump(keyValueRecords)
                 var result: Future<Void> = eventLoop.makeSucceededFuture(())
 
                 for record in keyValueRecords.records {
@@ -158,11 +156,8 @@ public extension Entita2FDBIndexedEntity {
                         )
                     }
                     guard let index = Self.indices[indexName] else {
-                        return eventLoop.makeFailedFuture(
-                            E2.E.IndexError(
-                                "No index '\(indexName)' in entity '\(Self.entityName)'"
-                            )
-                        )
+                        logger.debug("No index '\(indexName)' in entity '\(Self.entityName)', skipping")
+                        continue
                     }
                     guard let propertyValue = self.getIndexValueFrom(index: index) else {
                         return eventLoop.makeFailedFuture(
@@ -185,7 +180,6 @@ public extension Entita2FDBIndexedEntity {
 
                 return result
             }
-        return future
     }
 
     func afterSave0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> EventLoopFuture<Void> {
