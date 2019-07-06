@@ -15,7 +15,16 @@ public protocol E2Entity: Codable {
 
     static var format: E2.Format { get }
     static var storage: Storage { get }
+
+    /// Entity name for identifying in DB
+    ///
+    /// Default implementation: current class name
     static var entityName: String { get }
+
+    /// Flag indicating whether to use full class name as `entityName` in default implementation
+    /// (including module name and preceding namespace)
+    ///
+    /// Default implementation: `false`
     static var fullEntityName: Bool { get }
     static var IDKey: IDKeyPath { get }
 

@@ -4,6 +4,7 @@ import LGNCore
 import NIO
 
 public protocol Entita2FDBEntity: E2Entity where Storage == FDB, Identifier: FDBTuplePackable {
+    /// Root application FDB Subspace — `/[root_subspace]`
     static var subspace: FDB.Subspace { get }
 }
 
@@ -41,6 +42,7 @@ public extension Entita2FDBEntity {
         return Self.IDAsKey(ID: self.getID())
     }
 
+    /// Current entity-related FDB Subspace — `/[root_subspace]/[entity_name]`
     static var subspacePrefix: FDB.Subspace {
         return self.subspace[self.entityName]
     }
