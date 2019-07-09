@@ -13,7 +13,7 @@ public extension LGNCore {
 }
 
 public extension ArraySlice where Element == Byte {
-    func cast<Result>() -> Result {
+    func unsafeCast<Result>() -> Result {
         _precondition(
             MemoryLayout<Result>.size == count,
             "Memory layout size for result type '\(Result.self)' (\(MemoryLayout<Result>.size) bytes) does not match with given byte array length (\(count) bytes)"

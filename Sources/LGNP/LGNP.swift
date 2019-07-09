@@ -41,7 +41,7 @@ public struct LGNP {
         }
         let from = protocolHeaderBytes.count
         let to = protocolHeaderBytes.count + MemoryLayout<LGNP.Message.LengthType>.size
-        let length: LGNP.Message.LengthType = messageBytes[from ..< to].cast()
+        let length: LGNP.Message.LengthType = messageBytes[from ..< to].unsafeCast()
         guard length != 0 else {
             throw E.InvalidMessageLength("Message length cannot be zero")
         }
@@ -202,7 +202,7 @@ public struct LGNP {
         var pos = LGNP.UUID_SIZE
         let nextPos = pos + MemoryLayout<Message.ControlBitmask.BitmaskType>.size
         let controlBitmask: Message.ControlBitmask = Message.ControlBitmask(
-            rawValue: body[pos ..< nextPos].cast()
+            rawValue: body[pos ..< nextPos].unsafeCast()
         )
         pos = nextPos
         var payload = Bytes(body[nextPos...])
@@ -267,7 +267,7 @@ public struct LGNP {
         guard payload.count > sizeLength else {
             throw E.MetaSectionNotFound
         }
-        let size: Message.LengthType = payload[from ..< to].cast()
+        let size: Message.LengthType = payload[from ..< to].unsafeCast()
         guard payload.count > size else {
             throw E.InvalidMessageLength("Meta section is not long enough (should be \(size), given \(payload.count)")
         }
