@@ -127,17 +127,17 @@ internal extension LGNC.HTTP {
             case sendingResponse
 
             mutating func requestReceived() {
-                precondition(self == .idle, "Invalid state for request received: \(self)")
+                _precondition(self == .idle, "Invalid state for request received: \(self)")
                 self = .waitingForRequestBody
             }
 
             mutating func requestComplete() {
-                precondition(self == .waitingForRequestBody, "Invalid state for request complete: \(self)")
+                _precondition(self == .waitingForRequestBody, "Invalid state for request complete: \(self)")
                 self = .sendingResponse
             }
 
             mutating func responseComplete() {
-                precondition(self == .sendingResponse, "Invalid state for response complete: \(self)")
+                _precondition(self == .sendingResponse, "Invalid state for response complete: \(self)")
                 self = .idle
             }
         }

@@ -143,3 +143,17 @@ internal extension String {
         return false
     }
 }
+
+internal protocol Flattenable {
+    var flattened: Any? { get }
+}
+
+extension Optional: Flattenable {
+    var flattened: Any? {
+        switch self {
+        case .some(let x as Flattenable): return x.flattened
+        case .some(let x): return x
+        case .none: return nil
+        }
+    }
+}

@@ -14,7 +14,7 @@ public extension LGNCore {
 
 public extension ArraySlice where Element == Byte {
     func cast<Result>() -> Result {
-        precondition(
+        _precondition(
             MemoryLayout<Result>.size == count,
             "Memory layout size for result type '\(Result.self)' (\(MemoryLayout<Result>.size) bytes) does not match with given byte array length (\(count) bytes)"
         )
@@ -34,7 +34,7 @@ public extension Array where Element == Byte {
     }
 
     func cast<Result>(file: StaticString = #file, line: Int = #line) -> Result {
-        precondition(
+        _precondition(
             MemoryLayout<Result>.size == count,
             "Memory layout size for result type '\(Result.self)' (\(MemoryLayout<Result>.size) bytes) does not match with given byte array length (\(count) bytes) at \(file):\(line)"
         )

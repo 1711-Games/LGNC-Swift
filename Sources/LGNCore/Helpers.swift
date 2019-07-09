@@ -15,9 +15,19 @@ public extension Float {
     }
 }
 
+public func _precondition(
+    _ condition: @autoclosure () -> Bool,
+    _ message: @autoclosure () -> String = String(),
+    file: StaticString = #file, line: UInt = #line
+) {
+    guard condition() == true else {
+        fatalError("Precondition failed: \(message())", file: file, line: line)
+    }
+}
+
 public extension UUID {
     init(bytes: Bytes) {
-        precondition(
+        _precondition(
             bytes.count == MemoryLayout<UUID>.size,
             "You provided \(bytes.count) bytes, exactly \(MemoryLayout<UUID>.size) is needed for UUID"
         )

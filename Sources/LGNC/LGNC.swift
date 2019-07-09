@@ -153,13 +153,12 @@ public extension LGNC.Entity {
             let eventLoop = requestInfo.eventLoop
 
             let errors: [String: [LGNC.Entity.Error]]? = try? (self.extract(param: "errors", from: dictionary) as [String: [LGNC.Entity.Error]])
-            let result: Entita.Dict?? = try? (self.extract(param: "result", from: dictionary, isOptional: true))
+            let result: Entita.Dict?? = try? (self.extract(param: "result", from: dictionary, isOptional: true) as Entita.Dict?)
             let meta: Meta? = try? (self.extract(param: "meta", from: dictionary) as Meta)
             let success: Bool? = try? (self.extract(param: "success", from: dictionary) as Bool)
 
             let validatorFutures: [String: Future<Void>] = [
                 "result": eventLoop.submit {
-                    let _: Entita.Dict? = try (self.extract(param: "result", from: dictionary, isOptional: true) as Entita.Dict?)
                     guard let result = result else {
                         throw Validation.Error.MissingValue(requestInfo.locale)
                     }
@@ -192,9 +191,9 @@ public extension LGNC.Entity {
                     }
 
                     let future: Future<T?>
-                    if let result = result {
+                    if let result = result.flattened as? Entita.Dict {
                         future = T
-                            .initWithValidation(from: result!, requestInfo: requestInfo)
+                            .initWithValidation(from: result, requestInfo: requestInfo)
                             .map { $0 }
                     } else {
                         future = eventLoop.makeSucceededFuture(nil)
