@@ -31,7 +31,7 @@ public extension UUID {
             bytes.count == MemoryLayout<UUID>.size,
             "You provided \(bytes.count) bytes, exactly \(MemoryLayout<UUID>.size) is needed for UUID"
         )
-        self.init(uuid: bytes.cast())
+        self.init(uuid: bytes.unsafeCast())
     }
 
     var string: String {

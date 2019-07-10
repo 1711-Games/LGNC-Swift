@@ -33,7 +33,7 @@ public extension Array where Element == Byte {
         self.append(0)
     }
 
-    func cast<Result>(file: StaticString = #file, line: Int = #line) -> Result {
+    func unsafeCast<Result>(file: StaticString = #file, line: Int = #line) -> Result {
         _precondition(
             MemoryLayout<Result>.size == count,
             "Memory layout size for result type '\(Result.self)' (\(MemoryLayout<Result>.size) bytes) does not match with given byte array length (\(count) bytes) at \(file):\(line)"

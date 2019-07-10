@@ -35,7 +35,7 @@ extension E2.ID: Codable where Value == UUID {
                 )
             )
         }
-        self.init(UUID(uuid: [UInt8](result).cast()))
+        self.init(UUID(uuid: [UInt8](result).unsafeCast()))
     }
 
     public func encode(to encoder: Encoder) throws {
