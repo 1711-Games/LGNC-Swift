@@ -121,7 +121,7 @@ public extension Validation {
 
         public let message: String
 
-        public init(message: String = "Value sissing") {
+        public init(message: String = "Value missing") {
             self.message = message
         }
 
