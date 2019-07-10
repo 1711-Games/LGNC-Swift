@@ -54,19 +54,19 @@ public extension Entita2FDBEntity {
     ) -> Future<(Self?, FDB.Transaction)> {
         return storage.withTransaction(on: eventLoop) { transaction in
             Self
-                .load(by: ID, with: transaction, snapshot: snapshot, on: eventLoop)
+                .load(by: ID, within: transaction, snapshot: snapshot, on: eventLoop)
                 .map { ($0, transaction) }
         }
     }
 
     static func load(
         by ID: Identifier,
-        with transaction: FDB.Transaction,
+        within transaction: FDB.Transaction,
         snapshot: Bool,
         on eventLoop: EventLoop
     ) -> Future<Self?> {
         return Self.storage
-            .load(by: Self.IDAsKey(ID: ID), with: transaction, snapshot: snapshot, on: eventLoop)
+            .load(by: Self.IDAsKey(ID: ID), within: transaction, snapshot: snapshot, on: eventLoop)
             .map { maybeBytes in (maybeBytes, transaction) }
             .flatMapThrowing { maybeBytes, transaction in
                 guard let bytes = maybeBytes else {
@@ -76,33 +76,17 @@ public extension Entita2FDBEntity {
             }
     }
 
-    func save(
-        with transaction: FDB.Transaction,
-        on eventLoop: EventLoop
-    ) -> Future<FDB.Transaction> {
-        return self.getPackedSelf(on: eventLoop)
-            .flatMap { payload in
-                Self.storage.save(
-                    bytes: payload,
-                    by: self.getIDAsKey(),
-                    with: transaction,
-                    on: eventLoop
-                )
-            }
-            .map { _ in transaction }
-    }
-
     static func loadAll(
         bySubspace subspace: FDB.Subspace,
         limit: Int32 = 0,
-        with transaction: AnyTransaction? = nil,
+        within transaction: AnyTransaction? = nil,
         snapshot: Bool,
         on eventLoop: EventLoop
     ) -> Future<[(ID: Self.Identifier, value: Self)]> {
         return Self.storage.loadAll(
             by: subspace.range,
             limit: limit,
-            with: transaction,
+            within: transaction,
             snapshot: snapshot,
             on: eventLoop
         ).flatMapThrowing { results in
@@ -118,14 +102,14 @@ public extension Entita2FDBEntity {
 
     static func loadAll(
         limit: Int32 = 0,
-        with transaction: AnyTransaction? = nil,
+        within transaction: AnyTransaction? = nil,
         snapshot: Bool,
         on eventLoop: EventLoop
     ) -> Future<[(ID: Self.Identifier, value: Self)]> {
         return Self.loadAll(
             bySubspace: Self.subspacePrefix,
             limit: limit,
-            with: transaction,
+            within: transaction,
             snapshot: snapshot,
             on: eventLoop
         )
@@ -134,14 +118,14 @@ public extension Entita2FDBEntity {
     static func loadAll(
         by key: AnyFDBKey,
         limit: Int32 = 0,
-        with transaction: AnyTransaction? = nil,
+        within transaction: AnyTransaction? = nil,
         snapshot: Bool,
         on eventLoop: EventLoop
     ) -> Future<[(ID: Self.Identifier, value: Self)]> {
         return Self.loadAll(
             bySubspace: Self.subspacePrefix[key],
             limit: limit,
-            with: transaction,
+            within: transaction,
             snapshot: snapshot,
             on: eventLoop
         )
@@ -151,14 +135,14 @@ public extension Entita2FDBEntity {
         limit: Int32 = 0,
         mode _: FDB.StreamingMode = .wantAll,
         iteration _: Int32 = 1,
-        with transaction: AnyTransaction? = nil,
+        within transaction: AnyTransaction? = nil,
         snapshot: Bool,
         on eventLoop: EventLoop
     ) -> Future<FDB.KeyValuesResult> {
         return Self.storage.loadAll(
             by: Self.subspacePrefix.range,
             limit: limit,
-            with: transaction,
+            within: transaction,
             snapshot: snapshot,
             on: eventLoop
         )

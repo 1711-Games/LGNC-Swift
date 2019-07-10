@@ -28,7 +28,7 @@ public extension E2Entity {
 
     static func loadBy(
         IDBytes: Bytes,
-        with transaction: AnyTransaction? = nil,
+        within transaction: AnyTransaction? = nil,
         on eventLoop: EventLoop
     ) -> Future<Self?> {
         return Self.loadByRaw(
@@ -39,12 +39,12 @@ public extension E2Entity {
 
     static func loadByRaw(
         IDBytes: Bytes,
-        with transaction: AnyTransaction? = nil,
+        within transaction: AnyTransaction? = nil,
         on eventLoop: EventLoop
     ) -> Future<Self?> {
         return Self.storage.load(
             by: IDBytes,
-            with: transaction,
+            within: transaction,
             on: eventLoop
         ).flatMapThrowing {
             guard let bytes = $0 else {
@@ -71,59 +71,59 @@ public extension E2Entity {
     }
 
     func afterLoad0(on eventLoop: EventLoop) -> Future<Void> {
-        return eventLoop.makeSucceededFuture(())
+        return eventLoop.makeSucceededFuture()
     }
 
     func afterLoad(on eventLoop: EventLoop) -> Future<Void> {
-        return eventLoop.makeSucceededFuture(())
+        return eventLoop.makeSucceededFuture()
     }
 
-    func beforeSave0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
-        return eventLoop.makeSucceededFuture(())
+    func beforeSave0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.makeSucceededFuture()
     }
 
-    func beforeSave(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
-        return eventLoop.makeSucceededFuture(())
+    func beforeSave(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.makeSucceededFuture()
     }
 
-    func afterSave0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
-        return eventLoop.makeSucceededFuture(())
+    func afterSave0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.makeSucceededFuture()
     }
 
-    func afterSave(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
-        return eventLoop.makeSucceededFuture(())
+    func afterSave(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.makeSucceededFuture()
     }
 
-    func beforeInsert0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
-        return eventLoop.makeSucceededFuture(())
+    func beforeInsert0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.makeSucceededFuture()
     }
 
-    func beforeInsert(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
-        return eventLoop.makeSucceededFuture(())
+    func beforeInsert(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.makeSucceededFuture()
     }
 
-    func afterInsert(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
-        return eventLoop.makeSucceededFuture(())
+    func afterInsert(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.makeSucceededFuture()
     }
 
-    func afterInsert0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
-        return eventLoop.makeSucceededFuture(())
+    func afterInsert0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.makeSucceededFuture()
     }
 
-    func beforeDelete0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
-        return eventLoop.makeSucceededFuture(())
+    func beforeDelete0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.makeSucceededFuture()
     }
 
-    func beforeDelete(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
-        return eventLoop.makeSucceededFuture(())
+    func beforeDelete(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.makeSucceededFuture()
     }
 
-    func afterDelete0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
-        return eventLoop.makeSucceededFuture(())
+    func afterDelete0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.makeSucceededFuture()
     }
 
-    func afterDelete(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
-        return eventLoop.makeSucceededFuture(())
+    func afterDelete(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
+        return eventLoop.makeSucceededFuture()
     }
 
     // Though this method isn't actually asynchronous,
@@ -141,7 +141,7 @@ public extension E2Entity {
     // This method is not intended to be used directly. Use save() method.
     func save0(
         by ID: Identifier? = nil,
-        with transaction: AnyTransaction?,
+        within transaction: AnyTransaction?,
         on eventLoop: EventLoop
     ) -> Future<Void> {
         let IDBytes: Bytes
@@ -157,68 +157,93 @@ public extension E2Entity {
                 Self.storage.save(
                     bytes: payload,
                     by: IDBytes,
-                    with: transaction,
+                    within: transaction,
                     on: eventLoop
                 )
             }
     }
-    
+
     // This method is not intended to be used directly. Use save() method.
-    func delete0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
+    func delete0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
         return Self.storage.delete(
             by: self.getIDAsKey(),
-            with: transaction,
+            within: transaction,
             on: eventLoop
         )
     }
-    
+
     // This method is not intended to be used directly
     func commit0(transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
         return transaction?.commit() ?? eventLoop.makeSucceededFuture(())
     }
 
+    internal func commit0IfNecessary(
+        commit: Bool,
+        transaction: AnyTransaction?,
+        on eventLoop: EventLoop
+    ) -> Future<Void> {
+        if commit {
+            return self.commit0(transaction: transaction, on: eventLoop)
+        }
+        return eventLoop.makeSucceededFuture()
+    }
+
     // MARK: - Public CRUD methods
 
-    func insert(on eventLoop: EventLoop) -> Future<Void> {
-        return Self.begin(on: eventLoop)
-            .flatMap { transaction in
-                self
-                    .beforeInsert0(with: transaction, on: eventLoop)
-                    .flatMap { self.beforeInsert(with: transaction, on: eventLoop) }
-                    .flatMap { self.save0(by: nil, with: transaction, on: eventLoop) }
-                    .flatMap { self.afterInsert(with: transaction, on: eventLoop) }
-                    .flatMap { self.afterInsert0(with: transaction, on: eventLoop) }
-                    .flatMap { self.commit0(transaction: transaction, on: eventLoop) }
-            }
+    func insert(commit: Bool = true, on eventLoop: EventLoop) -> Future<Void> {
+        return Self
+            .begin(on: eventLoop)
+            .flatMap { transaction in self.insert(commit: commit, within: transaction, on: eventLoop) }
     }
 
-    func save(on eventLoop: EventLoop) -> Future<Void> {
-        return self.save(by: nil, on: eventLoop)
+    func insert(commit: Bool = true, within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
+        return self
+            .beforeInsert0(within: transaction, on: eventLoop)
+            .flatMap { self.beforeInsert(within: transaction, on: eventLoop) }
+            .flatMap { self.save0(by: nil, within: transaction, on: eventLoop) }
+            .flatMap { self.afterInsert(within: transaction, on: eventLoop) }
+            .flatMap { self.afterInsert0(within: transaction, on: eventLoop) }
+            .flatMap { self.commit0IfNecessary(commit: commit, transaction: transaction, on: eventLoop) }
     }
 
-    func save(by ID: Identifier? = nil, on eventLoop: EventLoop) -> Future<Void> {
-        return Self.begin(on: eventLoop)
-            .flatMap { transaction in
-                self
-                    .beforeSave0(with: transaction, on: eventLoop)
-                    .flatMap { self.beforeSave(with: transaction, on: eventLoop) }
-                    .flatMap { self.save0(by: ID, with: transaction, on: eventLoop) }
-                    .flatMap { self.afterSave(with: transaction, on: eventLoop) }
-                    .flatMap { self.afterSave0(with: transaction, on: eventLoop) }
-                    .flatMap { self.commit0(transaction: transaction, on: eventLoop) }
-            }
+    func save(commit: Bool = true, on eventLoop: EventLoop) -> Future<Void> {
+        return self.save(by: nil, commit: commit, on: eventLoop)
     }
-    
-    func delete(on eventLoop: EventLoop) -> Future<Void> {
-        return Self.begin(on: eventLoop)
-            .flatMap { transaction in
-                self
-                    .beforeDelete0(with: transaction, on: eventLoop)
-                    .flatMap { self.beforeDelete(with: transaction, on: eventLoop) }
-                    .flatMap { self.delete0(with: transaction, on: eventLoop) }
-                    .flatMap { self.afterDelete(with: transaction, on: eventLoop) }
-                    .flatMap { self.afterDelete0(with: transaction, on: eventLoop) }
-                    .flatMap { self.commit0(transaction: transaction, on: eventLoop) }
-        }
+
+    func save(by ID: Identifier? = nil, commit: Bool = true, on eventLoop: EventLoop) -> Future<Void> {
+        return Self
+            .begin(on: eventLoop)
+            .flatMap { transaction in self.save(by: ID, commit: commit, within: transaction, on: eventLoop) }
+    }
+
+    func save(
+        by ID: Identifier? = nil,
+        commit: Bool = true,
+        within transaction: AnyTransaction?,
+        on eventLoop: EventLoop
+    ) -> Future<Void> {
+        return eventLoop.makeSucceededFuture()
+            .flatMap { self.beforeSave0(within: transaction, on: eventLoop) }
+            .flatMap { self.beforeSave(within: transaction, on: eventLoop) }
+            .flatMap { self.save0(by: ID, within: transaction, on: eventLoop) }
+            .flatMap { self.afterSave(within: transaction, on: eventLoop) }
+            .flatMap { self.afterSave0(within: transaction, on: eventLoop) }
+            .flatMap { self.commit0IfNecessary(commit: commit, transaction: transaction, on: eventLoop) }
+    }
+
+    func delete(commit: Bool = true, on eventLoop: EventLoop) -> Future<Void> {
+        return Self
+            .begin(on: eventLoop)
+            .flatMap { transaction in self.delete(commit: commit, within: transaction, on: eventLoop) }
+    }
+
+    func delete(commit: Bool = true, within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
+        return self
+            .beforeDelete0(within: transaction, on: eventLoop)
+            .flatMap { self.beforeDelete(within: transaction, on: eventLoop) }
+            .flatMap { self.delete0(within: transaction, on: eventLoop) }
+            .flatMap { self.afterDelete(within: transaction, on: eventLoop) }
+            .flatMap { self.afterDelete0(within: transaction, on: eventLoop) }
+            .flatMap { self.commit0IfNecessary(commit: commit, transaction: transaction, on: eventLoop) }
     }
 }

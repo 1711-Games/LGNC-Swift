@@ -34,38 +34,38 @@ public protocol E2Entity: Codable {
     static func begin(on eventLoop: EventLoop) -> Future<AnyTransaction?>
 
     static func load(by ID: Identifier, on eventLoop: EventLoop) -> Future<Self?>
-    static func loadBy(IDBytes: Bytes, with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Self?>
-    static func loadByRaw(IDBytes: Bytes, with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Self?>
+    static func loadBy(IDBytes: Bytes, within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Self?>
+    static func loadByRaw(IDBytes: Bytes, within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Self?>
 
     func afterLoad0(on eventLoop: EventLoop) -> Future<Void>
     func afterLoad(on eventLoop: EventLoop) -> Future<Void>
 
     /// Same as `save`, but with executes `beforeInsert` and `afterInsert` before and after insert respectively.
     /// Internal method, do not define
-    func insert(on eventLoop: EventLoop) -> Future<Void>
-    func save(on eventLoop: EventLoop) -> Future<Void>
-    func save(by ID: Identifier?, on eventLoop: EventLoop) -> Future<Void>
-    func delete(on eventLoop: EventLoop) -> Future<Void>
+    func insert(commit: Bool, on eventLoop: EventLoop) -> Future<Void>
+    func save(commit: Bool, on eventLoop: EventLoop) -> Future<Void>
+    func save(by ID: Identifier?, commit: Bool, on eventLoop: EventLoop) -> Future<Void>
+    func delete(commit: Bool, on eventLoop: EventLoop) -> Future<Void>
     
     /// This method is not intended to be used directly. Use `save` instead.
-    func save0(by ID: Identifier?, with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func save0(by ID: Identifier?, within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
     /// This method is not intended to be used directly. Use `delete` instead.
-    func delete0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func delete0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
 
-    func beforeInsert0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
-    func beforeInsert(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
-    func afterInsert(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
-    func afterInsert0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func beforeInsert0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func beforeInsert(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func afterInsert(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func afterInsert0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
 
-    func beforeSave0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
-    func beforeSave(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
-    func afterSave(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
-    func afterSave0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func beforeSave0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func beforeSave(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func afterSave(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func afterSave0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
 
-    func beforeDelete0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
-    func beforeDelete(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
-    func afterDelete(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
-    func afterDelete0(with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func beforeDelete0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func beforeDelete(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func afterDelete(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func afterDelete0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
 
     func getID() -> Identifier
     func getIDAsKey() -> Bytes

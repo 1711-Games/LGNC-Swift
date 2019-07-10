@@ -2,13 +2,6 @@ import LGNCore
 import FDB
 import NIO
 
-//public extension FDB {
-//    @available(*, deprecated, renamed: "begin(on:)")
-//    public func begin(eventLoop: EventLoop) -> EventLoopFuture<FDB.Transaction> {
-//        return self.begin(on: eventLoop)
-//    }
-//}
-
 extension FDB: E2Storage {
     public func unwrapAnyTransactionOrBegin(
         _ anyTransaction: AnyTransaction?,
@@ -21,17 +14,28 @@ extension FDB: E2Storage {
         }
     }
 
-    public func load(
-        by key: Bytes,
-        with transaction: AnyTransaction?,
+    public func commitIfNecessary(
+        commit: Bool,
+        transaction: AnyTransaction,
         on eventLoop: EventLoop
-    ) -> Future<Bytes?> {
-        return self.load(by: key, with: transaction, snapshot: false, on: eventLoop)
+    ) -> Future<Void> {
+        guard commit else {
+            return eventLoop.makeSucceededFuture()
+        }
+        return transaction.commit()
     }
 
     public func load(
         by key: Bytes,
-        with transaction: AnyTransaction?,
+        within transaction: AnyTransaction?,
+        on eventLoop: EventLoop
+    ) -> Future<Bytes?> {
+        return self.load(by: key, within: transaction, snapshot: false, on: eventLoop)
+    }
+
+    public func load(
+        by key: Bytes,
+        within transaction: AnyTransaction?,
         snapshot: Bool,
         on eventLoop: EventLoop
     ) -> Future<Bytes?> {
@@ -40,20 +44,20 @@ extension FDB: E2Storage {
             .flatMap { transaction in transaction.get(key: key, snapshot: snapshot) }
             .map { $0.0 }
     }
-    
+
     public func loadAll(
         by range: FDB.RangeKey,
         limit: Int32 = 0,
-        with transaction: AnyTransaction?,
+        within transaction: AnyTransaction?,
         on eventLoop: EventLoop
     ) -> Future<KeyValuesResult> {
-        return self.loadAll(by: range, limit: limit, with: transaction, snapshot: false, on: eventLoop)
+        return self.loadAll(by: range, limit: limit, within: transaction, snapshot: false, on: eventLoop)
     }
 
     public func loadAll(
         by range: FDB.RangeKey,
         limit: Int32 = 0,
-        with transaction: AnyTransaction?,
+        within transaction: AnyTransaction?,
         snapshot: Bool,
         on eventLoop: EventLoop
     ) -> Future<KeyValuesResult> {
@@ -62,23 +66,23 @@ extension FDB: E2Storage {
             .flatMap { $0.get(range: range, limit: limit, snapshot: snapshot) }
             .map { $0.0 }
     }
-    
+
     public func save(
         bytes: Bytes,
         by key: Bytes,
-        with transaction: AnyTransaction?,
+        within transaction: AnyTransaction?,
         on eventLoop: EventLoop
     ) -> Future<Void> {
         return self
             .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
             .flatMap { $0.set(key: key, value: bytes) }
-            .map { _ in () }
+            .flatMap { self.commitIfNecessary(commit: transaction == nil, transaction: $0, on: eventLoop) }
     }
-    
-    public func delete(by key: Bytes, with transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
+
+    public func delete(by key: Bytes, within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
         return self
             .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
             .flatMap { $0.clear(key: key) }
-            .map { _ in () }
+            .flatMap { self.commitIfNecessary(commit: transaction == nil, transaction: $0, on: eventLoop) }
     }
 }
