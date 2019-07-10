@@ -113,6 +113,29 @@ public extension Validation {
         }
     }
 
+    struct NotEmpty: Validator {
+        public struct Error: ValidatorError {
+            public let code: Int = 412
+            public let message: String
+        }
+
+        public let message: String
+
+        public init(message: String = "Value sissing") {
+            self.message = message
+        }
+
+        public func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {
+            guard let value = input as? String else {
+                return Validation.Error.InvalidType(locale)
+            }
+            guard !value.isEmpty else {
+                return Error(message: self.message._t(locale))
+            }
+            return nil
+        }
+    }
+
     struct UUID: Validator {
         public struct Error: ValidatorError {
             public let code: Int = 412
