@@ -129,7 +129,7 @@ public extension Validation {
             guard let value = input as? String else {
                 return Validation.Error.InvalidType(locale)
             }
-            guard !value.isEmpty else {
+            guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 return Error(message: self.message._t(locale))
             }
             return nil
