@@ -65,7 +65,7 @@ extension Sequence where Iterator.Element: OptionalType {
 
 public extension LGNP.Message {
     func unpackPayload(
-        _ allowedContentTypes: [LGNCore.ContentType] = LGNCore.ContentType.all
+        _ allowedContentTypes: [LGNCore.ContentType] = LGNCore.ContentType.allCases
     ) throws -> [String: Any] {
         let contentType = self.contentType
         guard allowedContentTypes.contains(contentType) else {

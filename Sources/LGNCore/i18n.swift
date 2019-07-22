@@ -2,7 +2,7 @@ import Foundation
 import Logging
 
 public extension LGNCore {
-    struct i18n {
+    enum i18n {
         public static var translator: LGNCTranslator = DummyTranslator()
 
         @inlinable public static func tr(

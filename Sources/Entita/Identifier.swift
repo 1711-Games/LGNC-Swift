@@ -5,7 +5,7 @@ public typealias _ID = Identifier
 public struct Identifier {
     private var value: String
     public var string: String {
-        return get()
+        return self.get()
     }
 
     public init(_ value: String) {
@@ -23,7 +23,7 @@ public struct Identifier {
 
 extension Identifier: CustomStringConvertible {
     public var description: String {
-        return get()
+        return self.get()
     }
 }
 

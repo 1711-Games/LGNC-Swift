@@ -41,8 +41,8 @@ public extension LGNCore {
             self.transport = transport
             self.eventLoop = eventLoop
 
-            self.logger = Logging.Logger(label: "LGNC.RequestInfo")
-            logger[metadataKey: "requestID"] = "\(self.uuid.string)"
+            self.logger = Logging.Logger(label: "LGNCore.RequestInfo")
+            self.logger[metadataKey: "requestID"] = "\(self.uuid.string)"
         }
 
         public func clone(

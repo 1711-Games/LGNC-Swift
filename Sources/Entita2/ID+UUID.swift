@@ -27,15 +27,7 @@ extension E2.ID: Codable where Value == UUID {
         let container = try decoder.singleValueContainer()
         let result = try container.decode(Data.self)
 
-        guard result.count == 16 else {
-            throw DecodingError.dataCorrupted(
-                DecodingError.Context(
-                    codingPath: decoder.codingPath,
-                    debugDescription: "Attempted to decode UUID from invalid byte sequence."
-                )
-            )
-        }
-        self.init(UUID(uuid: [UInt8](result).unsafeCast()))
+        self.init(UUID(uuid: try [UInt8](result).cast()))
     }
 
     public func encode(to encoder: Encoder) throws {

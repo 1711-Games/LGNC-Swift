@@ -5,7 +5,11 @@ import NIO
 public typealias Future = EventLoopFuture
 public typealias Promise = EventLoopPromise
 
-public struct LGNCore {}
+public enum LGNCore {
+    public enum E: Error {
+        case CastError(String)
+    }
+}
 
 public enum AppEnv: String, CaseIterable {
     case local
@@ -42,24 +46,24 @@ public extension LGNCore {
         }
 
         public var description: String {
+            let result: String
+
             switch self {
             case let .ip(host, port):
-                return "\(host):\(port)"
+                result = "\(host):\(port)"
             case let .unixDomainSocket(path):
-                return "unix://\(path)"
-            default:
-                return "unknown address"
+                result = "unix://\(path)"
+            case .localhost:
+                result = "localhost"
             }
+
+            return result
         }
     }
 }
 
 public extension LGNCore {
-    enum ContentType: String {
+    enum ContentType: String, CaseIterable {
         case MsgPack, JSON, XML, PlainText
-
-        public static var all: [ContentType] {
-            return [.MsgPack, .JSON, .XML, .PlainText]
-        }
     }
 }

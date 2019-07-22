@@ -12,12 +12,5 @@ public protocol DictionaryExtractable {
 
 public let ENTITA_DEFAULT_ID_LABEL = "ID"
 
-//
-// public extension DictionaryDecodable {
-//    public init(from dictionary: Entita.Dict) throws {
-//        self = try DictionaryDecoder().decode(Self.self, dictionary)
-//    }
-// }
-
 public typealias DictionaryConvertible = DictionaryEncodable & DictionaryDecodable & DictionaryExtractable
 public typealias Entity = DictionaryConvertible

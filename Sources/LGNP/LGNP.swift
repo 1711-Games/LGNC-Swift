@@ -41,7 +41,7 @@ public struct LGNP {
         }
         let from = protocolHeaderBytes.count
         let to = protocolHeaderBytes.count + MemoryLayout<LGNP.Message.LengthType>.size
-        let length: LGNP.Message.LengthType = messageBytes[from ..< to].unsafeCast()
+        let length: LGNP.Message.LengthType = try messageBytes[from ..< to].cast()
         guard length != 0 else {
             throw E.InvalidMessageLength("Message length cannot be zero")
         }
@@ -198,11 +198,11 @@ public struct LGNP {
         guard body.count >= realLength else {
             throw E.ParsingFailed("Body length must be \(realLength) bytes or more (given \(body.count) bytes)")
         }
-        let uuid = UUID(bytes: Bytes(body[0 ..< LGNP.UUID_SIZE]))
+        let uuid = try UUID(bytes: Bytes(body[0 ..< LGNP.UUID_SIZE]))
         var pos = LGNP.UUID_SIZE
         let nextPos = pos + MemoryLayout<Message.ControlBitmask.BitmaskType>.size
-        let controlBitmask: Message.ControlBitmask = Message.ControlBitmask(
-            rawValue: body[pos ..< nextPos].unsafeCast()
+        let controlBitmask: Message.ControlBitmask = try Message.ControlBitmask(
+            rawValue: body[pos ..< nextPos].cast()
         )
         pos = nextPos
         var payload = Bytes(body[nextPos...])
@@ -267,7 +267,7 @@ public struct LGNP {
         guard payload.count > sizeLength else {
             throw E.MetaSectionNotFound
         }
-        let size: Message.LengthType = payload[from ..< to].unsafeCast()
+        let size: Message.LengthType = try payload[from ..< to].cast()
         guard payload.count > size else {
             throw E.InvalidMessageLength("Meta section is not long enough (should be \(size), given \(payload.count)")
         }
