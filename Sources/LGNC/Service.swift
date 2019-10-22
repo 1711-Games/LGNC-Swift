@@ -16,7 +16,7 @@ public protocol Service {
     static func executeContract(
         URI: String,
         dict: Entita.Dict,
-        requestInfo: LGNCore.RequestInfo
+        context: LGNCore.Context
     ) -> Future<Entity>
     static func serveLGNS(
         at target: LGNS.Server.BindTo?,
@@ -66,7 +66,7 @@ public extension Service {
     static func executeContract(
         URI: String,
         dict: Entita.Dict,
-        requestInfo: LGNCore.RequestInfo
+        context: LGNCore.Context
     ) -> Future<Entity> {
         let result: Future<LGNC.Entity.Result>
 
@@ -76,17 +76,17 @@ public extension Service {
             guard let contractInfo = self.contractMap[URI] else {
                 throw LGNC.ContractError.URINotFound(URI)
             }
-            guard LGNC.ALLOW_ALL_TRANSPORTS == true || contractInfo.transports.contains(requestInfo.transport) else {
-                throw LGNC.ContractError.TransportNotAllowed(requestInfo.transport)
+            guard LGNC.ALLOW_ALL_TRANSPORTS == true || contractInfo.transports.contains(context.transport) else {
+                throw LGNC.ContractError.TransportNotAllowed(context.transport)
             }
             result = contractInfo
-                .invoke(with: dict, requestInfo: requestInfo)
+                .invoke(with: dict, context: context)
                 .map { response, meta in LGNC.Entity.Result(from: response, meta: meta) }
                 .recover { error in
                     do {
                         switch error {
                         case let LGNC.E.UnpackError(error):
-                            requestInfo.logger.error("\(error)")
+                            context.logger.error("\(error)")
                             throw LGNC.E.clientError("Invalid request")
                         case let LGNC.E.MultipleError(errors):
                             throw LGNC.E.MultipleError(errors) // rethrow
@@ -95,34 +95,34 @@ public extension Service {
                         case let error as ClientError:
                             throw LGNC.E.MultipleError([LGNC.GLOBAL_ERROR_KEY: [error]])
                         default:
-                            requestInfo.logger.error("Uncaught error: \(error)")
+                            context.logger.error("Uncaught error: \(error)")
                             throw LGNC.E.MultipleError([LGNC.GLOBAL_ERROR_KEY: [LGNC.ContractError.InternalError]])
                         }
                     } catch let LGNC.E.MultipleError(errors) {
                         return LGNC.Entity.Result(from: errors)
                     } catch {
-                        requestInfo.logger.critical("Extremely unexpected error: \(error)")
+                        context.logger.critical("Extremely unexpected error: \(error)")
                         return LGNC.Entity.Result.internalError
                     }
                 }
         } catch let error as LGNC.ContractError {
-            result = requestInfo.eventLoop.makeSucceededFuture(
-                requestInfo.isSecure
+            result = context.eventLoop.makeSucceededFuture(
+                context.isSecure
                     ? LGNC.Entity.Result(from: [LGNC.GLOBAL_ERROR_KEY: [error]])
                     : LGNC.Entity.Result.internalError
             )
-            requestInfo.logger.error("Contract error: \(error)")
+            context.logger.error("Contract error: \(error)")
         } catch let error {
-            requestInfo.logger.critical("Quite uncaught error: \(error)")
-            result = requestInfo.eventLoop.makeSucceededFuture(LGNC.Entity.Result.internalError)
+            context.logger.critical("Quite uncaught error: \(error)")
+            result = context.eventLoop.makeSucceededFuture(LGNC.Entity.Result.internalError)
         }
 
         result.whenComplete { result in
-            let clientAddr = requestInfo.clientAddr
-            let transport = requestInfo.transport.rawValue
+            let clientAddr = context.clientAddr
+            let transport = context.transport.rawValue
             let executionTime = profiler.end().rounded(toPlaces: 4)
 
-            requestInfo.logger.info(
+            context.logger.info(
                 "[\(clientAddr)] [\(transport)] [\(URI)] \(executionTime)s"
             )
         }

@@ -10,7 +10,5 @@ public protocol DictionaryExtractable {
     static var keyDictionary: [String: String] { get }
 }
 
-public let ENTITA_DEFAULT_ID_LABEL = "ID"
-
 public typealias DictionaryConvertible = DictionaryEncodable & DictionaryDecodable & DictionaryExtractable
 public typealias Entity = DictionaryConvertible

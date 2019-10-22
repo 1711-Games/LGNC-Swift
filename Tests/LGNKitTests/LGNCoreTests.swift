@@ -145,9 +145,9 @@ final class LGNCoreTests: XCTestCase {
         XCTAssertEqual(Float(13.37).rounded(toPlaces: 5), 13.37000)
     }
 
-    func testRequestInfo() {
+    func testContext() {
         let eventLoop = EmbeddedEventLoop()
-        let originalInstance = LGNCore.RequestInfo(
+        let originalInstance = LGNCore.Context(
             remoteAddr: "192.168.13.37",
             clientAddr: "195.248.161.225",
             clientID: "id1",
@@ -256,7 +256,7 @@ final class LGNCoreTests: XCTestCase {
         ("testByteTrickery_append_prepend_addNul", testByteTrickery_append_prepend_addNul),
         ("testConfig", testConfig),
         ("testRounded", testRounded),
-        ("testRequestInfo", testRequestInfo),
+        ("testContext", testContext),
         ("testi18nDummyTranslator", testi18nDummyTranslator),
         ("testi18nFactoryTranslator", testi18nFactoryTranslator),
     ]

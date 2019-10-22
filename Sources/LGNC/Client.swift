@@ -27,8 +27,8 @@ public protocol LGNCClient {
         at address: LGNCore.Address,
         over transport: LGNCore.Transport?,
         on eventLoop: EventLoop,
-        requestInfo maybeRequestInfo: LGNCore.RequestInfo?
-    ) -> Future<(Entita.Dict, LGNCore.RequestInfo)>
+        context maybeContext: LGNCore.Context?
+    ) -> Future<(Entita.Dict, LGNCore.Context)>
 }
 
 extension LGNS.Client: LGNCClient {
@@ -38,18 +38,18 @@ extension LGNS.Client: LGNCClient {
         at address: LGNCore.Address,
         over transport: LGNCore.Transport? = nil,
         on eventLoop: EventLoop,
-        requestInfo maybeRequestInfo: LGNCore.RequestInfo?
-    ) -> Future<(Entita.Dict, LGNCore.RequestInfo)> {
+        context maybeContext: LGNCore.Context?
+    ) -> Future<(Entita.Dict, LGNCore.Context)> {
         let transport: LGNCore.Transport = .LGNS
 
         let contentType = C.preferredContentType
-        let requestInfo = LGNC.Client.getRequestInfo(
-            from: maybeRequestInfo,
+        let context = LGNC.Client.getRequestContext(
+            from: maybeContext,
             transport: transport,
             eventLoop: eventLoop
         )
 
-        let logger = requestInfo.logger
+        let logger = context.logger
 
         let payload: Bytes
         do {
@@ -69,38 +69,38 @@ extension LGNS.Client: LGNCClient {
                 with: LGNP.Message(
                     URI: C.URI,
                     payload: payload,
-                    meta: LGNC.getMeta(from: requestInfo, clientID: requestInfo.clientID),
+                    meta: LGNC.getMeta(from: context, clientID: context.clientID),
                     salt: self.cryptor.salt.bytes,
                     controlBitmask: self.controlBitmask,
-                    uuid: requestInfo.uuid
+                    uuid: context.uuid
                 )
             )
-            .flatMapThrowing { responseMessage, responseRequestInfo in
-                (try responseMessage.unpackPayload(), responseRequestInfo)
+            .flatMapThrowing { responseMessage, responseContext in
+                (try responseMessage.unpackPayload(), responseContext)
             }
     }
 }
 
 public extension LGNC.Client {
-    static func getRequestInfo(
-        from maybeRequestInfo: LGNCore.RequestInfo?,
+    static func getRequestContext(
+        from maybeContext: LGNCore.Context?,
         transport: LGNCore.Transport,
         eventLoop: EventLoop
-    ) -> LGNCore.RequestInfo {
-        if let requestInfo = maybeRequestInfo {
-            if transport == requestInfo.transport {
-                return requestInfo
+    ) -> LGNCore.Context {
+        if let context = maybeContext {
+            if transport == context.transport {
+                return context
             }
 
-            return requestInfo.clone(transport: transport)
+            return context.clone(transport: transport)
         }
 
-        return LGNCore.RequestInfo(
+        return LGNCore.Context(
             remoteAddr: "127.0.0.1",
             clientAddr: "127.0.0.1",
             userAgent: "\(self)",
-            locale: maybeRequestInfo?.locale ?? .enUS,
-            uuid: maybeRequestInfo?.uuid ?? UUID(),
+            locale: maybeContext?.locale ?? .enUS,
+            uuid: maybeContext?.uuid ?? UUID(),
             isSecure: transport == .LGNS,
             transport: transport,
             eventLoop: eventLoop
@@ -125,10 +125,10 @@ public extension LGNC.Client {
             at address: LGNCore.Address,
             over transport: LGNCore.Transport? = nil,
             on eventLoop: EventLoop,
-            requestInfo maybeRequestInfo: LGNCore.RequestInfo? = nil
-        ) -> Future<(Entita.Dict, LGNCore.RequestInfo)> {
-            let requestInfo = LGNC.Client.getRequestInfo(
-                from: maybeRequestInfo,
+            context maybeContext: LGNCore.Context? = nil
+        ) -> Future<(Entita.Dict, LGNCore.Context)> {
+            let context = LGNC.Client.getRequestContext(
+                from: maybeContext,
                 transport: C.preferredTransport,
                 eventLoop: eventLoop
             )
@@ -136,10 +136,10 @@ public extension LGNC.Client {
             return eventLoop
                 .makeSucceededFuture(())
                 .flatMap {
-                    C.ParentService.executeContract(URI: C.URI, dict: dict, requestInfo: requestInfo)
+                    C.ParentService.executeContract(URI: C.URI, dict: dict, context: context)
                 }
                 .flatMapThrowing { response in
-                    (try response.getDictionary(), requestInfo)
+                    (try response.getDictionary(), context)
                 }
         }
     }
@@ -162,8 +162,8 @@ public extension LGNC.Client {
             at address: LGNCore.Address,
             over transport: LGNCore.Transport?,
             on eventLoop: EventLoop,
-            requestInfo maybeRequestInfo: LGNCore.RequestInfo?
-        ) -> Future<(Entita.Dict, LGNCore.RequestInfo)> {
+            context maybeContext: LGNCore.Context?
+        ) -> Future<(Entita.Dict, LGNCore.Context)> {
             let transport = transport ?? C.preferredTransport
 
             let client: LGNCClient
@@ -179,7 +179,7 @@ public extension LGNC.Client {
                 at: address,
                 over: transport,
                 on: eventLoop,
-                requestInfo: maybeRequestInfo
+                context: maybeContext
             )
         }
     }
@@ -191,23 +191,23 @@ public extension Contract {
         with request: Self.Request,
         using client: LGNCClient,
         //as clientID: String? = nil,
-        requestInfo maybeRequestInfo: LGNCore.RequestInfo? = nil
+        context maybeContext: LGNCore.Context? = nil
     ) -> Future<Self.Response> {
         let profiler = LGNCore.Profiler.begin()
-        let eventLoop = maybeRequestInfo?.eventLoop ?? client.eventLoopGroup.next()
-        let logger = maybeRequestInfo?.logger ?? client.logger
+        let eventLoop = maybeContext?.eventLoop ?? client.eventLoopGroup.next()
+        let logger = maybeContext?.logger ?? client.logger
         let transport = Self.preferredTransport
 
-        let requestInfo = LGNC.Client.getRequestInfo(
-            from: maybeRequestInfo,
+        let context = LGNC.Client.getRequestContext(
+            from: maybeContext,
             transport: transport,
             eventLoop: eventLoop
         )
 
-        requestInfo.logger.debug(
+        context.logger.debug(
             "Executing remote contract \(transport.rawValue.lowercased())://\(address)/\(Self.URI)",
             metadata: [
-                "requestID": "\(requestInfo.uuid.string)",
+                "requestID": "\(context.uuid.string)",
             ]
         )
 
@@ -224,11 +224,11 @@ public extension Contract {
             at: address,
             over: nil,
             on: eventLoop,
-            requestInfo: requestInfo
-        ).flatMap { (dict: Entita.Dict, responseRequestInfo: LGNCore.RequestInfo) -> Future<LGNC.Entity.Result> in
+            context: context
+        ).flatMap { (dict: Entita.Dict, responseContext: LGNCore.Context) -> Future<LGNC.Entity.Result> in
             LGNC.Entity.Result.initFromResponse(
                 from: dict,
-                requestInfo: responseRequestInfo,
+                context: responseContext,
                 type: Self.Response.self
             )
         }.flatMapThrowing { (result: LGNC.Entity.Result) in

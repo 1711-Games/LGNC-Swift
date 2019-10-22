@@ -15,14 +15,14 @@ internal extension LGNS {
         private static let EOL: Byte = 10
 
         private let resolver: LGNS.Resolver
-        fileprivate var promise: Promise<(LGNP.Message, LGNCore.RequestInfo)>?
+        fileprivate var promise: Promise<(LGNP.Message, LGNCore.Context)>?
 
         fileprivate class var profile: Bool {
-            return false
+            false
         }
 
         public init(
-            promise: Promise<(LGNP.Message, LGNCore.RequestInfo)>? = nil,
+            promise: Promise<(LGNP.Message, LGNCore.Context)>? = nil,
             resolver: @escaping Resolver
         ) {
             self.promise = promise
@@ -56,11 +56,11 @@ internal extension LGNS {
 
         public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
             var profiler: LGNCore.Profiler?
-            if type(of: self).profile == true {
+            if Self.profile == true {
                 profiler = LGNCore.Profiler.begin()
             }
 
-            var message = unwrapInboundIn(data)
+            let message = unwrapInboundIn(data)
             let remoteAddr = context.channel.remoteAddrString
 
             var metaDict: [String: String] = [:]
@@ -82,7 +82,7 @@ internal extension LGNS {
 
             let future = resolver(
                 message,
-                LGNCore.RequestInfo(
+                LGNCore.Context(
                     remoteAddr: remoteAddr,
                     clientAddr: metaDict["ip"] ?? remoteAddr,
                     clientID: metaDict["cid"],

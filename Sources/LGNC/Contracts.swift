@@ -6,7 +6,7 @@ import NIO
 public typealias Meta = LGNC.Entity.Meta
 
 public protocol SomeContract {
-    typealias Closure = (Entity, LGNCore.RequestInfo) -> Future<(response: Entity, meta: Meta)>
+    typealias Closure = (Entity, LGNCore.Context) -> Future<(response: Entity, meta: Meta)>
 
     static var URI: String { get }
     static var transports: [LGNCore.Transport] { get }
@@ -18,7 +18,7 @@ public protocol SomeContract {
 
     static func invoke(
         with dict: Entita.Dict,
-        requestInfo: LGNCore.RequestInfo
+        context: LGNCore.Context
     ) -> Future<(response: Entity, meta: Meta)>
 }
 
@@ -59,10 +59,10 @@ public protocol Contract: SomeContract {
     associatedtype Response: ContractEntity
     associatedtype ParentService: Service
 
-    typealias FutureClosureWithMeta = (Request, LGNCore.RequestInfo) -> Future<(response: Response, meta: Meta)>
-    typealias FutureClosure = (Request, LGNCore.RequestInfo) -> Future<Response>
-    typealias NonFutureClosureWithMeta = (Request, LGNCore.RequestInfo) throws -> (response: Response, meta: Meta)
-    typealias NonFutureClosure = (Request, LGNCore.RequestInfo) throws -> Response
+    typealias FutureClosureWithMeta = (Request, LGNCore.Context) -> Future<(response: Response, meta: Meta)>
+    typealias FutureClosure = (Request, LGNCore.Context) -> Future<Response>
+    typealias NonFutureClosureWithMeta = (Request, LGNCore.Context) throws -> (response: Response, meta: Meta)
+    typealias NonFutureClosure = (Request, LGNCore.Context) throws -> Response
 
     static func guarantee(_ guaranteeClosure: @escaping Self.FutureClosure)
     static func guarantee(_ guaranteeClosure: @escaping Self.FutureClosureWithMeta)
@@ -95,26 +95,26 @@ public extension Contract {
     }
 
     static func normalize(guaranteeClosure: @escaping Self.FutureClosureWithMeta) -> Self.Closure {
-        return { normalizedRequest, requestInfo in
-            return guaranteeClosure(normalizedRequest as! Request, requestInfo)
+        return { normalizedRequest, context in
+            return guaranteeClosure(normalizedRequest as! Request, context)
                 .map { (response: $0.response as Entity, meta: $0.meta) }
         }
     }
 
     static func normalize(guaranteeClosure: @escaping Self.FutureClosure) -> Self.Closure {
-        return { normalizedRequest, requestInfo in
-            return guaranteeClosure(normalizedRequest as! Request, requestInfo)
+        return { normalizedRequest, context in
+            return guaranteeClosure(normalizedRequest as! Request, context)
                 .map { (response: $0 as Entity, meta: [:]) }
         }
     }
 
     static func normalize(guaranteeClosure: @escaping Self.NonFutureClosureWithMeta) -> Self.Closure {
         return self.normalize(
-            guaranteeClosure: { (request, requestInfo) -> Future<(response: Response, meta: Meta)> in
-                let promise: Promise<(response: Response, meta: Meta)> = requestInfo.eventLoop.makePromise()
+            guaranteeClosure: { (request, context) -> Future<(response: Response, meta: Meta)> in
+                let promise: Promise<(response: Response, meta: Meta)> = context.eventLoop.makePromise()
 
                 do {
-                    promise.succeed(try guaranteeClosure(request, requestInfo))
+                    promise.succeed(try guaranteeClosure(request, context))
                 }
                 catch {
                     promise.fail(error)
@@ -126,18 +126,18 @@ public extension Contract {
     }
 
     static func normalize(guaranteeClosure: @escaping Self.NonFutureClosure) -> Self.Closure {
-        return self.normalize(guaranteeClosure: { (request, requestInfo) -> (response: Response, meta: Meta) in
-            return try (response: guaranteeClosure(request, requestInfo), meta: [:])
+        return self.normalize(guaranteeClosure: { (request, context) -> (response: Response, meta: Meta) in
+            return try (response: guaranteeClosure(request, context), meta: [:])
         })
     }
 
     /// Not to be used directly
     static func invoke(
         with dict: Entita.Dict,
-        requestInfo: LGNCore.RequestInfo
+        context: LGNCore.Context
     ) -> Future<(response: Entity, meta: Meta)> {
         guard let guaranteeClosure = self.guaranteeClosure else {
-            return requestInfo.eventLoop.makeFailedFuture(
+            return context.eventLoop.makeFailedFuture(
                 LGNC.E.ControllerError(
                     "No guarantee closure for contract '\(self.URI)'"
                 )
@@ -145,8 +145,8 @@ public extension Contract {
         }
 
         return Request
-            .initWithValidation(from: dict, requestInfo: requestInfo)
-            .flatMap { guaranteeClosure($0 as Entity, requestInfo) }
+            .initWithValidation(from: dict, context: context)
+            .flatMap { guaranteeClosure($0 as Entity, context) }
             .map { (response: $0.response as Entity, meta: $0.meta) }
     }
 }

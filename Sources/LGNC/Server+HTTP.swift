@@ -24,7 +24,7 @@ public extension Service {
             readTimeout: readTimeout,
             writeTimeout: writeTimeout
         ) { (request: LGNC.HTTP.Request) in
-            let requestInfo = LGNCore.RequestInfo(
+            let context = LGNCore.Context(
                 remoteAddr: request.remoteAddr,
                 clientAddr: request.remoteAddr,
                 userAgent: request.headers["User-Agent"].first ?? "",
@@ -37,7 +37,7 @@ public extension Service {
                 transport: .HTTP,
                 eventLoop: request.eventLoop
             )
-            requestInfo.logger.debug("Serving request at HTTP URI '\(request.URI)'")
+            context.logger.debug("Serving request at HTTP URI '\(request.URI)'")
             do {
                 let payload: Entita.Dict
                 switch request.contentType {
@@ -48,17 +48,17 @@ public extension Service {
                 return self.executeContract(
                     URI: request.URI,
                     dict: payload,
-                    requestInfo: requestInfo
+                    context: context
                 ).map {
                     let body: Bytes
                     let headers: [(name: String, value: String)] = [
-                        ("Content-Language", requestInfo.locale.rawValue)
+                        ("Content-Language", context.locale.rawValue)
                     ]
 
                     do {
                         body = try $0.getDictionary().pack(to: request.contentType)
                     } catch {
-                        requestInfo.logger.critical("Could not pack entity to \(request.contentType): \(error)")
+                        context.logger.critical("Could not pack entity to \(request.contentType): \(error)")
                         body = "500 Internal Server Error".bytes
                     }
 

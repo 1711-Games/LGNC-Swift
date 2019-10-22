@@ -28,8 +28,8 @@ public extension LGNS {
         public func request(
             at address: LGNCore.Address,
             with message: LGNP.Message
-        ) -> Future<(LGNP.Message, LGNCore.RequestInfo)> {
-            let resultPromise: Promise<(LGNP.Message, LGNCore.RequestInfo)> = eventLoopGroup.next().makePromise()
+        ) -> Future<(LGNP.Message, LGNCore.Context)> {
+            let resultPromise: Promise<(LGNP.Message, LGNCore.Context)> = eventLoopGroup.next().makePromise()
 
             let connectProfiler = LGNCore.Profiler.begin()
 
@@ -40,8 +40,8 @@ public extension LGNS {
                     channel.pipeline.addHandlers(
                         IdleStateHandler(readTimeout: self.readTimeout, writeTimeout: self.writeTimeout, allTimeout: self.readTimeout),
                         LGNS.LGNPCoder(cryptor: self.cryptor, requiredBitmask: self.controlBitmask, validateRequiredBitmask: false),
-                        LGNS.ClientHandler(promise: resultPromise) { message, requestInfo in
-                            resultPromise.succeed((message, requestInfo))
+                        LGNS.ClientHandler(promise: resultPromise) { message, context in
+                            resultPromise.succeed((message, context))
                             channel.close(promise: nil)
                             return self.eventLoopGroup.next().makeSucceededFuture(nil)
                         }
@@ -71,7 +71,7 @@ public extension LGNS {
             at address: LGNCore.Address,
             with message: LGNP.Message,
             on eventLoop: EventLoop
-        ) -> Future<(LGNP.Message, LGNCore.RequestInfo)> {
+        ) -> Future<(LGNP.Message, LGNCore.Context)> {
             return self
                 .request(at: address, with: message)
                 .hop(to: eventLoop)

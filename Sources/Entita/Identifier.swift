@@ -1,6 +1,6 @@
 public typealias _ID = Identifier
 
-// There is a reason why this is not done via Foundation UUID - these ids may not be exactly in guid format
+/// There is a reason why this is not done via Foundation UUID - our ids might not be exactly in guid format
 
 public struct Identifier {
     private var value: String
@@ -27,12 +27,4 @@ extension Identifier: CustomStringConvertible {
     }
 }
 
-extension Identifier: Hashable {
-//    public var hashValue: Int {
-//        return get().hash
-//    }
-//
-//    public static func == (lhs: Identifier, rhs: Identifier) -> Bool {
-//        return lhs.get() == rhs.get()
-//    }
-}
+extension Identifier: Hashable {}

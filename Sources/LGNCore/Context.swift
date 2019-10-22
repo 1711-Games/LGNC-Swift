@@ -8,7 +8,7 @@ public extension LGNCore {
         // case LGNSS, HTTPS // once, maybe
     }
 
-    struct RequestInfo {
+    struct Context {
         public let remoteAddr: String
         public let clientAddr: String
         public let clientID: String?
@@ -41,7 +41,7 @@ public extension LGNCore {
             self.transport = transport
             self.eventLoop = eventLoop
 
-            self.logger = Logging.Logger(label: "LGNCore.RequestInfo")
+            self.logger = Logging.Logger(label: "LGNCore.Context")
             self.logger[metadataKey: "requestID"] = "\(self.uuid.string)"
         }
 
@@ -54,8 +54,8 @@ public extension LGNCore {
             uuid: UUID? = nil,
             isSecure: Bool? = nil,
             transport: Transport? = nil
-        ) -> RequestInfo {
-            return RequestInfo(
+        ) -> Context {
+            return Context(
                 remoteAddr: remoteAddr ?? self.remoteAddr,
                 clientAddr: clientAddr ?? self.clientAddr,
                 clientID: clientID ?? self.clientID,

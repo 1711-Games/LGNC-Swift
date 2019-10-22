@@ -5,4 +5,5 @@ public struct Entita {
     ///
     /// `false` by default
     public static var KEY_DICTIONARIES_ENABLED = false
+    public static let DEFAULT_ID_LABEL = "ID"
 }

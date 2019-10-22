@@ -32,7 +32,7 @@ public extension Service {
                 return self.executeContract(
                     URI: request.URI,
                     dict: try request.unpackPayload(),
-                    requestInfo: info
+                    context: info
                 ).map {
                     do {
                         return request.getLikeThis(

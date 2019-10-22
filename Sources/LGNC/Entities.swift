@@ -5,7 +5,7 @@ import LGNS
 public extension Contracts {}
 
 public protocol ContractEntity: Entity {
-    static func initWithValidation(from dictionary: Entita.Dict, requestInfo: LGNCore.RequestInfo) -> Future<Self>
+    static func initWithValidation(from dictionary: Entita.Dict, context: LGNCore.Context) -> Future<Self>
 }
 
 public extension ContractEntity {
@@ -30,9 +30,9 @@ public extension ContractEntity {
 
     static func reduce(
         validators: [String: Future<Void>],
-        requestInfo: LGNCore.RequestInfo
-        ) -> Future<[String: ValidatorError]> {
-        return Future.reduce(
+        context: LGNCore.Context
+    ) -> Future<[String: ValidatorError]> {
+        Future.reduce(
             into: [:],
             validators.map { (key: String, future: Future<Void>) -> Future<(String, ValidatorError?)> in
                 future
@@ -42,22 +42,22 @@ public extension ContractEntity {
                             return nil
                         }
                         if error is Entita.E {
-                            return Validation.Error.MissingValue(requestInfo.locale)
+                            return Validation.Error.MissingValue(context.locale)
                         }
                         if !(error is ValidatorError) {
-                            requestInfo.logger.error("Unknown error while parsing contract entity: \(error)")
-                            return Validation.Error.UnknownError(requestInfo.locale)
+                            context.logger.error("Unknown error while parsing contract entity: \(error)")
+                            return Validation.Error.UnknownError(context.locale)
                         }
                         return (error as! ValidatorError)
                     }
                     .map { maybeError in (key, maybeError) }
             },
-            on: requestInfo.eventLoop,
+            on: context.eventLoop,
             { carry, resultTuple in
                 if let error = resultTuple.1 {
                     carry[resultTuple.0] = error
                 }
-        }
+            }
         )
     }
 }
