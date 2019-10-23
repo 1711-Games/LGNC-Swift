@@ -7,7 +7,7 @@ public extension E2 {
 
 public extension E2.ID where Value == UUID {
     var string: String {
-        return value.uuidString
+        value.uuidString
     }
 
     init(_ uuid: UUID = UUID()) {

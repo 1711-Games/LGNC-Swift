@@ -16,7 +16,7 @@ final class EntitaTests: XCTestCase {
         }
 
         init(from dictionary: Entita.Dict) throws {
-            self.init(foo: "zaz") // todo
+            self.init(foo: "zaz")
         }
 
         func getDictionary() throws -> Entita.Dict {
@@ -34,6 +34,8 @@ final class EntitaTests: XCTestCase {
     }
 
     func testDictionaryEncodable() {
+        let _ = try! Convertible(from: [:])
+
         // encode<T: ScalarValue>(_ input: T) throws -> Any
         XCTAssertEqual(try! self.instanceEncodable.encode(Int(1)) as? Int, 1)
 

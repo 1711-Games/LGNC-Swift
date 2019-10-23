@@ -9,7 +9,7 @@ public extension E2 {
         internal let value: Value
 
         public var _bytes: Bytes {
-            return LGNCore.getBytes(value)
+            LGNCore.getBytes(value)
         }
 
         public init(value: Value) {

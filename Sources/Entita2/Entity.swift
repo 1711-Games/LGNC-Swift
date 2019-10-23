@@ -2,7 +2,7 @@ import LGNCore
 import NIO
 
 public extension E2 {
-    enum Format: String {
+    enum Format: String, CaseIterable {
         case JSON, MsgPack
     }
 }
@@ -34,7 +34,7 @@ public protocol E2Entity: Codable {
     static func begin(on eventLoop: EventLoop) -> Future<AnyTransaction?>
 
     static func load(by ID: Identifier, on eventLoop: EventLoop) -> Future<Self?>
-    static func loadBy(IDBytes: Bytes, within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Self?>
+    static func loadBy   (IDBytes: Bytes, within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Self?>
     static func loadByRaw(IDBytes: Bytes, within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Self?>
 
     func afterLoad0(on eventLoop: EventLoop) -> Future<Void>
@@ -53,19 +53,19 @@ public protocol E2Entity: Codable {
     func delete0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
 
     func beforeInsert0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
-    func beforeInsert(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
-    func afterInsert(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
-    func afterInsert0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func beforeInsert (within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func afterInsert  (within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func afterInsert0 (within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
 
-    func beforeSave0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
-    func beforeSave(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
-    func afterSave(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
-    func afterSave0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func beforeSave0  (within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func beforeSave   (within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func afterSave    (within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func afterSave0   (within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
 
     func beforeDelete0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
-    func beforeDelete(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
-    func afterDelete(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
-    func afterDelete0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func beforeDelete (within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func afterDelete  (within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
+    func afterDelete0 (within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void>
 
     func getID() -> Identifier
     func getIDAsKey() -> Bytes
@@ -76,10 +76,10 @@ public protocol E2Entity: Codable {
 
 public extension E2Entity {
     func getID() -> Identifier {
-        return self[keyPath: Self.IDKey]
+        self[keyPath: Self.IDKey]
     }
 
     static func begin(on eventLoop: EventLoop) -> Future<AnyTransaction?> {
-        return eventLoop.makeSucceededFuture(nil)
+        eventLoop.makeSucceededFuture(nil)
     }
 }
