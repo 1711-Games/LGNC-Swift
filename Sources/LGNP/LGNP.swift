@@ -1,77 +1,85 @@
 import Foundation
 import LGNCore
 
-public struct LGNP {
-    public static let UUID_SIZE = MemoryLayout<UUID>.size
+public enum LGNP {
     public static let PROTOCOL_HEADER = "LGNP"
+    public static let PROTOCOL_LABEL_BYTES = Bytes(Self.PROTOCOL_HEADER.utf8)
+    public static let UUID_SIZE = MemoryLayout<UUID>.size
     public static let ERROR_RESPONSE = LGNCore.getBytes("error")
-    public static let MESSAGE_HEADER_LENGTH: UInt8 = 0
-        + UInt8(LGNP.getProtocolLabelBytes().count) // LGNP
-        + UInt8(MemoryLayout<LGNP.Message.LengthType>.size) // Message length length
+    public static let MESSAGE_HEADER_LENGTH = UInt8(Self.PROTOCOL_LABEL_BYTES.count + Message.LENGTH_SIZE)
     public static let MINIMUM_MESSAGE_LENGTH: UInt8 = 0
-        + LGNP.MESSAGE_HEADER_LENGTH
-        + 16 // UUID
-        + 2 // control bitmask
+        + MESSAGE_HEADER_LENGTH
+        + UInt8(UUID_SIZE)
+        + Message.ControlBitmask.SIZE
         + 1 // minimum URI length
         + 1 // NUL byte after URI
 
-    public static var MAXIMUM_MESSAGE_LENGTH: LGNP.Message.LengthType = LGNP.Message.LengthType.max
+    public static var MAXIMUM_MESSAGE_LENGTH: Self.Message.Length = Self.Message.Length.max
     public static var verbose = false
 
     private static let logger = Logger(label: "LGNP")
 
-    private static func getProtocolLabelBytes() -> Bytes {
-        return Bytes(LGNP.PROTOCOL_HEADER.utf8)
-    }
-
+    /// Validates and parses message header if enough bytes is provided, otherwise `LGNP.E.TooShortHeaderToParse` error is thrown which
+    /// should be treated as `waiting for more bytes`. Returns expected message length.
     public static func validateMessageProtocolAndParseLength(
         from messageBytes: Bytes,
         checkMinimumMessageSize: Bool = true
-    ) throws -> LGNP.Message.LengthType {
-        let protocolHeaderBytes = getProtocolLabelBytes()
-        guard checkMinimumMessageSize == false || messageBytes.count >= LGNP.MINIMUM_MESSAGE_LENGTH else {
+    ) throws -> Self.Message.Length {
+        let protocolHeaderBytes = Self.PROTOCOL_LABEL_BYTES
+
+        guard checkMinimumMessageSize == false || messageBytes.count >= Self.MINIMUM_MESSAGE_LENGTH else {
             // this error is soft one because chunk might be too short to parse
             // all other errors are fatal though
             throw E.TooShortHeaderToParse(
-                "Message must be at least \(LGNP.MINIMUM_MESSAGE_LENGTH) bytes long (given \(messageBytes.count) bytes)"
+                "Message must be at least \(Self.MINIMUM_MESSAGE_LENGTH) bytes long (given \(messageBytes.count) bytes)"
             )
         }
+
         guard messageBytes.starts(with: protocolHeaderBytes) else {
             throw E.InvalidMessageProtocol("Message must begin with 'LGNP' ASCII string")
         }
+
         let from = protocolHeaderBytes.count
-        let to = protocolHeaderBytes.count + MemoryLayout<LGNP.Message.LengthType>.size
-        let length: LGNP.Message.LengthType = try messageBytes[from ..< to].cast()
+        let to = protocolHeaderBytes.count + MemoryLayout<Self.Message.Length>.size
+        let length: Self.Message.Length = try messageBytes[from ..< to].cast()
         guard length != 0 else {
             throw E.InvalidMessageLength("Message length cannot be zero")
         }
-        let minimumHeaderlessMessageLength = LGNP.MINIMUM_MESSAGE_LENGTH - LGNP.MESSAGE_HEADER_LENGTH
+
+        let minimumHeaderlessMessageLength = Self.MINIMUM_MESSAGE_LENGTH - Self.MESSAGE_HEADER_LENGTH
         guard length >= minimumHeaderlessMessageLength else {
             throw E.InvalidMessageLength(
                 "Message length cannot be less than \(minimumHeaderlessMessageLength) bytes (given \(length) bytes)"
             )
         }
+
         return length
     }
 
-    private static func getBodyFor(_ message: Message, with cryptor: Cryptor? = nil) throws -> Bytes {
+    ///
+    private static func getCompiledBodyFor(_ message: Message, with cryptor: Cryptor? = nil) throws -> Bytes {
         var rawBody = Bytes()
+
         rawBody.append(contentsOf: Bytes(message.URI.utf8))
         rawBody.addNul()
+
         if message.controlBitmask.contains(.containsMeta) {
             guard let meta = message.meta else {
                 throw E.MetaSectionNotFound
             }
-            rawBody.append(LGNCore.getBytes(Message.LengthType(meta.count)))
+            rawBody.append(LGNCore.getBytes(Message.Length(meta.count)))
             rawBody.append(meta)
         }
+
         rawBody.append(message.payload)
+
         if let signature = self.getSignature(body: rawBody, message: message) {
             if verbose {
                 print("[\(message.uuid.uuidString)] Compiled message signature \(signature.toHexString())")
             }
             rawBody.insert(contentsOf: signature, at: 0)
         }
+
         if message.controlBitmask.contains(.encrypted) {
             if let cryptor = cryptor {
                 do {
@@ -86,6 +94,7 @@ public struct LGNP {
                 print("[\(message.uuid.uuidString)] Encrypted bitmask provided, but no Cryptor")
             }
         }
+
         if message.controlBitmask.contains(.compressed) {
             throw E.CompressionFailed("Compression is temporarily unavailable (see README.md for details)")
 //            do {
@@ -97,11 +106,13 @@ public struct LGNP {
 //                throw E.CompressionFailed("Compression failed: \(error)")
 //            }
         }
-        if rawBody.count > LGNP.MAXIMUM_MESSAGE_LENGTH {
+
+        if rawBody.count > Self.MAXIMUM_MESSAGE_LENGTH {
             throw E.EncodingFailed(
-                "Maximum message size of \(LGNP.MAXIMUM_MESSAGE_LENGTH) bytes exceeded (given \(rawBody.count) bytes)"
+                "Maximum message size of \(Self.MAXIMUM_MESSAGE_LENGTH) bytes exceeded (given \(rawBody.count) bytes)"
             )
         }
+
         return rawBody
     }
 
@@ -112,32 +123,39 @@ public struct LGNP {
         uuid: UUID
     ) -> Bytes? {
         var saltedBody = body
+
         // TODO: order and algorithm of diffusing salt and uuid into saltedBody might be regulated
         // by private params in cryptor or smth
         saltedBody.append(salt)
         saltedBody.append(LGNCore.getBytes(uuid))
+
         var result: Bytes?
+
         if controlBitmask.contains(.signatureRIPEMD320) {
             if verbose {
                 print("RIPEMD320 not implemented yet")
             }
         }
+
         if controlBitmask.contains(.signatureRIPEMD160) {
             if verbose {
                 print("RIPEMD160 not implemented yet")
             }
         }
+
         if controlBitmask.contains(.signatureSHA256) {
             result = saltedBody.sha256()
         }
+
         if controlBitmask.contains(.signatureSHA1) {
             result = saltedBody.sha1()
         }
+
         return result
     }
 
     private static func getSignature(body: Bytes, message: Message) -> Bytes? {
-        return getSignature(
+        return self.getSignature(
             body: body,
             salt: message.salt,
             controlBitmask: message.controlBitmask,
@@ -147,20 +165,27 @@ public struct LGNP {
 
     public static func encode(message: Message, with cryptor: Cryptor? = nil) throws -> Bytes {
         var result = Bytes()
+
         if verbose {
             print("[\(message.uuid.uuidString)] Began encoding message")
         }
-        result.prepend(try getBodyFor(message, with: cryptor))
+
+        result.prepend(try self.getCompiledBodyFor(message, with: cryptor))
         result.prepend(LGNCore.getBytes(message.controlBitmask))
+
         if verbose {
             print("[\(message.uuid.uuidString)] Message control bitmask is \(message.controlBitmask.rawValue)")
         }
+
         result.prepend(LGNCore.getBytes(message.uuid))
+
         if verbose {
-            print("[\(message.uuid.uuidString)] Message headless size is \(Message.LengthType(result.count)) bytes")
+            print("[\(message.uuid.uuidString)] Message headless size is \(Message.Length(result.count)) bytes")
         }
-        result.prepend(LGNCore.getBytes(Message.LengthType(result.count) + Message.LengthType(MESSAGE_HEADER_LENGTH)))
-        result.prepend(getProtocolLabelBytes())
+
+        result.prepend(LGNCore.getBytes(Message.Length(result.count) + Message.Length(MESSAGE_HEADER_LENGTH)))
+        result.prepend(Self.PROTOCOL_LABEL_BYTES)
+
         return result
     }
 
@@ -170,18 +195,18 @@ public struct LGNP {
         salt: Bytes
     ) throws -> Message {
         /*
-         For some reason subscripting without casting LGNP.MESSAGE_HEADER_LENGTH (which is UInt8) to signed Int
+         For some reason subscripting without casting Self.MESSAGE_HEADER_LENGTH (which is UInt8) to signed Int
          fails with odd error message "Not enough bits to represent a signed value". Hopefully, it will at least be
          properly documented in future Swift versions (last tested on 4.1) or even fixed.
          */
         guard body != ERROR_RESPONSE else {
             throw E.InvalidMessage("Response message is error")
         }
-        guard body.count >= Int(LGNP.MESSAGE_HEADER_LENGTH) else {
+        guard body.count >= Int(Self.MESSAGE_HEADER_LENGTH) else {
             throw E.InvalidMessageProtocol("Message is not long enough: \(String(bytes: body, encoding: .ascii) ?? "unparseable")")
         }
         return try decode(
-            body: Bytes(body[Int(LGNP.MESSAGE_HEADER_LENGTH)...]),
+            body: Bytes(body[Int(Self.MESSAGE_HEADER_LENGTH)...]),
             length: try validateMessageProtocolAndParseLength(from: body),
             with: cryptor,
             salt: salt
@@ -190,16 +215,16 @@ public struct LGNP {
 
     public static func decode(
         body: Bytes,
-        length: Message.LengthType,
+        length: Message.Length,
         with cryptor: Cryptor? = nil,
         salt: Bytes
     ) throws -> Message {
-        let realLength = length - Message.LengthType(MESSAGE_HEADER_LENGTH)
+        let realLength = length - Message.Length(MESSAGE_HEADER_LENGTH)
         guard body.count >= realLength else {
             throw E.ParsingFailed("Body length must be \(realLength) bytes or more (given \(body.count) bytes)")
         }
-        let uuid = try UUID(bytes: Bytes(body[0 ..< LGNP.UUID_SIZE]))
-        var pos = LGNP.UUID_SIZE
+        let uuid = try UUID(bytes: Bytes(body[0 ..< Self.UUID_SIZE]))
+        var pos = Self.UUID_SIZE
         let nextPos = pos + MemoryLayout<Message.ControlBitmask.BitmaskType>.size
         let controlBitmask: Message.ControlBitmask = try Message.ControlBitmask(
             rawValue: body[pos ..< nextPos].cast()
@@ -261,13 +286,13 @@ public struct LGNP {
     }
 
     private static func extractMeta(from payload: inout Bytes) throws -> Bytes {
-        let sizeLength: Int = MemoryLayout<LGNP.Message.LengthType>.size
+        let sizeLength: Int = MemoryLayout<Self.Message.Length>.size
         let from = payload.startIndex
         let to = from + sizeLength
         guard payload.count > sizeLength else {
             throw E.MetaSectionNotFound
         }
-        let size: Message.LengthType = try payload[from ..< to].cast()
+        let size: Message.Length = try payload[from ..< to].cast()
         guard payload.count > size else {
             throw E.InvalidMessageLength("Meta section is not long enough (should be \(size), given \(payload.count)")
         }
@@ -307,20 +332,20 @@ public struct LGNP {
         let _length: Int = Int(signatureLength)
         let givenSignature = Bytes(payload[0 ..< _length])
         let result = Bytes(payload[_length...])
-        guard let etalonSignature = self.getSignature(
+        guard let sampleSignature = self.getSignature(
             body: Bytes(payload[_length...]),
             salt: salt,
             controlBitmask: controlBitmask,
             uuid: uuid
         ) else {
-            throw E.SignatureVerificationFailed("Could not generate etalon \(signatureName) signature")
+            throw E.SignatureVerificationFailed("Could not generate sample \(signatureName) signature")
         }
-        guard givenSignature == etalonSignature else {
-            self.logger.error("Given \(signatureName) signature (\(givenSignature.toHexString())) does not match with etalon (\(etalonSignature.toHexString()))")
+        guard givenSignature == sampleSignature else {
+            self.logger.error("Given \(signatureName) signature (\(givenSignature.toHexString())) does not match with sample (\(sampleSignature.toHexString()))")
             throw E.SignatureVerificationFailed("Signature mismatch")
         }
         if verbose {
-            print("Validated \(signatureName) signature \(etalonSignature.toHexString())")
+            print("Validated \(signatureName) signature \(sampleSignature.toHexString())")
         }
         return result
     }

@@ -3,9 +3,13 @@ import LGNCore
 
 public extension LGNP {
     struct Message {
-        public typealias LengthType = UInt32
+        public typealias Length = UInt32
+
+        internal static let LENGTH_SIZE = MemoryLayout<Self.Length>.size
 
         public struct ControlBitmask: OptionSet {
+            internal static let SIZE = UInt8(MemoryLayout<Self.BitmaskType>.size)
+
             public typealias BitmaskType = UInt16
 
             public let rawValue: BitmaskType

@@ -61,18 +61,17 @@ final class LGNCoreTests: XCTestCase {
         }
 
         // Local with missing key and empty local values
-        do {
-            let _ = try LGNCore.Config<ConfigKeys>(
-                env: .local,
-                rawConfig: [
-                    "FOO": "foo_val_raw"
-                ]
-            )
-            XCTFail("Should've thrown")
-        } catch LGNCore.Config<ConfigKeys>.E.MissingEntries(let missingKeys) {
+        XCTAssertThrowsError(try LGNCore.Config<ConfigKeys>(
+            env: .local,
+            rawConfig: [
+                "FOO": "foo_val_raw"
+            ]
+        )) { error in
+            guard case LGNCore.Config<ConfigKeys>.E.MissingEntries(let missingKeys) = error else {
+                XCTFail("Unexpected error: \(error)")
+                return
+            }
             XCTAssertEqual(missingKeys, [.BAR])
-        } catch {
-            XCTFail("Unexpected error: \(error)")
         }
 
         // Local with empty raw values
@@ -101,20 +100,19 @@ final class LGNCoreTests: XCTestCase {
         XCTAssertEqual(instance2[.BAR], "bar_val_raw")
 
         // Non-local with missing keys and filled local values
-        do {
-            let _ = try LGNCore.Config<ConfigKeys>(
-                env: .qa,
-                rawConfig: [:],
-                localConfig: [
-                    .FOO: "foo_val_local",
-                    .BAR: "bar_val_local",
-                ]
-            )
-            XCTFail("Should've thrown")
-        } catch LGNCore.Config<ConfigKeys>.E.MissingEntries(let missingKeys) {
+        XCTAssertThrowsError(try LGNCore.Config<ConfigKeys>(
+            env: .qa,
+            rawConfig: [:],
+            localConfig: [
+                .FOO: "foo_val_local",
+                .BAR: "bar_val_local",
+            ]
+        )) { error in
+            guard case LGNCore.Config<ConfigKeys>.E.MissingEntries(let missingKeys) = error else {
+                XCTFail("Unexpected error: \(error)")
+                return
+            }
             XCTAssertEqual(missingKeys, [.FOO, .BAR])
-        } catch {
-            XCTFail("Unexpected error: \(error)")
         }
 
         // Prod with filled local values
