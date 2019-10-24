@@ -70,7 +70,7 @@ extension LGNS.Client: LGNCClient {
                     URI: C.URI,
                     payload: payload,
                     meta: LGNC.getMeta(from: context, clientID: context.clientID),
-                    salt: self.cryptor.salt.bytes,
+                    salt: self.cryptor.salt,
                     controlBitmask: self.controlBitmask,
                     uuid: context.uuid
                 )

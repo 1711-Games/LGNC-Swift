@@ -20,7 +20,7 @@ public extension LGNS {
         private let cryptor: LGNP.Cryptor
         private var bootstrap: ServerBootstrap!
         private var channel: Channel!
-        lazy var saltBytes = Bytes(self.cryptor.salt.utf8)
+        private lazy var saltBytes = self.cryptor.salt
         private let logger = Logger(label: "LGNS.Server")
 
         public required init(

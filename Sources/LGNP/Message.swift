@@ -7,6 +7,7 @@ public extension LGNP {
 
         internal static let LENGTH_SIZE = MemoryLayout<Self.Length>.size
 
+        /// Represents a control bitmask containing boolean options of a parent `Message`
         public struct ControlBitmask: OptionSet {
             internal static let SIZE = UInt8(MemoryLayout<Self.BitmaskType>.size)
 
@@ -14,79 +15,126 @@ public extension LGNP {
 
             public let rawValue: BitmaskType
 
-            public static let defaultValues = ControlBitmask(rawValue: 0)
-            public static let keepAlive = ControlBitmask(rawValue: 1 << 0)
-            public static let encrypted = ControlBitmask(rawValue: 1 << 1)
-            public static let compressed = ControlBitmask(rawValue: 1 << 2)
-            public static let containsMeta = ControlBitmask(rawValue: 1 << 3)
-            public static let containsError = ControlBitmask(rawValue: 1 << 4)
-            public static let signatureSHA1 = ControlBitmask(rawValue: 1 << 5)
-            public static let signatureSHA256 = ControlBitmask(rawValue: 1 << 6)
-            public static let signatureRIPEMD160 = ControlBitmask(rawValue: 1 << 7) // temporary unavailable
-            public static let signatureRIPEMD320 = ControlBitmask(rawValue: 1 << 8) // temporary unavailable
-            // 9 reserved
-            // 10 reserved
-            public static let contentTypePlainText = ControlBitmask(rawValue: 1 << 11)
-            public static let contentTypeMsgPack = ControlBitmask(rawValue: 1 << 12)
-            public static let contentTypeJSON = ControlBitmask(rawValue: 1 << 13)
-            public static let contentTypeXML = ControlBitmask(rawValue: 1 << 14)
-            // 15 reserved
-            // 16 reserved
+            /// Empty bitmask with all options in `false`
+            public static let defaultValues        = ControlBitmask(rawValue: 0)
 
+            /// Indicates that connection should not be closed as more messages are to come
+            public static let keepAlive            = ControlBitmask(rawValue: 1 << 0)
+
+            /// Indicates that message is encrypted with AES
+            public static let encrypted            = ControlBitmask(rawValue: 1 << 1)
+
+            /// Indicates that message is compressed with GZIP
+            public static let compressed           = ControlBitmask(rawValue: 1 << 2)
+
+            /// Indicates that message contains meta section
+            public static let containsMeta         = ControlBitmask(rawValue: 1 << 3)
+
+            /// Indicates that message contains (or is an) error
+            public static let containsError        = ControlBitmask(rawValue: 1 << 4)
+
+            /// Indicates that message is signed with SHA1
+            public static let signatureSHA1        = ControlBitmask(rawValue: 1 << 5)
+
+            /// Indicates that message is signed with SHA256
+            public static let signatureSHA256      = ControlBitmask(rawValue: 1 << 6)
+
+            /// Indicates that message is signed with RIPEMD160 (currently unavailable)
+            public static let signatureRIPEMD160   = ControlBitmask(rawValue: 1 << 7)
+
+            /// Indicates that message is signed with RIPEMD320 (currently unavailable)
+            public static let signatureRIPEMD320   = ControlBitmask(rawValue: 1 << 8)
+
+            // reserved                                                            9
+            // reserved                                                            10
+
+            /// Indicates that message payload is plain text
+            public static let contentTypePlainText = ControlBitmask(rawValue: 1 << 11)
+
+            /// Indicates that message payload is in MsgPack format
+            public static let contentTypeMsgPack   = ControlBitmask(rawValue: 1 << 12)
+
+            /// Indicates that message payload is in JSON format
+            public static let contentTypeJSON      = ControlBitmask(rawValue: 1 << 13)
+
+            /// Indicates that message payload is in XML format
+            public static let contentTypeXML       = ControlBitmask(rawValue: 1 << 14)
+
+            // reserved                                                            15
+            // reserved                                                            16
+
+            /// Returns `true` if message is signed
             public var hasSignature: Bool {
                 return false
-                    || contains(.signatureSHA1)
-                    || contains(.signatureSHA256)
-                    || contains(.signatureRIPEMD160)
-                    || contains(.signatureRIPEMD320)
+                    || self.contains(.signatureSHA1)
+                    || self.contains(.signatureSHA256)
+                    || self.contains(.signatureRIPEMD160)
+                    || self.contains(.signatureRIPEMD320)
             }
 
+            /// Returns message's content type
             public var contentType: LGNCore.ContentType {
-                if contains(.contentTypeMsgPack) {
+                if self.contains(.contentTypeMsgPack) {
                     return .MsgPack
-                } else if contains(.contentTypeJSON) {
+                } else if self.contains(.contentTypeJSON) {
                     return .JSON
-                } else if contains(.contentTypeXML) {
+                } else if self.contains(.contentTypeXML) {
                     return .XML
-                } else if contains(.contentTypePlainText) {
+                } else if self.contains(.contentTypePlainText) {
                     return .PlainText
                 }
                 return .PlainText
             }
 
-            public init(rawValue: BitmaskType) {
+            @inlinable public init(rawValue: BitmaskType) {
                 self.rawValue = rawValue
             }
 
+            /// Returns bitmask bytes
             public var bytes: Bytes {
                 return LGNCore.getBytes(rawValue)
             }
         }
 
+        /// Message URI
         public let URI: String
+
+        /// Message payload body
         public let payload: Bytes
+
+        /// Message salt
         public let salt: Bytes
+
+        /// Message UUID
         public var uuid: UUID
+
+        /// Message control bitmask
         public var controlBitmask: ControlBitmask
+
+        /// Message meta section
         public var meta: Bytes? {
             didSet {
                 if meta != nil {
-                    controlBitmask.insert(.containsMeta)
+                    self.controlBitmask.insert(.containsMeta)
                 } else {
-                    controlBitmask.remove(.containsMeta)
+                    self.controlBitmask.remove(.containsMeta)
                 }
             }
         }
 
+        /// Returns message's content type
         public var contentType: LGNCore.ContentType {
-            return controlBitmask.contentType
+            return self.controlBitmask.contentType
         }
 
+        /// Returns `true` if message contains (or is an) error
         public var containsError: Bool {
-            return controlBitmask.contains(.containsError)
+            return self.controlBitmask.contains(.containsError)
         }
 
-        public var payloadAsString: String {
+        /// Returns message payload body as ASCII string.
+        /// This operation is potentially unsafe and should be used only for debug purposes
+        public var _payloadAsString: String {
             return String(bytes: payload, encoding: .ascii)!
         }
 
@@ -112,17 +160,19 @@ public extension LGNP {
             self.controlBitmask = _controlBitmask
         }
 
+        /// Returns a message with given error message in payload
         public static func error(message: String) -> Message {
             return self.init(URI: "", payload: message.bytes, salt: [])
         }
 
-        public func getLikeThis(
+        /// Copies current message replacing payload, control bitmask (optional), URI (optional) and UUID (optional)
+        public func copied(
             payload: Bytes,
             controlBitmask: Message.ControlBitmask? = nil,
             URI: String? = nil,
             uuid: UUID? = nil
         ) -> Message {
-            return Message(
+            Message(
                 URI: URI == nil ? self.URI : "",
                 payload: payload,
                 salt: salt,
@@ -135,6 +185,6 @@ public extension LGNP {
 
 extension LGNP.Message: Equatable {
     public static func == (lhs: LGNP.Message, rhs: LGNP.Message) -> Bool {
-        return lhs.payload == rhs.payload && lhs.uuid == rhs.uuid
+        lhs.payload == rhs.payload && lhs.uuid == rhs.uuid
     }
 }

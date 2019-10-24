@@ -32,7 +32,7 @@ internal extension LGNS {
         ) {
             self.cryptor = cryptor
             self.requiredBitmask = requiredBitmask
-            salt = Bytes(self.cryptor.salt.utf8)
+            self.salt = self.cryptor.salt
             self.validateRequiredBitmask = validateRequiredBitmask
         }
 
@@ -102,7 +102,7 @@ internal extension LGNS {
                             salt: salt
                         )
                         if message.containsError {
-                            context.fireErrorCaught(LGNS.E.LGNPError(message.payloadAsString))
+                            context.fireErrorCaught(LGNS.E.LGNPError(message._payloadAsString))
                             return
                         }
                         guard !validateRequiredBitmask || message.controlBitmask.isSuperset(of: requiredBitmask) else {

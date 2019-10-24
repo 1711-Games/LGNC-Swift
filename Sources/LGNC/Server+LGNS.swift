@@ -35,12 +35,12 @@ public extension Service {
                     context: info
                 ).map {
                     do {
-                        return request.getLikeThis(
+                        return request.copied(
                             payload: try $0.getDictionary().pack(to: request.contentType)
                         )
                     } catch {
                         info.logger.error("Could not pack entity to \(request.contentType): \(error)")
-                        return request.getLikeThis(payload: LGNP.ERROR_RESPONSE)
+                        return request.copied(payload: LGNP.ERROR_RESPONSE)
                     }
                 }
             } catch {
