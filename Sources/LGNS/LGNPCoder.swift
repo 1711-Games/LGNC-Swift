@@ -95,7 +95,7 @@ internal extension LGNS {
                     buffer = nil // clear buffer
                     // try to parse
                     do {
-                        let message = try LGNP.decode(
+                        let message = try LGNP.decodeHeadless(
                             body: bytes,
                             length: messageLength,
                             with: cryptor,

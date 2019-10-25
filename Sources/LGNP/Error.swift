@@ -7,7 +7,7 @@ public extension LGNP {
         case InvalidKey(String)
         case InvalidIV(String)
         case EncryptionFailed(String)
-        case DeencryptionFailed(String)
+        case DecryptionFailed(String)
         case CompressionFailed(String)
         case DecompressionFailed(String)
         case ParsingFailed(String)

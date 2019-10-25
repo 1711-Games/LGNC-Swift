@@ -137,6 +137,24 @@ final class LGNPTests: XCTestCase {
             message
         )
 
+        XCTAssertEqual(
+            try LGNP.decode(
+                body: LGNP.encode(
+                    message: LGNP.Message(
+                        URI: "foo",
+                        payload: [1,2,3],
+                        meta: [4,5,6],
+                        salt: cryptor.salt,
+                        controlBitmask: [.contentTypePlainText, .signatureSHA256],
+                        uuid: uuid
+                    ),
+                    with: cryptor
+                ),
+                salt: cryptor.salt
+            ),
+            message
+        )
+
         message.controlBitmask.insert(.encrypted)
         message.meta = nil
 
@@ -289,6 +307,228 @@ final class LGNPTests: XCTestCase {
                 return
             }
             guard message == "Compression is temporarily unavailable (see README.md for details)" else {
+                XCTFail("Unexpected message \(message)")
+                return
+            }
+        }
+    }
+
+    func testDecode() {
+        XCTAssertThrowsError(
+            try LGNP.decode(body: "error".bytes, salt: [])
+        ) { error in
+            guard case LGNP.E.InvalidMessage(let message) = error else {
+                XCTFail("Unexpected error \(error)")
+                return
+            }
+            guard message == "Response message is error" else {
+                XCTFail("Unexpected message \(message)")
+                return
+            }
+        }
+
+        XCTAssertThrowsError(
+            try LGNP.decode(body: [], salt: [])
+        ) { error in
+            guard case LGNP.E.InvalidMessageProtocol(let message) = error else {
+                XCTFail("Unexpected error \(error)")
+                return
+            }
+            guard message == "Message is not long enough: " else {
+                XCTFail("Unexpected message \(message)")
+                return
+            }
+        }
+
+        XCTAssertThrowsError(
+            try LGNP.decodeHeadless(body: [], length: 48, salt: [])
+        ) { error in
+            guard case LGNP.E.ParsingFailed(let message) = error else {
+                XCTFail("Unexpected error \(error)")
+                return
+            }
+            guard message == "Body length must be 40 bytes or more (given 0 bytes)" else {
+                XCTFail("Unexpected message \(message)")
+                return
+            }
+        }
+
+        // .compressed
+        XCTAssertThrowsError(
+            try LGNP.decode(
+                body: [
+                    76, 71, 78, 80, 30, 0, 0, 0, 184, 148, 23, 34, 12, 79, 74,
+                    224, 149, 247, 118, 235, 247, 85, 37, 162, 4, 0, 0, 1, 2, 3,
+                ],
+                salt: []
+            )
+        ) { error in
+            guard case LGNP.E.DecompressionFailed(let message) = error else {
+                XCTFail("Unexpected error \(error)")
+                return
+            }
+            guard message.starts(with: "Decompression temporarily unavailable") else {
+                XCTFail("Unexpected message \(message)")
+                return
+            }
+        }
+
+        let uuid = UUID()
+        let cryptor = try! LGNP.Cryptor(salt: "foobar", key: "1234567812345678")
+        let message = LGNP.Message(
+            URI: "foo",
+            payload: [1,2,3],
+            meta: [4,5,6],
+            salt: cryptor.salt,
+            controlBitmask: [.contentTypePlainText, .signatureSHA1, .encrypted],
+            uuid: uuid
+        )
+        let encoded = try! LGNP.encode(message: message, with: cryptor)
+        let headlessBody = Bytes(encoded[Int(LGNP.MESSAGE_HEADER_LENGTH)...])
+
+        XCTAssertThrowsError(
+            try LGNP.decodeHeadless(
+                body: headlessBody,
+                length: UInt32(encoded.count),
+                salt: cryptor.salt
+            )
+        ) { error in
+            guard case LGNP.E.DecryptionFailed(let message) = error else {
+                XCTFail("Unexpected error \(error)")
+                return
+            }
+            guard message.starts(with: "Cryptor not provided for decryption") else {
+                XCTFail("Unexpected message \(message)")
+                return
+            }
+        }
+
+        var corruptedHeadlessBody: Bytes = headlessBody
+        corruptedHeadlessBody.replaceSubrange(
+            30...,
+            with: [1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,]
+        )
+        XCTAssertThrowsError(
+            try LGNP.decodeHeadless(
+                body: corruptedHeadlessBody,
+                length: UInt32(encoded.count),
+                with: cryptor,
+                salt: cryptor.salt
+            )
+        ) { error in
+            guard case LGNP.E.DecryptionFailed(let message) = error else {
+                XCTFail("Unexpected error \(error)")
+                return
+            }
+            guard message.starts(with: "Could not decrypt payload: ") else {
+                XCTFail("Unexpected message \(message)")
+                return
+            }
+        }
+
+        let message2 = LGNP.Message(
+            URI: "AAAAAAAAAAAAA",
+            payload: [1,2,3],
+            salt: cryptor.salt,
+            controlBitmask: .defaultValues,
+            uuid: uuid
+        )
+        var encoded2 = try! LGNP.encode(message: message2)
+        encoded2[encoded2.count - 4] = 100
+        XCTAssertThrowsError(
+            try LGNP.decode(body: encoded2, salt: cryptor.salt)
+        ) { error in
+            guard case LGNP.E.URIParsingFailed(let message) = error else {
+                XCTFail("Unexpected error \(error)")
+                return
+            }
+            guard message.starts(with: "Could not find NUL byte dividing URI and payload body") else {
+                XCTFail("Unexpected message \(message)")
+                return
+            }
+        }
+    }
+
+    func testExtractMeta() {
+        var payload: Bytes = [3, 0, 0, 0, 100, 100]
+
+        XCTAssertThrowsError(
+            try LGNP.extractMeta(from: &payload)
+        ) { error in
+            guard case LGNP.E.InvalidMessageLength(let message) = error else {
+                XCTFail("Unexpected error \(error)")
+                return
+            }
+            guard message.starts(with: "Meta section is not long enough (should be 3, given 2)") else {
+                XCTFail("Unexpected message \(message)")
+                return
+            }
+        }
+
+        payload = [0,0]
+
+        XCTAssertThrowsError(
+            try LGNP.extractMeta(from: &payload)
+        ) { error in
+            guard case LGNP.E.MetaSectionNotFound = error else {
+                XCTFail("Unexpected error \(error)")
+                return
+            }
+        }
+    }
+
+    func testValidateSignatureAndGetBody() {
+        let uuid = UUID()
+
+        XCTAssertThrowsError(
+            try LGNP.validateSignatureAndGetBody(from: [], uuid: uuid, salt: [], controlBitmask: .signatureRIPEMD160)
+        ) { error in
+            guard case LGNP.E.SignatureVerificationFailed(let message) = error else {
+                XCTFail("Unexpected error \(error)")
+                return
+            }
+            guard message.starts(with: "RIPEMD160 not implemented yet") else {
+                XCTFail("Unexpected message \(message)")
+                return
+            }
+        }
+
+        XCTAssertThrowsError(
+            try LGNP.validateSignatureAndGetBody(from: [], uuid: uuid, salt: [], controlBitmask: .signatureRIPEMD320)
+        ) { error in
+            guard case LGNP.E.SignatureVerificationFailed(let message) = error else {
+                XCTFail("Unexpected error \(error)")
+                return
+            }
+            guard message.starts(with: "RIPEMD320 not implemented yet") else {
+                XCTFail("Unexpected message \(message)")
+                return
+            }
+        }
+
+        let cryptor = try! LGNP.Cryptor(salt: "foobar", key: "1234567812345678")
+        let message = LGNP.Message(
+            URI: "FFFF",
+            payload: [1,2,3],
+            meta: [4,5,6],
+            salt: cryptor.salt,
+            controlBitmask: .signatureSHA1,
+            uuid: uuid
+        )
+
+        XCTAssertThrowsError(
+            try LGNP.validateSignatureAndGetBody(
+                from: try LGNP.encode(message: message, with: cryptor),
+                uuid: uuid,
+                salt: [],
+                controlBitmask: message.controlBitmask
+            )
+        ) { error in
+            guard case LGNP.E.SignatureVerificationFailed(let message) = error else {
+                XCTFail("Unexpected error \(error)")
+                return
+            }
+            guard message.starts(with: "Signature mismatch") else {
                 XCTFail("Unexpected message \(message)")
                 return
             }

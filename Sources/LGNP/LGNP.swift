@@ -219,7 +219,7 @@ public enum LGNP {
             )
         }
 
-        return try decode(
+        return try self.decodeHeadless(
             body: Bytes(body[Int(Self.MESSAGE_HEADER_LENGTH)...]),
             length: try validateMessageProtocolAndParseLength(from: body),
             with: cryptor,
@@ -228,7 +228,7 @@ public enum LGNP {
     }
 
     /// Returns decoded message from given body, message length, optional cryptor and salt bytes
-    public static func decode(
+    public static func decodeHeadless(
         body: Bytes,
         length: Message.Length,
         with cryptor: Cryptor? = nil,
@@ -263,13 +263,13 @@ public enum LGNP {
 
         if controlBitmask.contains(.encrypted) {
             guard let cryptor = cryptor else {
-                throw E.DeencryptionFailed("Cryptor not provided for deencryption")
+                throw E.DecryptionFailed("Cryptor not provided for decryption")
             }
             do {
                 payload = try cryptor.decrypt(input: payload, uuid: uuid)
-                self.logger.debug("Deencrypted")
+                self.logger.debug("Decrypted")
             } catch {
-                throw E.DeencryptionFailed("Could not deencrypt payload: \(error)")
+                throw E.DecryptionFailed("Could not decrypt payload: \(error)")
             }
         }
 
@@ -308,7 +308,7 @@ public enum LGNP {
     }
 
     /// Returns meta section bytes from given payload
-    private static func extractMeta(from payload: inout Bytes) throws -> Bytes {
+    internal static func extractMeta(from payload: inout Bytes) throws -> Bytes {
         let sizeLength: Int = MemoryLayout<Self.Message.Length>.size
         let from = payload.startIndex
 
@@ -317,9 +317,11 @@ public enum LGNP {
         }
 
         let size: Message.Length = try payload[from ..< from + sizeLength].cast()
-        self.logger.debug("Meta section should be \(size) bytes long")
-        guard payload.count > size else {
-            throw E.InvalidMessageLength("Meta section is not long enough (should be \(size), given \(payload.count)")
+        self.logger.debug("Meta section should be \(size) bytes long (given \(payload.count - sizeLength))")
+        guard payload.count - sizeLength > size else {
+            throw E.InvalidMessageLength(
+                "Meta section is not long enough (should be \(size), given \(payload.count - sizeLength))"
+            )
         }
 
         let to = from + sizeLength + Int(size)
@@ -331,7 +333,7 @@ public enum LGNP {
     }
 
     /// Validates given signature and returns body from given payload, salt and control bitmask
-    private static func validateSignatureAndGetBody(
+    internal static func validateSignatureAndGetBody(
         from payload: Bytes,
         uuid: UUID,
         salt: Bytes,
@@ -368,25 +370,27 @@ public enum LGNP {
         let givenSignature = Bytes(payload[0 ..< _length])
         let result = Bytes(payload[_length...])
 
-        self.logger.debug("Sample signature source \(Bytes(payload[_length...])), uuid: \(uuid), salt \(salt), bitmask \(controlBitmask)")
-        guard let sampleSignature = self.getSignature(
+        self.logger.debug("""
+        Sample signature source \(Bytes(payload[_length...])), \
+        uuid: \(uuid), salt \(salt), bitmask \(controlBitmask)
+        """)
+        let sampleSignature = self.getSignature(
             body: Bytes(payload[_length...]),
             salt: salt,
             controlBitmask: controlBitmask,
             uuid: uuid
-        ) else {
-            throw E.SignatureVerificationFailed("Could not generate sample \(signatureName) signature")
-        }
+        )
+        let sampleSignatureHexString = sampleSignature?.toHexString() ?? "NULL"
 
         guard givenSignature == sampleSignature else {
             self.logger.error("""
             Given \(signatureName) signature (\(givenSignature.toHexString())) does not match \
-            with sample (\(sampleSignature.toHexString()))
+            with sample (\(sampleSignatureHexString))
             """)
             throw E.SignatureVerificationFailed("Signature mismatch")
         }
 
-        self.logger.debug("Validated \(signatureName) signature \(sampleSignature.toHexString())")
+        self.logger.debug("Validated \(signatureName) signature \(sampleSignatureHexString)")
 
         return result
     }
