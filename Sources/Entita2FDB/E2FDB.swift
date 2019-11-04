@@ -3,27 +3,26 @@ import FDB
 import LGNCore
 import NIO
 
-public protocol Entita2FDBEntity: E2Entity where Storage == FDB, Identifier: FDBTuplePackable {
+public protocol Entita2FDBEntity: E2Entity where Identifier: FDBTuplePackable, Storage: E2FDBStorage {
     /// Root application FDB Subspace — `/[root_subspace]`
     static var subspace: FDB.Subspace { get }
 }
 
 extension FDB.Transaction: AnyTransaction {}
+extension AnyFDBTransaction where Self: AnyTransaction {}
 
 public extension Entita2FDBEntity {
-    static var format: E2.Format {
-        return E2.format
-    }
-
-    static func begin(on eventLoop: EventLoop) -> Future<AnyTransaction?> {
-        return Self.storage.begin(on: eventLoop).map { $0 }
+    @inlinable static func begin(on eventLoop: EventLoop) -> Future<AnyTransaction?> {
+        return Self.storage
+            .begin(on: eventLoop)
+            .map { $0 as? AnyTransaction }
     }
 
     static func IDBytesAsKey(bytes: Bytes) -> Bytes {
         return Self.subspacePrefix[bytes].asFDBKey()
     }
 
-    static func IDAsKey(ID: Identifier) -> Bytes {
+    @inlinable static func IDAsKey(ID: Identifier) -> Bytes {
         return Self.subspacePrefix[ID].asFDBKey()
     }
 
@@ -51,7 +50,7 @@ public extension Entita2FDBEntity {
         by ID: Identifier,
         snapshot: Bool,
         on eventLoop: EventLoop
-    ) -> Future<(Self?, FDB.Transaction)> {
+    ) -> Future<(Self?, AnyFDBTransaction)> {
         return storage.withTransaction(on: eventLoop) { transaction in
             Self
                 .load(by: ID, within: transaction, snapshot: snapshot, on: eventLoop)
@@ -61,19 +60,27 @@ public extension Entita2FDBEntity {
 
     static func load(
         by ID: Identifier,
-        within transaction: FDB.Transaction,
+        within transaction: AnyFDBTransaction,
         snapshot: Bool,
         on eventLoop: EventLoop
     ) -> Future<Self?> {
-        return Self.storage
-            .load(by: Self.IDAsKey(ID: ID), within: transaction, snapshot: snapshot, on: eventLoop)
-            .map { maybeBytes in (maybeBytes, transaction) }
-            .flatMapThrowing { maybeBytes, transaction in
-                guard let bytes = maybeBytes else {
-                    return nil
-                }
-                return try Self(from: bytes, format: Self.format)
-            }
+        Self.load(by: ID, within: transaction as? AnyTransaction, snapshot: snapshot, on: eventLoop)
+    }
+
+    static func load(
+        by ID: Identifier,
+        within transaction: AnyTransaction?,
+        snapshot: Bool,
+        on eventLoop: EventLoop
+    ) -> Future<Self?> {
+        Self.storage
+            .load(
+                by: Self.IDAsKey(ID: ID),
+                within: transaction,
+                snapshot: snapshot,
+                on: eventLoop
+            )
+            .flatMap { self.afterLoadRoutines0(maybeBytes: $0, on: eventLoop) }
     }
 
     static func loadAll(

@@ -2,12 +2,13 @@ import LGNCore
 import NIO
 
 public extension E2Entity {
+    /// Defines whether full name for ID should be full or short
+    /// Defaults to `false` (hence short)
     static var fullEntityName: Bool {
         return false
     }
 
-    @inlinable
-    static var entityName: String {
+    @inlinable static var entityName: String {
         let components = String(reflecting: Self.self).components(separatedBy: ".")
         return components[
             (Self.fullEntityName ? 1 : components.count - 1)...
@@ -42,25 +43,9 @@ public extension E2Entity {
         within transaction: AnyTransaction? = nil,
         on eventLoop: EventLoop
     ) -> Future<Self?> {
-        Self.storage.load(
-            by: IDBytes,
-            within: transaction,
-            on: eventLoop
-        ).flatMapThrowing {
-            guard let bytes = $0 else {
-                return nil
-            }
-            return try Self(from: bytes, format: Self.format)
-        }
-        .flatMap { (maybeModel: Self?) -> Future<Self?> in
-            guard let model = maybeModel else {
-                return eventLoop.makeSucceededFuture(nil)
-            }
-            return model
-                .afterLoad0(on: eventLoop)
-                .flatMap { model.afterLoad(on: eventLoop) }
-                .map { _ in model }
-        }
+        Self.storage
+            .load(by: IDBytes, within: transaction, on: eventLoop)
+            .flatMap { self.afterLoadRoutines0(maybeBytes: $0, on: eventLoop) }
     }
 
     static func load(
@@ -68,6 +53,22 @@ public extension E2Entity {
         on eventLoop: EventLoop
     ) -> Future<Self?> {
         Self.loadByRaw(IDBytes: Self.IDAsKey(ID: ID), on: eventLoop)
+    }
+
+    static func afterLoadRoutines0(maybeBytes: Bytes?, on eventLoop: EventLoop) -> Future<Self?> {
+        guard let bytes = maybeBytes else {
+            return eventLoop.makeSucceededFuture(nil)
+        }
+        let entity: Self
+        do {
+            entity = try Self(from: bytes, format: Self.format)
+        } catch {
+            return eventLoop.makeFailedFuture(error)
+        }
+        return entity
+            .afterLoad0(on: eventLoop)
+            .flatMap { entity.afterLoad(on: eventLoop) }
+            .map { _ in entity }
     }
 
     func afterLoad0(on eventLoop: EventLoop) -> Future<Void> {

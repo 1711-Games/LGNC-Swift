@@ -1,5 +1,6 @@
-import LGNCore
+import NIO
 
+/// A very abstract transaction
 public protocol AnyTransaction {
-    func commit() -> Future<Void>
+    func commit() -> EventLoopFuture<Void>
 }

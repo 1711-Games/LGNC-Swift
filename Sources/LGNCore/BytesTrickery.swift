@@ -5,12 +5,12 @@ public typealias Bytes = [Byte]
 
 public extension LGNCore {
     /// Returns raw underlying byte array from given String
-    static func getBytes(_ string: String) -> Bytes {
+    @inlinable static func getBytes(_ string: String) -> Bytes {
         return Bytes(string.utf8)
     }
 
     /// Returns raw underlying byte array from given input
-    static func getBytes<Input>(_ input: Input) -> Bytes {
+    @inlinable static func getBytes<Input>(_ input: Input) -> Bytes {
         return withUnsafeBytes(of: input) { Bytes($0) }
     }
 }
@@ -49,12 +49,12 @@ public extension Array where Element == Byte {
     /// Converts current byte array to an ASCII String
     ///
     /// Caution! This operation is potentially unsafe, you should use it only for debug purposes.
-    var _string: String {
+    @inlinable var _string: String {
         return String(bytes: self, encoding: .ascii)!
     }
 
     /// Adds `NUL` octet (zero byte) to the end of current byte array
-    mutating func addNul() {
+    @inlinable mutating func addNul() {
         self.append(0)
     }
 
@@ -87,12 +87,12 @@ public extension Array where Element == Byte {
     }
 
     /// Appends a byte array to the end of current byte array
-    mutating func append(_ bytes: Bytes) {
+    @inlinable mutating func append(_ bytes: Bytes) {
         self.append(contentsOf: bytes)
     }
 
     /// Appends a byte array to the beginning of current byte array
-    mutating func prepend(_ bytes: Bytes) {
+    @inlinable mutating func prepend(_ bytes: Bytes) {
         self.insert(contentsOf: bytes, at: 0)
     }
 }
