@@ -177,7 +177,7 @@ final class LGNPTests: XCTestCase {
                 return
             }
             guard message == "Message must be at least 28 bytes long (given 0 bytes)" else {
-                XCTFail("Unexpected message \(message)")
+                XCTFail("Unexpected error message '\(message)'")
                 return
             }
         }
@@ -189,7 +189,7 @@ final class LGNPTests: XCTestCase {
                 return
             }
             guard message == "Message must be at least 28 bytes long (given 4 bytes)" else {
-                XCTFail("Unexpected message \(message)")
+                XCTFail("Unexpected error message '\(message)'")
                 return
             }
         }

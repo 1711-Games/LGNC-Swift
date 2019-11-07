@@ -21,19 +21,16 @@ import LGNCore
 /// - Sections starting from `URI` (including one) are hashed into `SIGN` (before encryption)
 /// - It's recommended to fail parsing if there is more data than stated in `SIZE` block
 public enum LGNP {
-    public static let PROTOCOL_HEADER = "LGNP"
-    public static let PROTOCOL_LABEL_BYTES = Bytes(Self.PROTOCOL_HEADER.utf8)
-    public static let UUID_SIZE = MemoryLayout<UUID>.size
     public static let ERROR_RESPONSE = LGNCore.getBytes("error")
-    public static let MESSAGE_HEADER_LENGTH = UInt8(Self.PROTOCOL_LABEL_BYTES.count + Message.LENGTH_SIZE)
-    public static let MINIMUM_MESSAGE_LENGTH: UInt8 = 0
+    public static let MESSAGE_HEADER_LENGTH = Message.Block.HEAD.size + Message.Block.SIZE.size
+    public static let MINIMUM_MESSAGE_LENGTH = 0
         + MESSAGE_HEADER_LENGTH
-        + UInt8(UUID_SIZE)
-        + Message.ControlBitmask.SIZE
+        + Message.Block.UUID.size
+        + Message.Block.BMSK.size
         + 1 // minimum URI length
         + 1 // NUL byte after URI
 
-    public static var MAXIMUM_MESSAGE_LENGTH: Self.Message.Length = Self.Message.Length.max
+    public static var MAXIMUM_MESSAGE_LENGTH: Message.Block.SIZE.TYPE = .max
 
     public static var logger = Logger(label: "LGNP")
 
@@ -42,8 +39,8 @@ public enum LGNP {
     public static func validateMessageProtocolAndParseLength(
         from messageBytes: Bytes,
         checkMinimumMessageSize: Bool = true
-    ) throws -> Self.Message.Length {
-        let protocolHeaderBytes = Self.PROTOCOL_LABEL_BYTES
+    ) throws -> Message.Block.SIZE.TYPE {
+        let protocolHeaderBytes = Message.Block.HEAD.bytes
 
         guard checkMinimumMessageSize == false || messageBytes.count >= Self.MINIMUM_MESSAGE_LENGTH else {
             // this error is soft one because chunk might be too short to parse
@@ -58,8 +55,8 @@ public enum LGNP {
         }
 
         let from = protocolHeaderBytes.count
-        let to = protocolHeaderBytes.count + MemoryLayout<Self.Message.Length>.size
-        let length: Self.Message.Length = try messageBytes[from ..< to].cast()
+        let to = protocolHeaderBytes.count + Message.Block.SIZE.size
+        let length: Message.Block.SIZE.TYPE = try messageBytes[from ..< to].cast()
         guard length != 0 else {
             throw E.InvalidMessageLength("Message length cannot be zero")
         }
@@ -76,26 +73,31 @@ public enum LGNP {
 
     /// Returns compiled body bytes for given `Message` and optional `Cryptor`
     internal static func getCompiledBodyFor(_ message: Message, with cryptor: Cryptor? = nil) throws -> Bytes {
-        var rawBody = Bytes()
+        var messageBlocks: [LGNPMessageBlock] = []
 
-        rawBody.append(contentsOf: Bytes(message.URI.utf8))
-        rawBody.addNul()
+        messageBlocks.append(Message.Block.URI(message.URI))
+        messageBlocks.append(Message.Block.NUL())
 
         if message.controlBitmask.contains(.containsMeta) {
             guard let meta = message.meta else {
                 throw E.MetaSectionNotFound
             }
-            rawBody.append(LGNCore.getBytes(Message.Length(meta.count)))
-            rawBody.append(meta)
+
+            messageBlocks.append(Message.Block.MSZE(sizeOfMeta: meta.count))
+            messageBlocks.append(Message.Block.META(metaSection: meta))
         }
 
-        rawBody.append(message.payload)
+        messageBlocks.append(Message.Block.BODY(message.payload))
+
+        var rawBody: Bytes = messageBlocks
+            .map { $0.bytes }
+            .flatMap { $0 }
 
         if let signature = self.getSignature(body: rawBody, message: message) {
             self.logger.debug(
                 "[\(message.uuid.uuidString)] Compiled message signature \(signature.toHexString()) (from body \(rawBody))"
             )
-            rawBody.insert(contentsOf: signature, at: 0)
+            rawBody.insert(contentsOf: Message.Block.SIGN(signature).bytes, at: 0)
         }
 
         if message.controlBitmask.contains(.encrypted) {
@@ -190,10 +192,10 @@ public enum LGNP {
 
         result.prepend(LGNCore.getBytes(message.uuid))
 
-        self.logger.debug("[\(message.uuid.uuidString)] Message headless size is \(Message.Length(result.count)) bytes")
+        self.logger.debug("[\(message.uuid.uuidString)] Message headless size is \(result.count) bytes")
 
-        result.prepend(LGNCore.getBytes(Message.Length(result.count) + Message.Length(MESSAGE_HEADER_LENGTH)))
-        result.prepend(Self.PROTOCOL_LABEL_BYTES)
+        result.prepend(Message.Block.SIZE(headlessSize: result.count).bytes)
+        result.prepend(Message.Block.HEAD.bytes)
 
         return result
     }
@@ -213,15 +215,15 @@ public enum LGNP {
             throw E.InvalidMessage("Response message is error")
         }
 
-        guard body.count >= Int(Self.MESSAGE_HEADER_LENGTH) else {
+        guard body.count >= Self.MESSAGE_HEADER_LENGTH else {
             throw E.InvalidMessageProtocol(
                 "Message is not long enough: \(String(bytes: body, encoding: .ascii) ?? "unparseable")"
             )
         }
 
         return try self.decodeHeadless(
-            body: Bytes(body[Int(Self.MESSAGE_HEADER_LENGTH)...]),
-            length: try validateMessageProtocolAndParseLength(from: body),
+            body: Bytes(body[Self.MESSAGE_HEADER_LENGTH...]),
+            length: try self.validateMessageProtocolAndParseLength(from: body),
             with: cryptor,
             salt: salt
         )
@@ -230,18 +232,18 @@ public enum LGNP {
     /// Returns decoded message from given body, message length, optional cryptor and salt bytes
     public static func decodeHeadless(
         body: Bytes,
-        length: Message.Length,
+        length: Message.Block.SIZE.TYPE,
         with cryptor: Cryptor? = nil,
         salt: Bytes
     ) throws -> Message {
-        let realLength = length - Message.Length(MESSAGE_HEADER_LENGTH)
+        let realLength = length - Message.Block.SIZE.TYPE(MESSAGE_HEADER_LENGTH)
         guard body.count >= realLength else {
             throw E.ParsingFailed("Body length must be \(realLength) bytes or more (given \(body.count) bytes)")
         }
 
-        let uuid = try UUID(bytes: Bytes(body[0 ..< Self.UUID_SIZE]))
-        var pos = Self.UUID_SIZE
-        let nextPos = pos + MemoryLayout<Message.ControlBitmask.BitmaskType>.size
+        let uuid = try UUID(bytes: Bytes(body[0 ..< Message.Block.UUID.size]))
+        var pos = Message.Block.UUID.size
+        let nextPos = pos + Message.Block.BMSK.size
 
         let controlBitmask: Message.ControlBitmask = try Message.ControlBitmask(
             rawValue: body[pos ..< nextPos].cast()
@@ -309,14 +311,14 @@ public enum LGNP {
 
     /// Returns meta section bytes from given payload
     internal static func extractMeta(from payload: inout Bytes) throws -> Bytes {
-        let sizeLength: Int = MemoryLayout<Self.Message.Length>.size
+        let sizeLength: Int = Message.Block.SIZE.size
         let from = payload.startIndex
 
         guard payload.count > sizeLength else {
             throw E.MetaSectionNotFound
         }
 
-        let size: Message.Length = try payload[from ..< from + sizeLength].cast()
+        let size: Message.Block.SIZE.TYPE = try payload[from ..< from + sizeLength].cast()
         self.logger.debug("Meta section should be \(size) bytes long (given \(payload.count - sizeLength))")
         guard payload.count - sizeLength > size else {
             throw E.InvalidMessageLength(

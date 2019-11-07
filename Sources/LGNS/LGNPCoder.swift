@@ -14,7 +14,7 @@ internal extension LGNS {
         typealias OutboundOut = ByteBuffer
 
         internal static let MINIMUM_MESSAGE_LENGTH = 1024
-        internal static let MESSAGE_HEADER_LENGTH = Int(LGNP.MESSAGE_HEADER_LENGTH)
+        internal static let MESSAGE_HEADER_LENGTH = LGNP.MESSAGE_HEADER_LENGTH
 
         private var buffer: ByteBuffer!
         private var messageLength: UInt32!
@@ -44,7 +44,7 @@ internal extension LGNS {
         }
 
         private func parseHeaderAndLength(from input: Bytes, _: ChannelHandlerContext) throws {
-            messageLength = UInt32(
+            self.messageLength = UInt32(
                 try LGNP.validateMessageProtocolAndParseLength(
                     from: input,
                     checkMinimumMessageSize: false
@@ -76,7 +76,7 @@ internal extension LGNS {
                     buffer.readableBytes >= LGNPCoder.MESSAGE_HEADER_LENGTH,
                     let headerBytes = self.buffer.readBytes(length: LGNPCoder.MESSAGE_HEADER_LENGTH) {
                     do {
-                        try parseHeaderAndLength(from: headerBytes, context)
+                        try self.parseHeaderAndLength(from: headerBytes, context)
                         state = .waitingForBody
                         fallthrough
                     } catch {
@@ -122,11 +122,11 @@ internal extension LGNS {
         public func write(context: ChannelHandlerContext, data: NIOAny, promise: PromiseVoid?) {
             do {
                 context.write(
-                    wrapOutboundOut(
+                    self.wrapOutboundOut(
                         context.channel.allocator.allocateBuffer(
                             from: try LGNP.encode(
-                                message: unwrapOutboundIn(data),
-                                with: cryptor
+                                message: self.unwrapOutboundIn(data),
+                                with: self.cryptor
                             )
                         )
                     ),

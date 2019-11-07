@@ -18,7 +18,6 @@ public extension LGNC.Client {
 }
 
 public protocol LGNCClient {
-    var logger: Logger { get }
     var eventLoopGroup: EventLoopGroup { get }
 
     func send<C: Contract>(
@@ -195,7 +194,7 @@ public extension Contract {
     ) -> Future<Self.Response> {
         let profiler = LGNCore.Profiler.begin()
         let eventLoop = maybeContext?.eventLoop ?? client.eventLoopGroup.next()
-        let logger = maybeContext?.logger ?? client.logger
+        let logger = maybeContext?.logger ?? LGNC.logger
         let transport = Self.preferredTransport
 
         let context = LGNC.Client.getRequestContext(

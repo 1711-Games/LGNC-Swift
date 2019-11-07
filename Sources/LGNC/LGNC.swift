@@ -5,13 +5,13 @@ import LGNP
 import LGNS
 import NIO
 
-public struct LGNC {
+public enum LGNC {
     public static let VERSION = "0.1.0a"
 
     public static let ID_KEY = "a"
     public static let GLOBAL_ERROR_KEY = "_"
 
-    private static let logger = Logger(label: "LGNC.Internal")
+    public static var logger = Logger(label: "LGNC")
 
     /// Allows service startup without all contracts guaranteed.
     ///

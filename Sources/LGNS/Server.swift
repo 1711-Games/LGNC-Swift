@@ -13,6 +13,8 @@ public extension LGNS {
     class Server: Shutdownable {
         public typealias BindTo = LGNCore.Address
 
+        public static var logger: Logger = Logger(label: "LGNS.Server")
+
         private let requiredBitmask: LGNP.Message.ControlBitmask
         private let readTimeout: TimeAmount
         private let writeTimeout: TimeAmount
@@ -21,7 +23,6 @@ public extension LGNS {
         private var bootstrap: ServerBootstrap!
         private var channel: Channel!
         private lazy var saltBytes = self.cryptor.salt
-        private let logger = Logger(label: "LGNS.Server")
 
         public required init(
             cryptor: LGNP.Cryptor,
@@ -59,9 +60,9 @@ public extension LGNS {
         }
 
         public func shutdown(promise: PromiseVoid) {
-            self.logger.info("LGNS Server: shutting down")
+            Self.logger.info("LGNS Server: shutting down")
             self.channel.close(promise: promise)
-            self.logger.info("LGNS Server: goodbye")
+            Self.logger.info("LGNS Server: goodbye")
         }
 
         public func serve(at target: BindTo, promise: PromiseVoid? = nil) throws {

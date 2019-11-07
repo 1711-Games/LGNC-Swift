@@ -4,10 +4,11 @@ import NIO
 
 public extension LGNS {
     class Client {
+        public static var logger = Logger(label: "LGNS.Client")
+
         public let controlBitmask: LGNP.Message.ControlBitmask
         public let eventLoopGroup: EventLoopGroup
         public let cryptor: LGNP.Cryptor
-        public var logger = Logger(label: "LGNS.Client")
         private let readTimeout: TimeAmount
         private let writeTimeout: TimeAmount
 
@@ -60,7 +61,7 @@ public extension LGNS {
                 case .failure(_): resultString = "failed"
                 }
 
-                self.logger.debug(
+                Self.logger.debug(
                     "Connection to \(address) \(resultString) in \(connectProfiler.end().rounded(toPlaces: 4))s"
                 )
             }

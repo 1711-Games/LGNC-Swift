@@ -22,12 +22,13 @@ public extension ArraySlice where Element == Byte {
     /// It fails only when memory layout size differs from current byte array size, and it's more of a sanity check
     /// rather than safety check. Unpacked structure might be malformed, and you wouldn't know until you use it for the
     /// first time.
-    @inlinable func cast<R>() throws -> R {
+    @inlinable func cast<R>(file: StaticString = #file, line: UInt = #line) throws -> R {
         guard MemoryLayout<R>.size == self.count else {
             throw LGNCore.E.CastError(
                 """
-                Memory layout size for result type '\(R.self)' (\(MemoryLayout<R>.size) bytes) does
-                not match with given byte array length (\(self.count) bytes)
+                Memory layout size for result type '\(R.self)' (\(MemoryLayout<R>.size) bytes) does \
+                not match with given byte array length (\(self.count) bytes: \(self)) \
+                @ \(file):\(line)
                 """
             )
         }
@@ -64,12 +65,13 @@ public extension Array where Element == Byte {
     /// It fails only when memory layout size differs from current byte array size, and it's more of a sanity check
     /// rather than safety check. Unpacked structure might be malformed, and you wouldn't know until you use it for the
     /// first time.
-    @inlinable func cast<R>() throws -> R {
+    @inlinable func cast<R>(file: StaticString = #file, line: UInt = #line) throws -> R {
         guard MemoryLayout<R>.size == self.count else {
             throw LGNCore.E.CastError(
                 """
-                Memory layout size for result type '\(R.self)' (\(MemoryLayout<R>.size) bytes) does\
-                not match with given byte array length (\(self.count) bytes)
+                Memory layout size for result type '\(R.self)' (\(MemoryLayout<R>.size) bytes) does \
+                not match with given byte array length (\(self.count) bytes: \(self)) \
+                @ \(file):\(line)
                 """
             )
         }

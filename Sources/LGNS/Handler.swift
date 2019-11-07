@@ -9,7 +9,6 @@ internal extension LGNS {
         public typealias OutboundOut = LGNP.Message
 
         fileprivate var handlerType: StaticString = ""
-        private let logger = Logger(label: "LGNS.BaseHandler")
 
         private static let META_SECTION_BYTES: Bytes = [0, 255]
         private static let EOL: Byte = 10
@@ -29,7 +28,7 @@ internal extension LGNS {
             self.resolver = resolver
         }
 
-        internal func sendError(to context: ChannelHandlerContext, error: LGNS.E) {
+        internal func sendError(to context: ChannelHandlerContext, error: ErrorTupleConvertible) {
             print("FLUSHING ERROR TO CLIENT")
             print("\(#file):\(#line)")
             print(error)
@@ -39,7 +38,7 @@ internal extension LGNS {
                 wrapOutboundOut(
                     LGNP.Message(
                         URI: "",
-                        payload: error.description.bytes,
+                        payload: "\(error.tuple.code) \(error.tuple.message)".bytes,
                         salt: [],
                         controlBitmask: .containsError
                     )
@@ -60,7 +59,7 @@ internal extension LGNS {
                 profiler = LGNCore.Profiler.begin()
             }
 
-            let message = unwrapInboundIn(data)
+            let message = self.unwrapInboundIn(data)
             let remoteAddr = context.channel.remoteAddrString
 
             var metaDict: [String: String] = [:]
@@ -80,17 +79,33 @@ internal extension LGNS {
                 }
             }
 
-            let future = resolver(
+            let clientAddr: String = metaDict["ip"] ?? remoteAddr
+            let clientID: String? = metaDict["cid"]
+            let userAgent: String = metaDict["ua"] ?? "LGNS"
+            let locale = LGNCore.i18n.Locale(
+                maybeLocale: metaDict["lc"],
+                allowedLocales: LGNCore.i18n.translator.allowedLocales
+            )
+
+            if profiler != nil {
+                LGNS.logger.debug(
+                    """
+                    About to serve request at URI '\(message.URI)' \
+                    from remoteAddr \(remoteAddr) (clientAddr \(clientAddr)) by \
+                    clientID '\(clientID ?? "UNKNOWN")' (userAgent '\(userAgent)'), locale \(locale)
+                    """,
+                    metadata: ["uuid": "\(message.uuid)"]
+                )
+            }
+
+            let future = self.resolver(
                 message,
                 LGNCore.Context(
                     remoteAddr: remoteAddr,
-                    clientAddr: metaDict["ip"] ?? remoteAddr,
-                    clientID: metaDict["cid"],
-                    userAgent: metaDict["ua"] ?? "LGNS",
-                    locale: LGNCore.i18n.Locale(
-                        maybeLocale: metaDict["lc"],
-                        allowedLocales: LGNCore.i18n.translator.allowedLocales
-                    ),
+                    clientAddr: clientAddr,
+                    clientID: clientID,
+                    userAgent: userAgent,
+                    locale: locale,
                     uuid: message.uuid,
                     isSecure: message.controlBitmask.contains(.encrypted),
                     transport: .LGNS,
@@ -102,7 +117,12 @@ internal extension LGNS {
 
             if let profiler = profiler {
                 future.whenComplete { _ in
-                    self.logger.debug("[\(message.uuid.string)] LGNS \(type(of: self)) request '\(message.URI)' execution took \(profiler.end().rounded(toPlaces: 5)) s")
+                    LGNS.logger.debug("""
+                        LGNS \(type(of: self)) request '\(message.URI)' execution \
+                        took \(profiler.end().rounded(toPlaces: 5)) s
+                        """,
+                        metadata: ["uuid": "\(message.uuid)"]
+                    )
                 }
             }
 
@@ -122,17 +142,17 @@ internal extension LGNS {
         }
 
         // this must be overriden by ClientHandler and ServerHandler
-        fileprivate func handleError(context _: ChannelHandlerContext, error _: LGNS.E) {
+        fileprivate func handleError(context _: ChannelHandlerContext, error _: ErrorTupleConvertible) {
             // noop
         }
 
         func errorCaught(context: ChannelHandlerContext, error: Error) {
             dump("ERROR CAUGHT: \(error)")
-            if let error = error as? LGNS.E {
-                handleError(context: context, error: error)
+            if let error = error as? ErrorTupleConvertible {
+                self.handleError(context: context, error: error)
             } else {
                 print("Unknown error: \(error)")
-                handleError(context: context, error: LGNS.E.UnknownError("\(error)"))
+                self.handleError(context: context, error: LGNS.E.UnknownError("\(error)"))
             }
         }
     }
@@ -142,13 +162,13 @@ internal extension LGNS {
             return true
         }
 
-        fileprivate override func handleError(context: ChannelHandlerContext, error: LGNS.E) {
-            sendError(to: context, error: error)
+        fileprivate override func handleError(context: ChannelHandlerContext, error: ErrorTupleConvertible) {
+            self.sendError(to: context, error: error)
         }
     }
 
     class ClientHandler: BaseHandler {
-        fileprivate override func handleError(context: ChannelHandlerContext, error: LGNS.E) {
+        fileprivate override func handleError(context: ChannelHandlerContext, error: ErrorTupleConvertible) {
             context.fireErrorCaught(error)
             promise?.fail(error)
         }
