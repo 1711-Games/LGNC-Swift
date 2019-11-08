@@ -60,7 +60,7 @@ extension FDB: E2FDBStorage {
         if let transaction = anyTransaction as? AnyFDBTransaction {
             return eventLoop.makeSucceededFuture(transaction)
         } else {
-            E2.logger.notice("Beginning a new transaction")
+            E2.logger.debug("Beginning a new transaction")
             return self.begin(on: eventLoop)
         }
     }
