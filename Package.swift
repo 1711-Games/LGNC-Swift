@@ -26,11 +26,11 @@ let package = Package(
         .package(url: "https://github.com/kirilltitov/SwiftMsgPack.git", .upToNextMajor(from: "2.0.0")),
 
         // used by Entita2FDB
-        .package(url: "https://github.com/kirilltitov/FDBSwift.git", .branch("4.0.0-alpha-3")),
+        .package(url: "https://github.com/kirilltitov/FDBSwift.git", .exact("4.0.0-beta-2")),
 
         // used by LGNP
-        .package(url: "https://github.com/krzyzanowskim/CryptoSwift.git", .upToNextMajor(from: "0.9.0")),
-        .package(url: "https://github.com/1024jp/GzipSwift.git", .upToNextMajor(from: "4.0.0")),
+        .package(url: "https://github.com/krzyzanowskim/CryptoSwift.git", .upToNextMajor(from: "1.1.3")),
+        .package(url: "https://github.com/1024jp/GzipSwift.git", .upToNextMajor(from: "5.1.1")),
     ],
     targets: [
         .target(

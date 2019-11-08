@@ -244,5 +244,10 @@ final class Entita2FDBTests: XCTestCase {
 
     static var allTests = [
         ("testGeneric", testGeneric),
+        ("test_loadAllByIndex_loadAll", test_loadAllByIndex_loadAll),
+        ("testLoadWithTransaction", testLoadWithTransaction),
+        ("testExistsByIndex", testExistsByIndex),
+        ("testInvalidIndex", testInvalidIndex),
+        ("testDoesRelateToThis", testDoesRelateToThis),
     ]
 }

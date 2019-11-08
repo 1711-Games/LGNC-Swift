@@ -537,5 +537,12 @@ final class LGNPTests: XCTestCase {
 
     static var allTests = [
         ("testCryptor", testCryptor),
+        ("testMessage", testMessage),
+        ("testLGNP", testLGNP),
+        ("testValidateMessageProtocolAndParseLength", testValidateMessageProtocolAndParseLength),
+        ("testGetCompiledBodyFor", testGetCompiledBodyFor),
+        ("testDecode", testDecode),
+        ("testExtractMeta", testExtractMeta),
+        ("testValidateSignatureAndGetBody", testValidateSignatureAndGetBody),
     ]
 }

@@ -411,6 +411,16 @@ final class Entita2Tests: XCTestCase {
     }
 
     static var allTests = [
-        ("testEntity", testFormats),
+        ("testFormats", testFormats),
+        ("testMockBegin", testMockBegin),
+        ("testGetID", testGetID),
+        ("testIDBytes", testIDBytes),
+        ("testUUIDID", testUUIDID),
+        ("testEntityName", testEntityName),
+        ("testGetPackedSelf", testGetPackedSelf),
+        ("testLoad", testLoad),
+        ("testSave", testSave),
+        ("testInsert", testInsert),
+        ("testDelete", testDelete),
     ]
 }
