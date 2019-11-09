@@ -26,6 +26,19 @@ public extension LGNCore.ContentType {
 
         self = result
     }
+
+    var header: String {
+        let result: String
+
+        switch self {
+        case .PlainText: result = "text/plain"
+        case .XML: result = "application/xml"
+        case .JSON: result = "application/json"
+        case .MsgPack: result = "application/msgpack"
+        }
+
+        return result
+    }
 }
 
 public extension LGNC.HTTP {
@@ -343,7 +356,7 @@ internal extension LGNC.HTTP {
                 ]
                 future.whenSuccess { (body, additionalHeaders) in
                     self.buffer.writeBytes(body)
-                    headers["Content-Type"] = request.contentType.rawValue
+                    headers["Content-Type"] = request.contentType.header
 
                     for (name, value) in additionalHeaders {
                         headers[name] = value

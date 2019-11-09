@@ -13,6 +13,7 @@ public protocol LGNPMessageStaticBlock: LGNPMessageBlock {
 }
 
 extension LGNPMessageStaticBlock {
+    @inlinable
     public static var size: Int {
         MemoryLayout<TYPE>.size
     }
