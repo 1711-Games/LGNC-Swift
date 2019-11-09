@@ -60,7 +60,7 @@ public protocol Entita2FDBIndexedEntity: E2FDBEntity {
     static func loadByIndex(
         key: IndexKey,
         value: FDBTuplePackable,
-        within transaction: AnyTransaction?,
+        within transaction: AnyFDBTransaction?,
         on eventLoop: EventLoop
     ) -> Future<Self?>
 
@@ -69,7 +69,7 @@ public protocol Entita2FDBIndexedEntity: E2FDBEntity {
         key: IndexKey,
         value: FDBTuplePackable,
         limit: Int32,
-        within transaction: AnyTransaction?,
+        within transaction: AnyFDBTransaction?,
         snapshot: Bool,
         on eventLoop: EventLoop
     ) -> Future<[Self]>
@@ -129,7 +129,7 @@ public extension E2FDBIndexedEntity {
     private func createIndex(
         key: IndexKey,
         index: E2.Index<Self>,
-        within transaction: AnyTransaction?,
+        within transaction: AnyFDBTransaction?,
         on eventLoop: EventLoop
     ) -> Future<Void> {
         guard let value = self.getIndexValueFrom(index: index) else {
@@ -153,41 +153,53 @@ public extension E2FDBIndexedEntity {
         E2.logger.debug("Creating indices \(Self.indices.keys.map { $0.rawValue }) for entity '\(self.getID())'")
 
         return EventLoopFuture<Void>.andAllSucceed(
-            Self.indices.map { self.createIndex(key: $0.key, index: $0.value, within: transaction, on: eventLoop) },
+            Self.indices.map {
+                self.createIndex(key: $0.key, index: $0.value, within: transaction as? AnyFDBTransaction, on: eventLoop)
+            },
             on: eventLoop
         )
     }
 
-    func beforeDelete0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
-        Self
-            .load(by: self.getID(), within: transaction, snapshot: false, on: eventLoop)
-            .flatMapThrowing { maybeEntity in
-                guard let entity = maybeEntity else {
-                    throw E2.E.IndexError(
-                        "Could not delete entity '\(Self.entityName)' : '\(self.getID())': it might already be deleted"
-                    )
-                }
-                return entity
-            }
-            .flatMap { (entity: Self) in
-                EventLoopFuture<Void>.andAllSucceed(
-                    Self.indices.map { key, index in
-                        guard let value = entity.getIndexValueFrom(index: index) else {
-                            return eventLoop.makeSucceededFuture()
+    func beforeDelete0(within tr: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
+        Self.storage
+            .unwrapAnyTransactionOrBegin(tr as? AnyFDBTransaction, on: eventLoop)
+            .flatMap { (transaction: AnyFDBTransaction) -> Future<Void> in
+                Self
+                    .load(by: self.getID(), within: transaction, snapshot: false, on: eventLoop)
+                    .flatMapThrowing { maybeEntity in
+                        guard let entity = maybeEntity else {
+                            throw E2.E.IndexError(
+                                """
+                                Could not delete entity '\(Self.entityName)' : '\(self.getID())': \
+                                it might already be deleted
+                                """
+                            )
                         }
-                        return Self.storage
-                            .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
-                            .flatMap { $0.clear(key: self.getIndexKeyForIndex(index, key: key, value: value)) }
-                            .flatMap { $0.clear(key: self.getIndexIndexKeyForIndex(key: key, value: value)) }
-                            .map { _ in () }
-                    },
-                    on: eventLoop
-                )
+                        return entity
+                    }
+                    .flatMap { (entity: Self) in
+                        EventLoopFuture<Void>.andAllSucceed(
+                            Self.indices.map { key, index in
+                                guard let value = entity.getIndexValueFrom(index: index) else {
+                                    return eventLoop.makeSucceededFuture()
+                                }
+                                return eventLoop.makeSucceededFuture()
+                                    .flatMap { _ in
+                                        transaction.clear(key: self.getIndexKeyForIndex(index, key: key, value: value))
+                                    }
+                                    .flatMap { _ in
+                                        transaction.clear(key: self.getIndexIndexKeyForIndex(key: key, value: value))
+                                    }
+                                    .map { _ in () }
+                            },
+                            on: eventLoop
+                        )
+                    }
             }
     }
 
     /// Updates all indices (if updated) of current entity within an optional transaction
-    fileprivate func updateIndices(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
+    fileprivate func updateIndices(within transaction: AnyFDBTransaction?, on eventLoop: EventLoop) -> Future<Void> {
         return Self.storage
             .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
             .flatMap { $0.get(range: self.indexIndexSubspace.range) }
@@ -244,11 +256,11 @@ public extension E2FDBIndexedEntity {
 
                 return result
             }
-            .flatMap { self.afterInsert0(within: transaction, on: eventLoop) }
+            .flatMap { self.afterInsert0(within: transaction as? AnyTransaction, on: eventLoop) }
     }
 
     func afterSave0(within transaction: AnyTransaction?, on eventLoop: EventLoop) -> EventLoopFuture<Void> {
-        return self.updateIndices(within: transaction, on: eventLoop)
+        return self.updateIndices(within: transaction as? AnyFDBTransaction, on: eventLoop)
     }
 
     /// Returns true if given index `key` is defined in indices schema
@@ -265,7 +277,7 @@ public extension E2FDBIndexedEntity {
         key: IndexKey,
         value: FDBTuplePackable,
         limit: Int32 = 0,
-        within transaction: AnyTransaction? = nil,
+        within tr: AnyFDBTransaction? = nil,
         snapshot: Bool = false,
         on eventLoop: EventLoop
     ) -> Future<[Self]> {
@@ -274,9 +286,9 @@ public extension E2FDBIndexedEntity {
         }
 
         return Self.storage
-            .unwrapAnyTransactionOrBegin(transaction, on: eventLoop)
-            .flatMap { (tr: AnyFDBTransaction) -> EventLoopFuture<[Self]> in
-                return tr
+            .unwrapAnyTransactionOrBegin(tr, on: eventLoop)
+            .flatMap { (transaction: AnyFDBTransaction) -> EventLoopFuture<[Self]> in
+                return transaction
                     .get(
                         range: Self.getGenericIndexSubspaceForIndex(key: key, value: value).range,
                         limit: limit,
@@ -285,8 +297,8 @@ public extension E2FDBIndexedEntity {
                     .flatMap { (results: FDB.KeyValuesResult) -> Future<[Self]> in
                         EventLoopFuture<[Self]>.reduce(
                             into: [],
-                            results.records.map { row in
-                                Self.loadByRaw(IDBytes: row.value, within: tr as? AnyTransaction, on: eventLoop)
+                            results.records.map {
+                                Self.loadByRaw(IDBytes: $0.value, within: transaction as? AnyTransaction, on: eventLoop)
                             },
                             on: eventLoop
                         ) { carry, maybeResult in
@@ -301,7 +313,7 @@ public extension E2FDBIndexedEntity {
     static func loadByIndex(
         key: IndexKey,
         value: FDBTuplePackable,
-        within transaction: AnyTransaction? = nil,
+        within transaction: AnyFDBTransaction? = nil,
         on eventLoop: EventLoop
     ) -> Future<Self?> {
         guard Self.isValidIndex(key: key) else {
