@@ -2,10 +2,30 @@ import Foundation
 import NIO
 import NIOConcurrencyHelpers
 
+/// Any shutdownable service (most commonly, a server)
 public protocol Shutdownable: class {
+    /// A method which must eventually shutdown current service and complete provided promise with `Void` or an error
     func shutdown(promise: PromiseVoid)
 }
 
+/// Helper class for shutting down all working services after signals like `SIGINT`, `SIGTERM` etc.
+/// All new services (like `LGNS.Server`) are automatically registered in this class.
+///
+/// Recommended usage (put it in `main.swift`):
+/** ```
+let trap: @convention(c) (Int32) -> Void = { s in
+    print("Received signal \(s)")
+
+    /// `SignalObserver.fire` returns a `Future` which is succeded only when all serers are correctly down.
+    /// Shouldn't be afraid of blocking `wait()` and `try!` as there is nothing much to lose should we fail :)
+    _  = try! SignalObserver.fire(signal: s).wait()
+
+    print("Shutdown routines done")
+}
+
+signal(SIGINT, trap)
+signal(SIGTERM, trap)
+``` */
 public class SignalObserver {
     private struct Box {
         weak var value: Shutdownable?

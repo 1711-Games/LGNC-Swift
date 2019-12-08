@@ -88,8 +88,8 @@ public struct Match {
     public let captureGroups: [String]
 
     public init(baseString string: String, checkingResult: NSTextCheckingResult) {
-        matchedString = string.substringWithRange(checkingResult.range)
-        captureGroups = checkingResult.ranges.dropFirst().map { range in
+        self.matchedString = string.substringWithRange(checkingResult.range)
+        self.captureGroups = checkingResult.ranges.dropFirst().map { range in
             range.location == NSNotFound ? "" : string.substringWithRange(range)
         }
     }

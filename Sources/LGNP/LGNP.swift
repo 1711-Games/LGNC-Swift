@@ -11,7 +11,7 @@ import LGNCore
 /// - `BMSK` 2 bytes of control bitmask in LE `UInt16`
 /// - `SIGN` (optional, if stated in `BMSK`) Some number of bytes of signature (depends of algo), computed as `hash(URI + MSZE + META + BODY + SALT + UUID)`
 /// - `URI` Some number of bytes of URI and a terminating `NUL` byte
-/// - `MSZE` (optional, if stated in `BMSK`) 4 bytes of meta section size in little-endian `UInt32`
+/// - `MSZE` (optional, if stated in `BMSK`) 4 bytes of meta section size in LE `UInt32`
 /// - `META` (optional, if stated in `BMSK`) Some number of bytes of meta section (size is specified in `MSZE`)
 /// - `BODY` Some number of payload bytes (size is `SIZE` minus size of every preceeding block, e.g. `BODY` is the rest of message trimming after `SIZE`)
 ///

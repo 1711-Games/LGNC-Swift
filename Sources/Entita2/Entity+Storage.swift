@@ -203,6 +203,7 @@ public extension E2Entity {
             .flatMap { transaction in self.insert(commit: commit, within: transaction, on: eventLoop) }
     }
 
+    /// Inserts current entity to DB within given transaction
     func insert(commit: Bool = true, within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
         eventLoop.makeSucceededFuture()
             .flatMap { self.beforeInsert0(within: transaction, on: eventLoop) }
@@ -213,6 +214,7 @@ public extension E2Entity {
             .flatMap { self.commit0IfNecessary(commit: commit, transaction: transaction, on: eventLoop) }
     }
 
+    /// Saves current entity to DB within given transaction
     func save(commit: Bool = true, on eventLoop: EventLoop) -> Future<Void> {
         self.save(by: nil, commit: commit, on: eventLoop)
     }
@@ -223,6 +225,7 @@ public extension E2Entity {
             .flatMap { transaction in self.save(by: ID, commit: commit, within: transaction, on: eventLoop) }
     }
 
+    /// Saves current entity to DB within given transaction
     func save(
         by ID: Identifier? = nil,
         commit: Bool = true,
@@ -244,6 +247,7 @@ public extension E2Entity {
             .flatMap { transaction in self.delete(commit: commit, within: transaction, on: eventLoop) }
     }
 
+    /// Deletes current entity from DB within given transaction
     func delete(commit: Bool = true, within transaction: AnyTransaction?, on eventLoop: EventLoop) -> Future<Void> {
         eventLoop.makeSucceededFuture()
             .flatMap { self.beforeDelete0(within: transaction, on: eventLoop) }

@@ -134,12 +134,8 @@ public extension LGNC.Client {
 
             return eventLoop
                 .makeSucceededFuture(())
-                .flatMap {
-                    C.ParentService.executeContract(URI: C.URI, dict: dict, context: context)
-                }
-                .flatMapThrowing { response in
-                    (try response.getDictionary(), context)
-                }
+                .flatMap { C.ParentService.executeContract(URI: C.URI, dict: dict, context: context) }
+                .flatMapThrowing { response in (try response.getDictionary(), context) }
         }
     }
 }

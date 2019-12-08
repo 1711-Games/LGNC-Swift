@@ -14,11 +14,11 @@ public extension Service {
         writeTimeout: TimeAmount = .seconds(1),
         promise: PromiseVoid? = nil
     ) throws {
-        try validate(transport: .LGNS)
+        try self.validate(transport: .LGNS)
 
-        let address = try unwrapAddress(from: target)
+        let address = try self.unwrapAddress(from: target)
 
-        try checkGuarantees()
+        try self.checkGuarantees()
 
         let server = LGNS.Server(
             cryptor: cryptor,

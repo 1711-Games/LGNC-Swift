@@ -13,11 +13,11 @@ public extension Service {
         writeTimeout: TimeAmount = .minutes(1),
         promise: PromiseVoid? = nil
     ) throws {
-        try validate(transport: .HTTP)
+        try self.validate(transport: .HTTP)
 
-        let address = try unwrapAddress(from: target)
+        let address = try self.unwrapAddress(from: target)
 
-        try checkGuarantees()
+        try self.checkGuarantees()
 
         let server = LGNC.HTTP.Server(
             eventLoopGroup: eventLoopGroup,

@@ -1,7 +1,8 @@
 public typealias _ID = Identifier
 
+/// A struct representing any identifier
+///
 /// There is a reason why this is not done via Foundation UUID - our ids might not be exactly in guid format
-
 public struct Identifier {
     private var value: String
     public var string: String {

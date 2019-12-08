@@ -38,7 +38,7 @@ public extension LGNS {
             self.writeTimeout = writeTimeout
             self.eventLoopGroup = eventLoopGroup
 
-            bootstrap = ServerBootstrap(group: self.eventLoopGroup)
+            self.bootstrap = ServerBootstrap(group: self.eventLoopGroup)
                 .serverChannelOption(ChannelOptions.backlog, value: 256)
                 .serverChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
 

@@ -6,7 +6,7 @@ import LGNS
 import NIO
 
 public enum LGNC {
-    public static let VERSION = "0.1.0a"
+    public static let VERSION = "0.9.0"
 
     public static let ID_KEY = "a"
     public static let GLOBAL_ERROR_KEY = "_"
@@ -19,9 +19,10 @@ public enum LGNC {
     public static var ALLOW_INCOMPLETE_GUARANTEE = false {
         didSet {
             if self.ALLOW_INCOMPLETE_GUARANTEE == true {
-                self.logger.warning(
-                    "LGNC.ALLOW_INCOMPLETE_GUARANTEE is set to true, service may bootstrap without all contracts guaranteed"
-                )
+                self.logger.warning("""
+                    LGNC.ALLOW_INCOMPLETE_GUARANTEE is set to true,\
+                    service may bootstrap without all contracts guaranteed
+                """)
             }
         }
     }
@@ -32,18 +33,22 @@ public enum LGNC {
     public static var ALLOW_ALL_TRANSPORTS = false {
         didSet {
             if self.ALLOW_ALL_TRANSPORTS == true {
-                self.logger.warning("LGNC.ALLOW_ALL_TRANSPORTS is set to true, all contracts may be executed via HTTP")
+                self.logger.warning("""
+                    LGNC.ALLOW_ALL_TRANSPORTS is set to true, all contracts may be executed via HTTP,\
+                    which is not secure and is recommended only for development purposes
+                """)
             }
         }
     }
 
+    /// Translator, by default `LGNCore.i18n.DummyTranslator` which doesn't actually translate anything, but only proxy input
     public static var translator: LGNCTranslator = LGNCore.i18n.DummyTranslator()
 
     public static func getMeta(
         from context: LGNCore.Context?,
         clientID: String? = nil
     ) -> Bytes? {
-        return self.getMeta(
+        self.getMeta(
             clientAddr: context?.clientAddr,
             clientID: clientID,
             userAgent: context?.userAgent,
@@ -136,9 +141,16 @@ public extension LGNC.Entity {
         }
 
         public convenience init(from multipleErrors: [String: [ClientError]]) {
-            self.init(from: Dictionary(uniqueKeysWithValues: multipleErrors.map { key, errors in
-                (key, errors.map { LGNC.Entity.Error(from: $0.getErrorTuple()) })
-            }))
+            self.init(
+                from: Dictionary(
+                    uniqueKeysWithValues: multipleErrors.map { key, errors in
+                        (
+                            key,
+                            errors.map { LGNC.Entity.Error(from: $0.getErrorTuple()) }
+                        )
+                    }
+                )
+            )
         }
 
         public convenience init(from entity: Entity, meta: Meta = [:], success: Bool = true) {

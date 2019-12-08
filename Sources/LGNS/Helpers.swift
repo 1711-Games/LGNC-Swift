@@ -44,41 +44,32 @@ public extension ServerBootstrap {
     }
 }
 
-internal func stringIpToInt(_ input: String) -> UInt32 {
-    var result: UInt32 = 0
-    var i = 0
-    for part in input.split(separator: ".") {
-        result |= UInt32(part)! << ((3 - i) * 8)
-        i += 1
-    }
-    return result
-}
 
 internal extension ByteBufferAllocator {
     func allocateBuffer(from string: String, encoding _: String.Encoding = .utf8) -> ByteBuffer {
         let bytes = Bytes(string.utf8)
-        var buf = buffer(capacity: bytes.count)
+        var buf = self.buffer(capacity: bytes.count)
         buf.writeBytes(bytes)
         return buf
     }
 
     func allocateBuffer(from bytes: Bytes) -> ByteBuffer {
-        var buf = buffer(capacity: bytes.count)
+        var buf = self.buffer(capacity: bytes.count)
         buf.writeBytes(bytes)
         return buf
     }
 
     func buffer(capacity: UInt8) -> ByteBuffer {
-        return buffer(capacity: Int(capacity))
+        return self.buffer(capacity: Int(capacity))
     }
 }
 
 internal extension ByteBuffer {
     mutating func readAllBytes() -> Bytes? {
-        return readBytes(length: readableBytes)
+        return self.readBytes(length: readableBytes)
     }
 
     mutating func readBytes<T: UnsignedInteger>(length: T) -> Bytes? {
-        return readBytes(length: Int(length))
+        return self.readBytes(length: Int(length))
     }
 }

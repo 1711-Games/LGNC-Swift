@@ -41,10 +41,7 @@ public extension LGNC {
         String: (
             transports: [LGNCore.Transport: Int],
             contracts: [
-                String: (
-                    visibility: ContractVisibility,
-                    transports: [LGNCore.Transport]
-                )
+                String: (visibility: ContractVisibility, transports: [LGNCore.Transport])
             ]
         )
     ]
@@ -52,7 +49,7 @@ public extension LGNC {
 
 public extension Service {
     static func checkContractsCallbacks() -> Bool {
-        return self.guaranteeStatuses
+        self.guaranteeStatuses
             .filter { URI, status in
                 if status == true {
                     return false
@@ -83,6 +80,8 @@ public extension Service {
                 .invoke(with: dict, context: context)
                 .map { response, meta in LGNC.Entity.Result(from: response, meta: meta) }
                 .recover { error in
+                    let _result: LGNC.Entity.Result
+
                     do {
                         switch error {
                         case let LGNC.E.UnpackError(error):
@@ -99,11 +98,13 @@ public extension Service {
                             throw LGNC.E.MultipleError([LGNC.GLOBAL_ERROR_KEY: [LGNC.ContractError.InternalError]])
                         }
                     } catch let LGNC.E.MultipleError(errors) {
-                        return LGNC.Entity.Result(from: errors)
+                        _result = LGNC.Entity.Result(from: errors)
                     } catch {
                         context.logger.critical("Extremely unexpected error: \(error)")
-                        return LGNC.Entity.Result.internalError
+                        _result = LGNC.Entity.Result.internalError
                     }
+
+                    return _result
                 }
         } catch let error as LGNC.ContractError {
             result = context.eventLoop.makeSucceededFuture(
@@ -132,7 +133,9 @@ public extension Service {
 
     internal static func checkGuarantees() throws {
         if LGNC.ALLOW_INCOMPLETE_GUARANTEE == false && Self.checkContractsCallbacks() == false {
-            throw LGNC.E.serverError("Not all contracts are guaranteed (to disable set LGNC.ALLOW_PART_GUARANTEE to true)")
+            throw LGNC.E.serverError(
+                "Not all contracts are guaranteed (to disable set LGNC.ALLOW_PART_GUARANTEE to true)"
+            )
         }
     }
 
