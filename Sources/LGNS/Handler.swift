@@ -94,7 +94,7 @@ internal extension LGNS {
                     from remoteAddr \(remoteAddr) (clientAddr \(clientAddr)) by \
                     clientID '\(clientID ?? "UNKNOWN")' (userAgent '\(userAgent)'), locale \(locale)
                     """,
-                    metadata: ["uuid": "\(message.uuid)"]
+                    metadata: ["requestID": "\(message.uuid)"]
                 )
             }
 
@@ -121,7 +121,7 @@ internal extension LGNS {
                         LGNS \(type(of: self)) request '\(message.URI)' execution \
                         took \(profiler.end().rounded(toPlaces: 5)) s
                         """,
-                        metadata: ["uuid": "\(message.uuid)"]
+                        metadata: ["requestID": "\(message.uuid)"]
                     )
                 }
             }

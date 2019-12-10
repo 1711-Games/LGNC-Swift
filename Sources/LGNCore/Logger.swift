@@ -86,12 +86,17 @@ public extension LGNCore {
         ) {
             let date = Date().description.replacingOccurrences(of: " +0000", with: "")
             let _file = file.split(separator: "/").last!
-            let preamble = "\(date) @ \(_file.replacingOccurrences(of: ".swift", with: "")):\(line)"
+            let _label: String = (self.logLevel <= .debug ? label : nil).map { " [\($0)]" } ?? ""
+            let at = "\(date) @ \(_file.replacingOccurrences(of: ".swift", with: "")):\(line)"
+            var preamble = "[\(at)]\(_label) [\(level)]"
 
             var prettyMetadata: String? = nil
             var mergedMetadata = self.metadata
             if let metadata = metadata {
                 mergedMetadata = self.metadata.merging(metadata, uniquingKeysWith: { _, new in new })
+            }
+            if let requestID = mergedMetadata.removeValue(forKey: "requestID") {
+                preamble.append(contentsOf: " [\(requestID)]")
             }
             if !mergedMetadata.isEmpty {
                 do {
@@ -105,9 +110,7 @@ public extension LGNCore {
                 }
             }
 
-            let _label: String = (self.logLevel <= .debug ? label : nil).map { " [\($0)]" } ?? ""
-
-            print("[\(preamble)]\(_label) [\(level)]: \(message)\(prettyMetadata.map { " (metadata: \($0))" } ?? "")")
+            print("\(preamble): \(message)\(prettyMetadata.map { " (metadata: \($0))" } ?? "")")
         }
 
         private func prettify(_ metadata: Logging.Logger.Metadata) -> String? {

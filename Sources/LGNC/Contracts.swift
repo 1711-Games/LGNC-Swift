@@ -5,7 +5,7 @@ import NIO
 
 public typealias Meta = LGNC.Entity.Meta
 
-public protocol SomeContract {
+public protocol AnyContract {
     typealias Closure = (Entity, LGNCore.Context) -> Future<(response: Entity, meta: Meta)>
 
     static var URI: String { get }
@@ -22,10 +22,10 @@ public protocol SomeContract {
     ) -> Future<(response: Entity, meta: Meta)>
 }
 
-public extension SomeContract {
+public extension AnyContract {
     static var preferredTransport: LGNCore.Transport {
         guard self.transports.count > 0 else {
-            Logger(label: "LGNC.SomeContract").error("Empty transports in contract \(Self.self), returning .LGNS")
+            LGNC.logger.error("Empty transports in contract \(Self.self), returning .LGNS")
             return .LGNS
         }
 
@@ -38,7 +38,7 @@ public extension SomeContract {
 
     static var preferredContentType: LGNCore.ContentType {
         guard self.transports.count > 0 else {
-            Logger(label: "LGNC.SomeContract").error("Empty content-types in contract \(Self.self), returning .JSON")
+            LGNC.logger.error("Empty content-types in contract \(Self.self), returning .JSON")
             return .JSON
         }
 
@@ -54,21 +54,20 @@ public extension SomeContract {
     }
 }
 
-public protocol Contract: SomeContract {
+public protocol Contract: AnyContract {
     associatedtype Request: ContractEntity
     associatedtype Response: ContractEntity
     associatedtype ParentService: Service
 
-    typealias FutureClosureWithMeta = (Request, LGNCore.Context) -> Future<(response: Response, meta: Meta)>
-    typealias FutureClosure = (Request, LGNCore.Context) -> Future<Response>
+    typealias FutureClosureWithMeta =    (Request, LGNCore.Context) -> Future<(response: Response, meta: Meta)>
+    typealias FutureClosure =            (Request, LGNCore.Context) -> Future<           Response>
     typealias NonFutureClosureWithMeta = (Request, LGNCore.Context) throws -> (response: Response, meta: Meta)
-    typealias NonFutureClosure = (Request, LGNCore.Context) throws -> Response
+    typealias NonFutureClosure =         (Request, LGNCore.Context) throws ->            Response
 
     static func guarantee(_ guaranteeClosure: @escaping Self.FutureClosure)
     static func guarantee(_ guaranteeClosure: @escaping Self.FutureClosureWithMeta)
     static func guarantee(_ guaranteeClosure: @escaping Self.NonFutureClosure)
     static func guarantee(_ guaranteeClosure: @escaping Self.NonFutureClosureWithMeta)
-
 }
 
 public enum ContractVisibility {

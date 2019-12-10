@@ -159,7 +159,7 @@ public extension LGNC.Client {
             on eventLoop: EventLoop,
             context maybeContext: LGNCore.Context?
         ) -> Future<(Entita.Dict, LGNCore.Context)> {
-            let transport = transport ?? C.preferredTransport
+            let transport: LGNCore.Transport = transport ?? C.preferredTransport
 
             let client: LGNCClient
 
@@ -190,7 +190,6 @@ public extension Contract {
     ) -> Future<Self.Response> {
         let profiler = LGNCore.Profiler.begin()
         let eventLoop = maybeContext?.eventLoop ?? client.eventLoopGroup.next()
-        let logger = maybeContext?.logger ?? LGNC.logger
         let transport = Self.preferredTransport
 
         let context = LGNC.Client.getRequestContext(
@@ -236,7 +235,7 @@ public extension Contract {
             return resultEntity as! Self.Response
         }.flatMapErrorThrowing {
             if let error = $0 as? NIOConnectionError {
-                logger.error("""
+                context.logger.error("""
                     Could not execute contract '\(self)' on service '\(self.ParentService.self)' \
                     @ \(address): \(error)
                 """)
@@ -246,7 +245,7 @@ public extension Contract {
         }
 
         result.whenComplete { _ in
-            logger.info(
+            context.logger.info(
                 "Remote contract 'lgns://\(address)/\(URI)' execution took \(profiler.end().rounded(toPlaces: 4))s"
             )
         }

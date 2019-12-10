@@ -1,0 +1,7 @@
+Fields:
+  ID: Int
+  name: String
+  description:
+    Type: String
+    DefaultNull: True
+  price: Float

@@ -9,6 +9,7 @@ public protocol ContractEntity: Entity {
 }
 
 public extension ContractEntity {
+    @inlinable
     static func reduce(
         validators: [String: Future<Void>],
         context: LGNCore.Context

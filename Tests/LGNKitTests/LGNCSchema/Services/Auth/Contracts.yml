@@ -1,0 +1,10 @@
+Authenticate:
+  Transports: [ LGNS, HTTP ]
+  Request:
+    Fields:
+      token: String
+  Response:
+    Fields:
+      IDUser:
+        Type: Int
+        DefaultNull: True

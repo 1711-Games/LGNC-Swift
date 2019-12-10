@@ -64,6 +64,14 @@ public extension LGNP.Message {
                 || self.contains(.signatureRIPEMD320)
         }
 
+        /// Returns `false` if message doesn't have a content type set (or if plain text is set)
+        public var hasContentType: Bool {
+            return false
+                || self.contains(.contentTypeXML)
+                || self.contains(.contentTypeJSON)
+                || self.contains(.contentTypeMsgPack)
+        }
+
         /// Returns message's content type
         @inlinable public var contentType: LGNCore.ContentType {
             let result: LGNCore.ContentType

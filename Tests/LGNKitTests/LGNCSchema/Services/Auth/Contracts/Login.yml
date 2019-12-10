@@ -1,0 +1,16 @@
+Transports: [ HTTP, LGNS ]
+Request:
+  Fields:
+    email:
+      Type: String
+      MissingMessage: Please enter email
+    password:
+      Type: String
+      MissingMessage: Please enter password
+    recaptchaToken:
+      Type: String
+      DefaultNull: True
+Response:
+  Fields:
+    token: String
+    userID: Int

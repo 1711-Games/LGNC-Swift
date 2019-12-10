@@ -1,0 +1,3 @@
+EmailValidator: &EmailValidator
+  Expression: ^.+@.+\\..+$
+  Message: Invalid email format

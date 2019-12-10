@@ -7,7 +7,7 @@ import NIO
 
 public protocol Service {
     static var keyDictionary: [String: Entita.Dict] { get }
-    static var contractMap: [String: SomeContract.Type] { get }
+    static var contractMap: [String: AnyContract.Type] { get }
     static var transports: [LGNCore.Transport: Int] { get }
     static var info: [String: String] { get }
     static var guaranteeStatuses: [String: Bool] { get set }
@@ -157,6 +157,12 @@ public extension Service {
     internal static func validate(transport: LGNCore.Transport) throws {
         guard let _ = self.transports[transport] else {
             throw LGNC.E.ServiceError("Transport \(transport) not supported for service")
+        }
+    }
+
+    internal static func validate(controlBitmask: LGNP.Message.ControlBitmask) throws {
+        guard controlBitmask.hasContentType else {
+            throw LGNC.E.ServiceError("No content type set in control bitmask (or plain text set)")
         }
     }
 }

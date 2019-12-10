@@ -319,7 +319,7 @@ public enum LGNP {
         }
 
         let size: Message.Block.SIZE.TYPE = try payload[from ..< from + sizeLength].cast()
-        self.logger.debug("Meta section should be \(size) bytes long (given \(payload.count - sizeLength))")
+        self.logger.debug("Meta section size is \(size) bytes")
         guard payload.count - sizeLength > size else {
             throw E.InvalidMessageLength(
                 "Meta section is not long enough (should be \(size), given \(payload.count - sizeLength))"

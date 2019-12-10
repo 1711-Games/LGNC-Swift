@@ -15,6 +15,7 @@ public extension Service {
         promise: PromiseVoid? = nil
     ) throws {
         try self.validate(transport: .LGNS)
+        try self.validate(controlBitmask: requiredBitmask)
 
         let address = try self.unwrapAddress(from: target)
 

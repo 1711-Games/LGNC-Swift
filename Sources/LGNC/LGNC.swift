@@ -88,7 +88,7 @@ public enum LGNC {
 }
 
 public extension LGNC {
-    struct Entity {}
+    enum Entity {}
 }
 
 public extension LGNC.Entity {
@@ -106,7 +106,7 @@ public extension LGNC.Entity {
         }
 
         public static var internalError: Result {
-            return Result(
+            Self(
                 result: nil,
                 errors: [LGNC.GLOBAL_ERROR_KEY: [LGNC.Entity.Error.internalError]],
                 meta: [:],

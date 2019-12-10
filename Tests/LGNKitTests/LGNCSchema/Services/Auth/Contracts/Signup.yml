@@ -1,0 +1,31 @@
+Transports: [ HTTP, LGNS ]
+Request:
+  Fields:
+    username:
+      Type: String
+      Validators:
+        Regex:
+          Expression: ^[a-zA-Zа-яА-Я0-9_\\- ]+$
+          Message: Username must only consist of letters, numbers and underscores
+        MinLength: 3
+        MaxLength: 24
+        Callback:
+          Errors:
+            - { Code: 10001, Message: User with given username already exists }
+    email:
+      Type: String
+      Validators:
+        Regex: *EmailValidator
+        Callback:
+          Errors:
+            - { Code: 10002, Message: User with given email already exists }
+    password1: *password1
+    password2: *password2
+    sex: *Sex
+    language:
+      Type: String
+      AllowedValues:
+        - en
+        - ru
+    recaptchaToken: String
+Response: Empty

@@ -1,0 +1,5 @@
+Transports: [ HTTP, LGNS ]
+Request: Empty
+Response:
+  Fields:
+    list: List[Good]

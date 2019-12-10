@@ -1,0 +1,5 @@
+Info:
+  foo: bar
+Transports:
+  LGNS: 27020
+  HTTP: 8080

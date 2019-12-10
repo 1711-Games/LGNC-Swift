@@ -60,12 +60,14 @@ public extension LGNS {
         }
 
         public func shutdown(promise: PromiseVoid) {
-            Self.logger.info("LGNS Server: shutting down")
+            Self.logger.info("Shutting down")
             self.channel.close(promise: promise)
-            Self.logger.info("LGNS Server: goodbye")
+            Self.logger.info("Goodbye")
         }
 
         public func serve(at target: BindTo, promise: PromiseVoid? = nil) throws {
+            Self.logger.info("Trying to serve on address \(target)")
+
             self.channel = try bootstrap.bind(to: target).wait()
 
             promise?.succeed(())

@@ -1,0 +1,27 @@
+UUID: &UUID
+  Type: String
+  Validators: [ UUID ]
+Date: &Date
+  Type: String
+  Validators: [ Date ]
+Sex: &Sex
+  Type: String
+  AllowedValues:
+    - Male
+    - Female
+    - Attack helicopter
+password1: &password1
+  Type: String
+  Validators:
+    MinLength:
+      Length: 6
+      Message: Password must be at least {Length} characters long
+    MaxLength:
+      Length: 64
+      Message: Password must be less than {Length} characters long
+password2: &password2
+  Type: String
+  Validators:
+    IdenticalWith:
+      Field: password1
+      Message: Passwords must match

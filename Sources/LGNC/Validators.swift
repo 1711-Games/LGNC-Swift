@@ -17,7 +17,7 @@ public protocol ValidatorError: ValidatorErrorRepresentable {
 
 public extension ValidatorError {
     func getErrorTuple() -> (message: String, code: Int) {
-        return (message: message, code: code)
+        (message: message, code: code)
     }
 }
 
@@ -27,7 +27,7 @@ public struct Validation {
 
 internal extension String {
     @usableFromInline func _t(_ locale: LGNCore.i18n.Locale, _ interpolations: [String: Any] = [:]) -> String {
-        return LGNCore.i18n.tr(self, locale, interpolations)
+        LGNCore.i18n.tr(self, locale, interpolations)
     }
 }
 
@@ -83,7 +83,7 @@ public extension Validator {
         _ locale: LGNCore.i18n.Locale,
         on eventLoop: EventLoop
     ) -> Future<ValidatorError?> {
-        return eventLoop.makeSucceededFuture(validate(input, locale))
+        return eventLoop.makeSucceededFuture(self.validate(input, locale))
     }
 }
 
@@ -310,7 +310,7 @@ public extension Validation {
             guard let value = input as? Value else {
                 return eventLoop.makeSucceededFuture(Validation.Error.InvalidType(locale))
             }
-            return callback(
+            return self.callback(
                 value,
                 eventLoop
             ).map {
@@ -350,7 +350,7 @@ public extension Validation {
             guard let value = input as? AllowedValues.InputValue else {
                 return eventLoop.makeSucceededFuture(Validation.Error.InvalidType(locale))
             }
-            return callback(
+            return self.callback(
                 value,
                 eventLoop
             ).map {
