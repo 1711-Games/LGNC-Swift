@@ -32,17 +32,17 @@ public class SignalObserver {
 
     private init() {}
 
-    public class func fire(signal _: Int32) -> FutureVoid {
-        var futures: [FutureVoid] = []
+    public class func fire(signal _: Int32) -> Future<Void> {
+        var futures: [Future<Void>] = []
 
         instances.forEach {
-            let promise: PromiseVoid = self.eventLoop.makePromise()
+            let promise: Promise<Void> = self.eventLoop.makePromise()
             futures.append(promise.futureResult)
             $0.value?.shutdown(promise: promise)
         }
         instances.removeAll()
 
-        return FutureVoid.andAllComplete(futures, on: eventLoop)
+        return Future<Void>.andAllComplete(futures, on: eventLoop)
     }
 
     public class func add(_ instance: Shutdownable) {
