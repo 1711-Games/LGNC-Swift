@@ -2,12 +2,6 @@ import Foundation
 import NIO
 import NIOConcurrencyHelpers
 
-/// Any shutdownable service (most commonly, a server)
-public protocol Shutdownable: class {
-    /// A method which must eventually shutdown current service and complete provided promise with `Void` or an error
-    func shutdown(promise: PromiseVoid)
-}
-
 /// Helper class for shutting down all working services after signals like `SIGINT`, `SIGTERM` etc.
 /// All new services (like `LGNS.Server`) are automatically registered in this class.
 ///

@@ -68,7 +68,7 @@ extension LGNS.Client: LGNCClient {
                 with: LGNP.Message(
                     URI: C.URI,
                     payload: payload,
-                    meta: LGNC.getMeta(from: context, clientID: context.clientID),
+                    meta: LGNC.getCompiledMeta(from: context, clientID: context.clientID),
                     salt: self.cryptor.salt,
                     controlBitmask: self.controlBitmask,
                     uuid: context.uuid

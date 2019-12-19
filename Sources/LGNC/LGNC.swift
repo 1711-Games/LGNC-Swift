@@ -44,11 +44,11 @@ public enum LGNC {
     /// Translator, by default `LGNCore.i18n.DummyTranslator` which doesn't actually translate anything, but only proxy input
     public static var translator: LGNCTranslator = LGNCore.i18n.DummyTranslator()
 
-    public static func getMeta(
+    public static func getCompiledMeta(
         from context: LGNCore.Context?,
         clientID: String? = nil
     ) -> Bytes? {
-        self.getMeta(
+        self.getCompiledMeta(
             clientAddr: context?.clientAddr,
             clientID: clientID,
             userAgent: context?.userAgent,
@@ -56,7 +56,7 @@ public enum LGNC {
         )
     }
 
-    public static func getMeta(
+    public static func getCompiledMeta(
         clientAddr: String? = nil,
         clientID: String? = nil,
         userAgent: String? = nil,

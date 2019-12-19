@@ -27,25 +27,25 @@ public extension Service {
             eventLoopGroup: eventLoopGroup,
             readTimeout: readTimeout,
             writeTimeout: writeTimeout
-        ) { request, info in
-            info.logger.debug("Serving request at LGNS URI '\(request.URI)'")
+        ) { request, context in
+            context.logger.debug("Serving request at LGNS URI '\(request.URI)'")
             do {
                 return self.executeContract(
                     URI: request.URI,
                     dict: try request.unpackPayload(),
-                    context: info
+                    context: context
                 ).map {
                     do {
                         return request.copied(
                             payload: try $0.getDictionary().pack(to: request.contentType)
                         )
                     } catch {
-                        info.logger.error("Could not pack entity to \(request.contentType): \(error)")
+                        context.logger.error("Could not pack entity to \(request.contentType): \(error)")
                         return request.copied(payload: LGNP.ERROR_RESPONSE)
                     }
                 }
             } catch {
-                return info.eventLoop.makeFailedFuture(error)
+                return context.eventLoop.makeFailedFuture(error)
             }
         }
 

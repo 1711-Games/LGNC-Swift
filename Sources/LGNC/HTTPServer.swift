@@ -74,7 +74,7 @@ public extension LGNC.HTTP {
             self.writeTimeout = writeTimeout
             self.eventLoopGroup = eventLoopGroup
 
-            bootstrap = ServerBootstrap(group: self.eventLoopGroup)
+            self.bootstrap = ServerBootstrap(group: self.eventLoopGroup)
                 .serverChannelOption(ChannelOptions.backlog, value: 256)
                 .serverChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
 
@@ -93,16 +93,16 @@ public extension LGNC.HTTP {
 
         public func shutdown(promise: PromiseVoid) {
             self.logger.info("HTTP Server: shutting down")
-            channel.close(promise: promise)
+            self.channel.close(promise: promise)
             self.logger.info("HTTP Server: goodbye")
         }
 
-        public func serve(at target: LGNCore.Address, promise: PromiseVoid? = nil) throws {
-            channel = try bootstrap.bind(to: target).wait()
+        public func serve(at address: LGNCore.Address, promise: PromiseVoid? = nil) throws {
+            self.channel = try self.bootstrap.bind(to: address).wait()
 
             promise?.succeed(())
 
-            try channel.closeFuture.wait()
+            try self.channel.closeFuture.wait()
         }
     }
 }
