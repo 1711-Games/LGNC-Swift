@@ -3,7 +3,7 @@ import LGNCore
 import LGNP
 import SwiftMsgPack
 
-public struct LGNPConenter {
+public struct LGNPContenter {
     public enum E: Error {
         case ContentError(String)
         case UnpackError(String)
@@ -30,8 +30,8 @@ public extension Dictionary where Key == String {
             switch format {
             case .MsgPack: return try self.getMsgPack()
             case .JSON: return try JSONSerialization.data(withJSONObject: self).bytes
-            case .XML: throw LGNPConenter.E.ContentError("XML content type not implemented yet")
-            case .PlainText: throw LGNPConenter.E.ContentError("Dictionary cannot be plain text")
+            case .XML: throw LGNPContenter.E.ContentError("XML content type not implemented yet")
+            case .PlainText: throw LGNPContenter.E.ContentError("Dictionary cannot be plain text")
             }
         }
     }
@@ -69,13 +69,13 @@ public extension LGNP.Message {
     ) throws -> [String: Any] {
         let contentType = self.contentType
         guard allowedContentTypes.contains(contentType) else {
-            throw LGNPConenter.E.ContentTypeNotAllowed("Content type \(contentType) not allowed (allowed content types: \(allowedContentTypes)")
+            throw LGNPContenter.E.ContentTypeNotAllowed("Content type \(contentType) not allowed (allowed content types: \(allowedContentTypes)")
         }
         switch contentType {
-        case .MsgPack: return try payload.unpackFromMsgPack()
-        case .JSON: return try payload.unpackFromJSON()
-        case .XML: throw LGNPConenter.E.ContentError("XML content type not implemented yet")
-        case .PlainText: throw LGNPConenter.E.ContentError("Plain text content type not supported")
+        case .MsgPack: return try self.payload.unpackFromMsgPack()
+        case .JSON: return try self.payload.unpackFromJSON()
+        case .XML: throw LGNPContenter.E.ContentError("XML content type not implemented yet")
+        case .PlainText: throw LGNPContenter.E.ContentError("Plain text content type not supported")
         }
     }
 }
@@ -90,7 +90,7 @@ public extension Array where Element == Byte {
             let result: [String: Any] = try autoreleasepool {
                 let copy = Data(self) // decoder is bugged and cannot accept sliced Data
                 guard let result = (try copy.unpack() as Any?) as? [String: Any] else {
-                    throw LGNPConenter.E.UnpackError("Could not unpack value from MsgPack")
+                    throw LGNPContenter.E.UnpackError("Could not unpack value from MsgPack")
                 }
                 return result
             }
@@ -107,17 +107,32 @@ public extension Array where Element == Byte {
             }
             return unwrap(result)
         } catch {
-            throw LGNPConenter.E.UnpackError("Could not unpack value from MsgPack: \(error)")
+            throw LGNPContenter.E.UnpackError("Could not unpack value from MsgPack: \(error)")
         }
     }
 
     func unpackFromJSON() throws -> [String: Any] {
         return try autoreleasepool {
             guard let result = (try? JSONSerialization.jsonObject(with: Data(self))) as? [String: Any] else {
-                throw LGNPConenter.E.UnpackError("Could not unpack value from JSON")
+                throw LGNPContenter.E.UnpackError("Could not unpack value from JSON")
             }
             return result
         }
+    }
+
+    func unpack(from contentType: LGNCore.ContentType) throws -> [String: Any] {
+        let result: [String: Any]
+
+        switch contentType {
+        case .JSON: result = try self.unpackFromJSON()
+        case .MsgPack: result = try self.unpackFromMsgPack()
+        default:
+            throw LGNPContenter.E.UnpackError(
+                "Could not unpack bytes: unsupported content type '\(contentType)'"
+            )
+        }
+
+        return result
     }
 
     func unpack() throws -> Any? {

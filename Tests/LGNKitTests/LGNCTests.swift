@@ -1,6 +1,7 @@
 import XCTest
 import LGNCore
 import LGNS
+import AsyncHTTPClient
 @testable import LGNC
 
 typealias A = Services.Auth.Contracts
@@ -311,7 +312,8 @@ final class LGNCTests: XCTestCase {
                     cryptor: cryptor,
                     controlBitmask: controlBitmask,
                     eventLoopGroup: Self.eventLoopGroup
-                )
+                ),
+                clientHTTP: HTTPClient(eventLoopGroupProvider: .shared(Self.eventLoopGroup))
             )
         )
     }
