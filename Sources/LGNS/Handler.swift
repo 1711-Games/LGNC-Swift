@@ -14,7 +14,7 @@ internal extension LGNS {
         private static let EOL: Byte = 10
 
         private let resolver: LGNS.Resolver
-        fileprivate var promise: Promise<(LGNP.Message, LGNCore.Context)>?
+        public var promise: Promise<(LGNP.Message, LGNCore.Context)>?
 
         fileprivate class var profile: Bool {
             false
@@ -113,7 +113,7 @@ internal extension LGNS {
                 )
             )
 
-            self.promise = nil
+            self.cleanup()
 
             if let profiler = profiler {
                 future.whenComplete { _ in
@@ -134,7 +134,9 @@ internal extension LGNS {
                 guard let message = $0 else {
                     return
                 }
+
                 context.writeAndFlush(self.wrapInboundOut(message), promise: nil)
+
                 if !message.controlBitmask.contains(.keepAlive) {
                     context.close(promise: nil)
                 }
@@ -155,6 +157,10 @@ internal extension LGNS {
                 self.handleError(context: context, error: LGNS.E.UnknownError("\(error)"))
             }
         }
+
+        fileprivate func cleanup() {
+            self.promise = nil
+        }
     }
 
     final class ServerHandler: BaseHandler {
@@ -170,7 +176,7 @@ internal extension LGNS {
     class ClientHandler: BaseHandler {
         fileprivate override func handleError(context: ChannelHandlerContext, error: ErrorTupleConvertible) {
             context.fireErrorCaught(error)
-            promise?.fail(error)
+            self.promise?.fail(error)
         }
     }
 }

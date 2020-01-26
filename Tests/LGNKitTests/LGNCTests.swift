@@ -38,6 +38,8 @@ final class LGNCTests: XCTestCase {
 
     var queue1: DispatchQueue = DispatchQueue(label: "LGNCTests.1", qos: .userInteractive, attributes: .concurrent)
     var queue2: DispatchQueue = DispatchQueue(label: "LGNCTests.2", qos: .userInteractive, attributes: .concurrent)
+    var queue3: DispatchQueue = DispatchQueue(label: "LGNCTests.3", qos: .userInteractive, attributes: .concurrent)
+    var queue4: DispatchQueue = DispatchQueue(label: "LGNCTests.4", qos: .userInteractive, attributes: .concurrent)
     var eventLoop: EventLoop {
         Self.eventLoopGroup.next()
     }
@@ -105,9 +107,10 @@ final class LGNCTests: XCTestCase {
         }
     }
 
-    public func _test(using client: LGNCClient) {
-        let addressAuth = LGNCore.Address.ip(host: "127.0.0.1", port: 27020)
-        let addressShop = LGNCore.Address.ip(host: "127.0.0.1", port: 27021)
+    public func _test(using client: LGNCClient, addHTTP: Bool = false, portAuth: Int = 27020, portShop: Int = 27021) {
+        let prefix = addHTTP ? "http://" : ""
+        let addressAuth = LGNCore.Address.ip(host: prefix + "127.0.0.1", port: portAuth)
+        let addressShop = LGNCore.Address.ip(host: prefix + "127.0.0.1", port: portShop)
 
         XCTAssertNoThrow(
             try A.Signup.execute(
@@ -269,11 +272,13 @@ final class LGNCTests: XCTestCase {
     }
 
     func testWithDynamicClient() throws {
-        let cryptor = try LGNP.Cryptor(salt: [1,2,3,4,5, 6], key: [1,2,3,4,5,6,7,8,1,2,3,4,5,6,7,8])
+        let cryptor = try LGNP.Cryptor(salt: [1,2,3,4,5,6], key: [1,2,3,4,5,6,7,8,1,2,3,4,5,6,7,8])
         let controlBitmask: LGNP.Message.ControlBitmask = [.contentTypeMsgPack]
 
-        let promiseStartAuth: PromiseVoid = self.eventLoop.makePromise()
-        let promiseStartShop: PromiseVoid = self.eventLoop.makePromise()
+        let promiseStartAuthLGNS: PromiseVoid = self.eventLoop.makePromise()
+        let promiseStartShopLGNS: PromiseVoid = self.eventLoop.makePromise()
+        let promiseStartAuthHTTP: PromiseVoid = self.eventLoop.makePromise()
+        let promiseStartShopHTTP: PromiseVoid = self.eventLoop.makePromise()
 
         defer {
             XCTAssertNoThrow(try SignalObserver.fire(signal: 322).wait())
@@ -284,10 +289,10 @@ final class LGNCTests: XCTestCase {
                     cryptor: cryptor,
                     eventLoopGroup: Self.eventLoopGroup,
                     requiredBitmask: controlBitmask,
-                    promise: promiseStartAuth
+                    promise: promiseStartAuthLGNS
                 )
             } catch {
-                promiseStartAuth.fail(error)
+                promiseStartAuthLGNS.fail(error)
             }
         }
         self.queue2.async {
@@ -296,26 +301,54 @@ final class LGNCTests: XCTestCase {
                     cryptor: cryptor,
                     eventLoopGroup: Self.eventLoopGroup,
                     requiredBitmask: controlBitmask,
-                    promise: promiseStartShop
+                    promise: promiseStartShopLGNS
                 )
             } catch {
-                promiseStartShop.fail(error)
+                promiseStartShopLGNS.fail(error)
             }
         }
-        XCTAssertNoThrow(try promiseStartAuth.futureResult.wait())
-        XCTAssertNoThrow(try promiseStartShop.futureResult.wait())
 
-        self._test(
-            using: LGNC.Client.Dynamic(
-                eventLoopGroup: Self.eventLoopGroup,
-                clientLGNS: LGNS.Client(
-                    cryptor: cryptor,
-                    controlBitmask: controlBitmask,
-                    eventLoopGroup: Self.eventLoopGroup
-                ),
-                clientHTTP: HTTPClient(eventLoopGroupProvider: .shared(Self.eventLoopGroup))
-            )
+        self.queue3.async {
+            do {
+                try Services.Auth.serveHTTP(
+                    at: .ip(host: "127.0.0.1", port: 27022),
+                    eventLoopGroup: Self.eventLoopGroup,
+                    promise: promiseStartAuthHTTP
+                )
+            } catch {
+                promiseStartAuthHTTP.fail(error)
+            }
+        }
+        self.queue4.async {
+            do {
+                try Services.Shop.serveHTTP(
+                    at: .ip(host: "127.0.0.1", port: 27023),
+                    eventLoopGroup: Self.eventLoopGroup,
+                    promise: promiseStartShopHTTP
+                )
+            } catch {
+                promiseStartShopHTTP.fail(error)
+            }
+        }
+
+        XCTAssertNoThrow(try promiseStartAuthLGNS.futureResult.wait())
+        XCTAssertNoThrow(try promiseStartShopLGNS.futureResult.wait())
+        XCTAssertNoThrow(try promiseStartAuthHTTP.futureResult.wait())
+        XCTAssertNoThrow(try promiseStartShopHTTP.futureResult.wait())
+
+        let client = LGNC.Client.Dynamic(
+            eventLoopGroup: Self.eventLoopGroup,
+            clientLGNS: LGNS.Client(
+                cryptor: cryptor,
+                controlBitmask: controlBitmask,
+                eventLoopGroup: Self.eventLoopGroup
+            ),
+            clientHTTP: HTTPClient(eventLoopGroupProvider: .shared(Self.eventLoopGroup))
         )
+        self._test(using: client)
+        self._test(using: client.clientHTTP, addHTTP: true, portAuth: 27022, portShop: 27023)
+
+        try client.disconnect().wait()
     }
 
     static var allTests = [

@@ -53,7 +53,7 @@ extension LGNS.Client: LGNCClient {
         )
 
         return self
-            .request(
+            .singleRequest(
                 at: address,
                 with: LGNP.Message(
                     URI: C.URI,
@@ -62,7 +62,8 @@ extension LGNS.Client: LGNCClient {
                     salt: self.cryptor.salt,
                     controlBitmask: self.controlBitmask,
                     uuid: requestContext.uuid
-                )
+                ),
+                on: context.eventLoop
             )
             .flatMapThrowing { responseMessage, responseContext in
                 (response: responseMessage.payload, responseContext)
@@ -97,14 +98,14 @@ extension HTTPClient: LGNCClient {
 //        }
 
         let headers = HTTPHeaders([
-            ("Content-type", contentType.header),
+            ("Content-Type", contentType.header),
             ("Accept-Language", requestContext.locale.rawValue),
         ])
         var request: HTTPClient.Request
 
         do {
             request = try HTTPClient.Request(
-                url: address.description,
+                url: address.description + "/" + C.URI,
                 method: .POST,
                 headers: headers,
                 body: .data(.init(payload))
@@ -223,10 +224,14 @@ public extension LGNC.Client {
     class Dynamic: LGNCClient {
         public lazy var logger: Logger = Logger(label: "\(self)")
 
-        private let clientLGNS: LGNCClient
-        private let clientHTTP: HTTPClient
+        public let clientLGNS: LGNS.Client
+        public let clientHTTP: HTTPClient
 
         public let eventLoopGroup: EventLoopGroup
+
+        public var isConnected: Bool {
+            self.clientLGNS.isConnected
+        }
 
         public init(
             eventLoopGroup: EventLoopGroup,
@@ -239,7 +244,12 @@ public extension LGNC.Client {
         }
 
         deinit {
+            assert(!self.isConnected, "You must disconnect Dynamic client manually before deinit")
             try? self.clientHTTP.syncShutdown()
+        }
+
+        public func disconnect() -> Future<Void> {
+            self.clientLGNS.disconnect()
         }
 
         public func send<C: Contract>(

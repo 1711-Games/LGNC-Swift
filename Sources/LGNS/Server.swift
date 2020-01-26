@@ -60,9 +60,9 @@ public extension LGNS {
         }
 
         public func shutdown(promise: PromiseVoid) {
-            Self.logger.info("Shutting down")
+            Self.logger.info("HTTP Server: shutting down")
             self.channel.close(promise: promise)
-            Self.logger.info("Goodbye")
+            Self.logger.info("HTTP Server: goodbye")
         }
 
         public func serve(at target: BindTo, promise: PromiseVoid? = nil) throws {
