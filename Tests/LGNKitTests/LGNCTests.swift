@@ -285,24 +285,26 @@ final class LGNCTests: XCTestCase {
         }
         self.queue1.async {
             do {
-                try Services.Auth.serveLGNS(
+                let server = try Services.Auth.startServerLGNS(
                     cryptor: cryptor,
                     eventLoopGroup: Self.eventLoopGroup,
-                    requiredBitmask: controlBitmask,
-                    promise: promiseStartAuthLGNS
-                )
+                    requiredBitmask: controlBitmask
+                ).wait()
+                promiseStartAuthLGNS.succeed(())
+                try server.waitForStop()
             } catch {
                 promiseStartAuthLGNS.fail(error)
             }
         }
         self.queue2.async {
             do {
-                try Services.Shop.serveLGNS(
+                let server = try Services.Shop.startServerLGNS(
                     cryptor: cryptor,
                     eventLoopGroup: Self.eventLoopGroup,
-                    requiredBitmask: controlBitmask,
-                    promise: promiseStartShopLGNS
-                )
+                    requiredBitmask: controlBitmask
+                ).wait()
+                promiseStartShopLGNS.succeed(())
+                try server.waitForStop()
             } catch {
                 promiseStartShopLGNS.fail(error)
             }
@@ -310,22 +312,24 @@ final class LGNCTests: XCTestCase {
 
         self.queue3.async {
             do {
-                try Services.Auth.serveHTTP(
+                let server = try Services.Auth.startServerHTTP(
                     at: .ip(host: "127.0.0.1", port: 27022),
-                    eventLoopGroup: Self.eventLoopGroup,
-                    promise: promiseStartAuthHTTP
-                )
+                    eventLoopGroup: Self.eventLoopGroup
+                ).wait()
+                promiseStartAuthHTTP.succeed(())
+                try server.waitForStop()
             } catch {
                 promiseStartAuthHTTP.fail(error)
             }
         }
         self.queue4.async {
             do {
-                try Services.Shop.serveHTTP(
+                let server = try Services.Shop.startServerHTTP(
                     at: .ip(host: "127.0.0.1", port: 27023),
-                    eventLoopGroup: Self.eventLoopGroup,
-                    promise: promiseStartShopHTTP
-                )
+                    eventLoopGroup: Self.eventLoopGroup
+                ).wait()
+                promiseStartShopHTTP.succeed(())
+                try server.waitForStop()
             } catch {
                 promiseStartShopHTTP.fail(error)
             }

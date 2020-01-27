@@ -19,13 +19,14 @@ public protocol AnyServer: Shutdownable {
     var eventLoopGroup: EventLoopGroup { get }
 
     static var logger: Logger { get }
+    static var defaultPort: Int { get }
 
     /// Binds to a given address and starts a server,
     /// `Void` future is fulfilled when server is started
     func bind(to address: LGNCore.Address) -> Future<Void>
 
     /// Blocks current thread until server is stopped.
-    /// This method **must not** be called in `EventLoop` context
+    /// This method **must not** be called in `EventLoop` context, only on dedicated threads/dispatch queues/main thread
     func waitForStop() throws
 }
 
@@ -35,7 +36,7 @@ public extension AnyServer {
     func bind(to address: LGNCore.Address) -> Future<Void> {
         Self.logger.info("LGNS Server: Trying to bind at \(address)")
 
-        let bindFuture: Future<Channel> = self.bootstrap.bind(to: address)
+        let bindFuture: Future<Channel> = self.bootstrap.bind(to: address, defaultPort: Self.defaultPort)
 
         bindFuture.whenComplete { result in
             switch result {
@@ -60,7 +61,7 @@ public extension AnyServer {
     }
 
     func shutdown() -> Future<Void> {
-        let promise = self.eventLoopGroup.next().makePromise(of: Void.self)
+        let promise: Promise<Void> = self.eventLoopGroup.next().makePromise()
 
         Self.logger.info("LGNS Server: Shutting down")
 

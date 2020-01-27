@@ -5,21 +5,26 @@ import LGNS
 import NIO
 
 public extension Service {
-    static func serveLGNS(
+    static func startServerLGNS(
         at target: LGNS.Server.BindTo? = nil,
         cryptor: LGNP.Cryptor,
         eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
         requiredBitmask: LGNP.Message.ControlBitmask = .defaultValues,
         readTimeout: TimeAmount = .seconds(1),
-        writeTimeout: TimeAmount = .seconds(1),
-        promise: PromiseVoid? = nil
-    ) throws {
-        try self.validate(transport: .LGNS)
-        try self.validate(controlBitmask: requiredBitmask)
+        writeTimeout: TimeAmount = .seconds(1)
+    ) -> Future<AnyServer> {
+        let address: LGNCore.Address
 
-        let address = try self.unwrapAddress(from: target)
+        do {
+            try self.validate(transport: .LGNS)
+            try self.validate(controlBitmask: requiredBitmask)
 
-        try self.checkGuarantees()
+            address = try self.unwrapAddress(from: target)
+
+            try self.checkGuarantees()
+        } catch {
+            return eventLoopGroup.next().makeFailedFuture(error)
+        }
 
         let server = LGNS.Server(
             cryptor: cryptor,
@@ -49,6 +54,6 @@ public extension Service {
             }
         }
 
-        try server.serve(at: address, promise: promise)
+        return server.bind(to: address).map { server }
     }
 }

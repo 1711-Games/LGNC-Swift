@@ -93,7 +93,7 @@ public extension LGNS {
                             clientHandler
                         )
                     }
-                    .connect(to: address)
+                    .connect(to: address, defaultPort: LGNS.Server.defaultPort)
 
                 connectFuture.whenComplete { result in
                     let resultString: String
@@ -167,7 +167,6 @@ public extension LGNS {
             let cloned = self.cloned()
 
             return cloned
-                .cloned()
                 .request(at: address, with: message, on: eventLoop)
                 .flatMap { response in cloned.disconnect(on: eventLoop).map { response } }
         }

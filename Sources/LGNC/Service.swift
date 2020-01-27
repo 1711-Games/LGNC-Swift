@@ -18,22 +18,20 @@ public protocol Service {
         dict: Entita.Dict,
         context: LGNCore.Context
     ) -> Future<Entity>
-    static func serveLGNS(
+    static func startServerLGNS(
         at target: LGNS.Server.BindTo?,
         cryptor: LGNP.Cryptor,
         eventLoopGroup: EventLoopGroup,
         requiredBitmask: LGNP.Message.ControlBitmask,
         readTimeout: TimeAmount,
-        writeTimeout: TimeAmount,
-        promise: PromiseVoid?
-    ) throws
-    static func serveHTTP(
+        writeTimeout: TimeAmount
+    ) -> Future<AnyServer>
+    static func startServerHTTP(
         at target: LGNS.Server.BindTo?,
         eventLoopGroup: EventLoopGroup,
         readTimeout: TimeAmount,
-        writeTimeout: TimeAmount,
-        promise: PromiseVoid?
-    ) throws
+        writeTimeout: TimeAmount
+    ) -> Future<AnyServer>
 }
 
 public extension LGNC {

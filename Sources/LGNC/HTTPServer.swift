@@ -58,11 +58,13 @@ public extension LGNC.HTTP {
     class Server: AnyServer {
         private let readTimeout: TimeAmount
         private let writeTimeout: TimeAmount
-        private let eventLoopGroup: EventLoopGroup
-        private var bootstrap: ServerBootstrap!
-        private var logger: Logger = Logger(label: "LGNC.HTTP")
 
-        private var channel: Channel!
+        public static var logger: Logger = Logger(label: "LGNC.HTTP")
+        public static var defaultPort: Int = 8080
+
+        public let eventLoopGroup: EventLoopGroup
+        public var channel: Channel!
+        public var bootstrap: ServerBootstrap!
         public var isRunning: Bool = false
 
         public required init(
@@ -92,16 +94,11 @@ public extension LGNC.HTTP {
             SignalObserver.add(self)
         }
 
-        public func bind(to address: LGNCore.Address) -> EventLoopFuture<Void> {
-            <#code#>
-        }
-
-        public func waitForStop() throws {
-            <#code#>
-        }
-
-        public func shutdown() -> EventLoopFuture<Void> {
-            <#code#>
+        deinit {
+            if self.isRunning {
+                Self.logger.warning("HTTP Server has not been shutdown manually")
+                try! self.shutdown().wait()
+            }
         }
     }
 }

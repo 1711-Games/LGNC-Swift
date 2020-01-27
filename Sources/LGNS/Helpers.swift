@@ -18,32 +18,6 @@ public extension Channel {
     }
 }
 
-public extension ClientBootstrap {
-    func connect(to address: LGNCore.Address) -> Future<Channel> {
-        switch address {
-        case let .ip(host, port):
-            return connect(host: host, port: port)
-        case .localhost:
-            return connect(host: "127.0.0.1", port: LGNS.DEFAULT_PORT)
-        case let .unixDomainSocket(path):
-            return connect(unixDomainSocketPath: path)
-        }
-    }
-}
-
-public extension ServerBootstrap {
-    func bind(to address: LGNCore.Address) -> Future<Channel> {
-        switch address {
-        case let .ip(host, port):
-            return bind(host: host, port: port)
-        case .localhost:
-            return bind(host: "127.0.0.1", port: LGNS.DEFAULT_PORT)
-        case let .unixDomainSocket(path):
-            return bind(unixDomainSocketPath: path)
-        }
-    }
-}
-
 internal extension ByteBufferAllocator {
     func allocateBuffer(from string: String, encoding _: String.Encoding = .utf8) -> ByteBuffer {
         let bytes = Bytes(string.utf8)

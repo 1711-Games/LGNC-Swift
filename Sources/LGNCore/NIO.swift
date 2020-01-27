@@ -21,3 +21,29 @@ public extension EventLoop {
         return self.makeSucceededFuture((), file: file, line: line)
     }
 }
+
+public extension ClientBootstrap {
+    func connect(to address: LGNCore.Address, defaultPort: Int) -> Future<Channel> {
+        switch address {
+        case let .ip(host, port):
+            return self.connect(host: host, port: port)
+        case .localhost:
+            return self.connect(host: "127.0.0.1", port: defaultPort)
+        case let .unixDomainSocket(path):
+            return self.connect(unixDomainSocketPath: path)
+        }
+    }
+}
+
+public extension ServerBootstrap {
+    func bind(to address: LGNCore.Address, defaultPort: Int) -> Future<Channel> {
+        switch address {
+        case let .ip(host, port):
+            return self.bind(host: host, port: port)
+        case .localhost:
+            return self.bind(host: "127.0.0.1", port: defaultPort)
+        case let .unixDomainSocket(path):
+            return self.bind(unixDomainSocketPath: path)
+        }
+    }
+}

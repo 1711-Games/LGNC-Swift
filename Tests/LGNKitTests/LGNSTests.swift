@@ -108,14 +108,15 @@ final class LGNSTests: XCTestCase {
             )
         }
         let promiseStart: PromiseVoid = self.eventLoop.makePromise()
-        let promiseEnd: PromiseVoid = self.eventLoop.makePromise()
         defer {
-            server.shutdown(promise: promiseEnd)
-            XCTAssertNoThrow(try promiseEnd.futureResult.wait())
+            XCTAssertNoThrow(try server.shutdown().wait())
         }
         self.queue.async {
             do {
-                try server.serve(at: address, promise: promiseStart)
+                try server.bind(to: address).wait()
+                promiseStart.succeed(())
+                try server.waitForStop()
+
             } catch {
                 promiseStart.fail(error)
             }
@@ -196,7 +197,7 @@ final class LGNSTests: XCTestCase {
             .channelInitializer { channel in
                 channel.pipeline.addHandlers(TestHandler(payload: payload, promise: promise))
             }
-            .connect(to: address)
+            .connect(to: address, defaultPort: 0)
             .wait()
 
         return try promise

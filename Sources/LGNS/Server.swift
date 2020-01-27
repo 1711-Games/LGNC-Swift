@@ -14,6 +14,7 @@ public extension LGNS {
         public typealias BindTo = LGNCore.Address
 
         public static var logger: Logger = Logger(label: "LGNS.Server")
+        public static let defaultPort: Int = LGNS.DEFAULT_PORT
 
         private let requiredBitmask: LGNP.Message.ControlBitmask
         private let readTimeout: TimeAmount
@@ -22,9 +23,9 @@ public extension LGNS {
         private lazy var saltBytes = self.cryptor.salt
 
         public let eventLoopGroup: EventLoopGroup
-        public private(set) var channel: Channel!
+        public var channel: Channel!
         public private(set) var bootstrap: ServerBootstrap!
-        public private(set) var isRunning: Bool = false
+        public var isRunning: Bool = false
 
         public required init(
             cryptor: LGNP.Cryptor,
@@ -64,7 +65,7 @@ public extension LGNS {
         deinit {
             if self.isRunning {
                 Self.logger.warning("LGNS Server has not been shutdown manually")
-                //try! self.shutdown().wait()
+                try! self.shutdown().wait()
             }
         }
 

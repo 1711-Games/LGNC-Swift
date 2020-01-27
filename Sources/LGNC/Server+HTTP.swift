@@ -6,18 +6,23 @@ import LGNS
 import NIO
 
 public extension Service {
-    static func serveHTTP(
+    static func startServerHTTP(
         at target: LGNS.Server.BindTo? = nil,
         eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
         readTimeout: TimeAmount = .minutes(1),
-        writeTimeout: TimeAmount = .minutes(1),
-        promise: PromiseVoid? = nil
-    ) throws {
-        try self.validate(transport: .HTTP)
+        writeTimeout: TimeAmount = .minutes(1)
+    ) -> Future<AnyServer> {
+        let address: LGNCore.Address
 
-        let address = try self.unwrapAddress(from: target)
+        do {
+            try self.validate(transport: .HTTP)
 
-        try self.checkGuarantees()
+            address = try self.unwrapAddress(from: target)
+
+            try self.checkGuarantees()
+        } catch {
+            return eventLoopGroup.next().makeFailedFuture(error)
+        }
 
         let server = LGNC.HTTP.Server(
             eventLoopGroup: eventLoopGroup,
@@ -69,6 +74,6 @@ public extension Service {
             }
         }
 
-        try server.serve(at: address, promise: promise)
+        return server.bind(to: address).map { server }
     }
 }
