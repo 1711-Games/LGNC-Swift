@@ -44,7 +44,6 @@ public extension ServerBootstrap {
     }
 }
 
-
 internal extension ByteBufferAllocator {
     func allocateBuffer(from string: String, encoding _: String.Encoding = .utf8) -> ByteBuffer {
         let bytes = Bytes(string.utf8)

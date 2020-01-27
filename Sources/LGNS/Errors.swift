@@ -9,8 +9,8 @@ public extension LGNS {
         case ConnectionClosed
         case LGNPError(String)
         case UnknownError(String)
+        case ServerNotRunning
     }
-
 }
 
 extension LGNS.E: ErrorTupleConvertible {
@@ -26,6 +26,8 @@ extension LGNS.E: ErrorTupleConvertible {
             result = (203, "Connection closed unexpectedly")
         case let .LGNPError(description):
             result = (204, "LGNP error: \(description)")
+        case .ServerNotRunning:
+            result = (206, "Server not running")
         case let .UnknownError(description):
             result = (205, "Unknown error: \(description)")
         }

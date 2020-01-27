@@ -35,10 +35,6 @@ public protocol LGNCClient {
     ) -> Future<(response: Bytes, context: LGNCore.Context)>
 }
 
-//internal extension LGNCClient {
-//    static func
-//}
-
 extension LGNS.Client: LGNCClient {
     public func send<C: Contract>(
         contract: C.Type,
@@ -84,18 +80,6 @@ extension HTTPClient: LGNCClient {
             transport: .HTTP,
             eventLoop: context.eventLoop
         )
-
-//        let payload: Bytes
-//        do {
-//            if contentType != .PlainText {
-//                payload = try dict.pack(to: contentType)
-//            } else {
-//                context.logger.critical("Plain text not implemented")
-//                payload = Bytes()
-//            }
-//        } catch {
-//            return eventLoop.makeFailedFuture(error)
-//        }
 
         let headers = HTTPHeaders([
             ("Content-Type", contentType.header),

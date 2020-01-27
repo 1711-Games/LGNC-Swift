@@ -36,9 +36,10 @@ public class SignalObserver {
         var futures: [Future<Void>] = []
 
         instances.forEach {
-            let promise: Promise<Void> = self.eventLoop.makePromise()
-            futures.append(promise.futureResult)
-            $0.value?.shutdown(promise: promise)
+            guard let service = $0.value else {
+                return
+            }
+            futures.append(service.shutdown())
         }
         instances.removeAll()
 

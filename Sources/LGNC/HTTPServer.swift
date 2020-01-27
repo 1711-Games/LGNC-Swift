@@ -55,7 +55,7 @@ public extension LGNC.HTTP {
 }
 
 public extension LGNC.HTTP {
-    class Server: Shutdownable {
+    class Server: AnyServer {
         private let readTimeout: TimeAmount
         private let writeTimeout: TimeAmount
         private let eventLoopGroup: EventLoopGroup
@@ -63,6 +63,7 @@ public extension LGNC.HTTP {
         private var logger: Logger = Logger(label: "LGNC.HTTP")
 
         private var channel: Channel!
+        public var isRunning: Bool = false
 
         public required init(
             eventLoopGroup: EventLoopGroup,
@@ -91,18 +92,16 @@ public extension LGNC.HTTP {
             SignalObserver.add(self)
         }
 
-        public func shutdown(promise: PromiseVoid) {
-            self.logger.info("HTTP Server: shutting down")
-            self.channel.close(promise: promise)
-            self.logger.info("HTTP Server: goodbye")
+        public func bind(to address: LGNCore.Address) -> EventLoopFuture<Void> {
+            <#code#>
         }
 
-        public func serve(at address: LGNCore.Address, promise: PromiseVoid? = nil) throws {
-            self.channel = try self.bootstrap.bind(to: address).wait()
+        public func waitForStop() throws {
+            <#code#>
+        }
 
-            promise?.succeed(())
-
-            try self.channel.closeFuture.wait()
+        public func shutdown() -> EventLoopFuture<Void> {
+            <#code#>
         }
     }
 }

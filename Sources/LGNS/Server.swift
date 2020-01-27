@@ -10,7 +10,7 @@ public extension LGNS {
 
     static let DEFAULT_PORT = 1711
 
-    class Server: Shutdownable {
+    class Server: AnyServer {
         public typealias BindTo = LGNCore.Address
 
         public static var logger: Logger = Logger(label: "LGNS.Server")
@@ -18,11 +18,13 @@ public extension LGNS {
         private let requiredBitmask: LGNP.Message.ControlBitmask
         private let readTimeout: TimeAmount
         private let writeTimeout: TimeAmount
-        private let eventLoopGroup: EventLoopGroup
         private let cryptor: LGNP.Cryptor
-        private var bootstrap: ServerBootstrap!
-        private var channel: Channel!
         private lazy var saltBytes = self.cryptor.salt
+
+        public let eventLoopGroup: EventLoopGroup
+        public private(set) var channel: Channel!
+        public private(set) var bootstrap: ServerBootstrap!
+        public private(set) var isRunning: Bool = false
 
         public required init(
             cryptor: LGNP.Cryptor,
@@ -59,20 +61,57 @@ public extension LGNS {
             SignalObserver.add(self)
         }
 
-        public func shutdown(promise: PromiseVoid) {
-            Self.logger.info("HTTP Server: shutting down")
-            self.channel.close(promise: promise)
-            Self.logger.info("HTTP Server: goodbye")
+        deinit {
+            if self.isRunning {
+                Self.logger.warning("LGNS Server has not been shutdown manually")
+                //try! self.shutdown().wait()
+            }
         }
 
-        public func serve(at target: BindTo, promise: PromiseVoid? = nil) throws {
-            Self.logger.info("Trying to serve on address \(target)")
-
-            self.channel = try bootstrap.bind(to: target).wait()
-
-            promise?.succeed(())
-
-            try self.channel.closeFuture.wait()
-        }
+//        public func bind(to address: LGNCore.Address) -> Future<Void> {
+//            Self.logger.info("LGNS Server: Trying to bind at \(address)")
+//
+//            let bindFuture = self.bootstrap.bind(to: address)
+//
+//            bindFuture.whenComplete { result in
+//                switch result {
+//                case .success(_): Self.logger.info("LGNS Server: Succesfully started on \(address)")
+//                case let .failure(error): Self.logger.info("LGNS Server: Could not start on \(address): \(error)")
+//                }
+//            }
+//
+//            return bindFuture.map {
+//                self.channel = $0
+//                self.isRunning = true
+//            }
+//        }
+//
+//        public func waitForStop() throws {
+//            guard self.isRunning, self.channel != nil else {
+//                throw LGNS.E.ServerNotRunning
+//            }
+//
+//            try self.channel.closeFuture.wait()
+//        }
+//
+//        public func shutdown() -> Future<Void> {
+//            let promise = self.eventLoopGroup.next().makePromise(of: Void.self)
+//
+//            Self.logger.info("LGNS Server: Shutting down")
+//
+//            self.channel.close(promise: promise)
+//
+//            promise.futureResult.whenComplete { result in
+//                switch result {
+//                case .success(_): Self.logger.info("LGNS Server: Goodbye")
+//                case let .failure(error): Self.logger.info("LGNS Server: Could not shutdown: \(error)")
+//                }
+//            }
+//
+//            return promise.futureResult.map {
+//                self.isRunning = false
+//                self.channel = nil
+//            }
+//        }
     }
 }
