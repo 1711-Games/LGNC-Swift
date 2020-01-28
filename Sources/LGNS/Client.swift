@@ -149,11 +149,13 @@ public extension LGNS {
                 .flatMap { response in
                     let result: Future<Void>
 
-                    if !message.controlBitmask.contains(.keepAlive) {
+                    if !response.0.controlBitmask.contains(.keepAlive) {
                         result = self.disconnect()
                     } else {
                         result = eventLoop.makeSucceededFuture()
                     }
+
+                    self.responsePromise = nil
 
                     return result.map { response }
                 }

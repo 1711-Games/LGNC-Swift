@@ -68,51 +68,5 @@ public extension LGNS {
                 try! self.shutdown().wait()
             }
         }
-
-//        public func bind(to address: LGNCore.Address) -> Future<Void> {
-//            Self.logger.info("LGNS Server: Trying to bind at \(address)")
-//
-//            let bindFuture = self.bootstrap.bind(to: address)
-//
-//            bindFuture.whenComplete { result in
-//                switch result {
-//                case .success(_): Self.logger.info("LGNS Server: Succesfully started on \(address)")
-//                case let .failure(error): Self.logger.info("LGNS Server: Could not start on \(address): \(error)")
-//                }
-//            }
-//
-//            return bindFuture.map {
-//                self.channel = $0
-//                self.isRunning = true
-//            }
-//        }
-//
-//        public func waitForStop() throws {
-//            guard self.isRunning, self.channel != nil else {
-//                throw LGNS.E.ServerNotRunning
-//            }
-//
-//            try self.channel.closeFuture.wait()
-//        }
-//
-//        public func shutdown() -> Future<Void> {
-//            let promise = self.eventLoopGroup.next().makePromise(of: Void.self)
-//
-//            Self.logger.info("LGNS Server: Shutting down")
-//
-//            self.channel.close(promise: promise)
-//
-//            promise.futureResult.whenComplete { result in
-//                switch result {
-//                case .success(_): Self.logger.info("LGNS Server: Goodbye")
-//                case let .failure(error): Self.logger.info("LGNS Server: Could not shutdown: \(error)")
-//                }
-//            }
-//
-//            return promise.futureResult.map {
-//                self.isRunning = false
-//                self.channel = nil
-//            }
-//        }
     }
 }

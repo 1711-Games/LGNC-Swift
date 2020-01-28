@@ -188,6 +188,90 @@ final class LGNSTests: XCTestCase {
         XCTAssertTrue(timeoutErrorMessage.containsError)
     }
 
+    func testKeepAliveServer() {
+        let address = LGNCore.Address.port(32269)
+        let cryptor = try! LGNP.Cryptor(salt: "123456", key: "1234567812345678")
+        let controlBitmask = LGNP.Message.ControlBitmask.defaultValues
+
+        let request1 = "first"
+        let request2 = "second"
+        let request3 = "third"
+        let response1 = "first response"
+        let response2 = "second response"
+        let response3 = "third response, bye"
+
+        let server: AnyServer = LGNS.Server(
+            cryptor: cryptor,
+            requiredBitmask: controlBitmask,
+            eventLoopGroup: self.eventLoopGroup
+        ) { message, context in
+            XCTAssertTrue(message.controlBitmask.contains(.keepAlive))
+
+            let response: LGNP.Message
+
+            var responseControlBitmaskWithDisconnect = message.controlBitmask
+            responseControlBitmaskWithDisconnect.remove(.keepAlive)
+
+            switch message.URI {
+            case request1:
+                response = message.copied(payload: [], URI: response1)
+            case request2:
+                response = message.copied(payload: [], URI: response2)
+            case request3:
+                // disconnect
+                response = message.copied(
+                    payload: [],
+                    controlBitmask: responseControlBitmaskWithDisconnect,
+                    URI: response3
+                )
+            default:
+                response = message.copied(
+                    payload: "ERROR!".bytes,
+                    controlBitmask: responseControlBitmaskWithDisconnect,
+                    URI: "error"
+                )
+                XCTFail("We shouldn't've end up here")
+            }
+
+            return context.eventLoop.makeSucceededFuture(response)
+        }
+        try! server.bind(to: address).wait()
+        defer { try! server.shutdown().wait() }
+
+        let client = LGNS.Client(cryptor: cryptor, controlBitmask: controlBitmask, eventLoopGroup: self.eventLoopGroup)
+        try! client.connect(at: address).wait()
+
+        XCTAssertEqual(
+            try client.request(
+                at: address,
+                with: LGNP.Message(URI: request1, payload: [], salt: cryptor.salt, controlBitmask: [.keepAlive])
+            ).wait().0.URI,
+            response1
+        )
+        XCTAssertEqual(
+            try client.request(
+                at: address,
+                with: LGNP.Message(URI: request2, payload: [], salt: cryptor.salt, controlBitmask: [.keepAlive])
+            ).wait().0.URI,
+            response2
+        )
+        XCTAssertEqual(
+            try client.request(
+                at: address,
+                with: LGNP.Message(
+                    URI: request3,
+                    payload: [],
+                    salt: cryptor.salt,
+                    controlBitmask: [
+                        .keepAlive // this should be ignored by server ignored
+                    ]
+                )
+            ).wait().0.URI,
+            response3
+        )
+        XCTAssertFalse(client.isConnected)
+    }
+
     func write(to address: LGNCore.Address, payload: Bytes) throws -> Bytes {
         let promise: Promise<Bytes> = self.eventLoop.makePromise()
 

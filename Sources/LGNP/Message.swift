@@ -80,7 +80,7 @@ public extension LGNP {
             uuid: UUID? = nil
         ) -> Message {
             Message(
-                URI: URI == nil ? self.URI : "",
+                URI: URI ?? self.URI,
                 payload: payload,
                 salt: salt,
                 controlBitmask: (controlBitmask ?? self.controlBitmask).subtracting(.containsMeta),
@@ -92,6 +92,9 @@ public extension LGNP {
 
 extension LGNP.Message: Equatable {
     public static func == (lhs: LGNP.Message, rhs: LGNP.Message) -> Bool {
-        lhs.payload == rhs.payload && lhs.uuid == rhs.uuid
+        true
+            && lhs.payload == rhs.payload
+            && lhs.uuid == rhs.uuid
+            && lhs.URI == rhs.URI // why explicit method? what's wrong with synthesized one?
     }
 }
