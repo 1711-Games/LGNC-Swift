@@ -5,7 +5,7 @@ public extension E2Entity {
     /// Defines whether full name for ID should be full or short
     /// Defaults to `false` (hence short)
     static var fullEntityName: Bool {
-        return false
+        false
     }
 
     @inlinable static var entityName: String {

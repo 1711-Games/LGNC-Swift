@@ -7,4 +7,5 @@ public enum Entita2 {
     /// Global logger
     public static var logger: Logger = Logger(label: "Entita2")
 }
+
 public typealias E2 = Entita2

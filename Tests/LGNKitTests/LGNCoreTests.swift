@@ -157,7 +157,7 @@ final class LGNCoreTests: XCTestCase {
             eventLoop: eventLoop
         )
 
-        let fullyClonedInstance = originalInstance.clone()
+        let fullyClonedInstance = originalInstance.cloned()
 
         XCTAssertEqual(fullyClonedInstance.clientAddr, originalInstance.clientAddr)
         XCTAssertEqual(fullyClonedInstance.clientID, originalInstance.clientID)
@@ -176,7 +176,7 @@ final class LGNCoreTests: XCTestCase {
         let clonedInstanceIsSecure: Bool = false
         let clonedInstanceTransport: LGNCore.Transport = .LGNS
 
-        let notFullyClonedInstance = originalInstance.clone(
+        let notFullyClonedInstance = originalInstance.cloned(
             remoteAddr: clonedInstanceRemoteAddr,
             clientAddr: clonedInstanceClientAddr,
             clientID: clonedInstanceClientID,

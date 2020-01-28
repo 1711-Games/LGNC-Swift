@@ -8,12 +8,15 @@ public protocol Shutdownable: class {
     func shutdown() -> Future<Void>
 }
 
+/// A type-erased server type
 public protocol AnyServer: Shutdownable {
     /// Indicates whether server is running (and serving requests) or not
     var isRunning: Bool { get set }
 
+    /// A NIO Channel
     var channel: Channel! { get set }
 
+    /// A NIO ServerBootstrap
     var bootstrap: ServerBootstrap! { get }
 
     var eventLoopGroup: EventLoopGroup { get }

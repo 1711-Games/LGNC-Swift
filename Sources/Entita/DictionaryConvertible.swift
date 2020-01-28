@@ -16,7 +16,6 @@ public protocol DictionaryDecodable: DictionaryExtractable /*: class */ {
     init(from dictionary: Entita.Dict) throws
 }
 
-
 /// An entity that can be encoded and decoded
 public typealias DictionaryConvertible = DictionaryEncodable & DictionaryDecodable & DictionaryExtractable
 

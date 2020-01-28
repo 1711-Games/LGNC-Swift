@@ -35,6 +35,75 @@ public extension E2 {
 
 /// An extension of `E2FDBEntity` containing indices-related logic. Requires a `AnyIndexKey` type
 /// (typealias or direct definition) and a static index scheme.
+///
+/// Example usage:
+/// ```
+/// final public class User: Entita2FDBIndexedEntity {
+///     public enum IndexKey: String, AnyIndexKey {
+///         case username, email, country, sex
+///     }
+///
+///     public enum Sex: String, Codable, FDBTuplePackable {
+///         case Male, Female
+///
+///         public func pack() -> Bytes {
+///             self.rawValue.pack()
+///         }
+///     }
+///
+///     public let ID: E2.UUID
+///
+///     public var username: String
+///     public var email: String
+///     public var password: String
+///     public var country: String
+///     public var sex: Sex
+///
+///     public static var indices: [IndexKey: E2.Index<User>] = [
+///         .username: E2.Index(\User.username, unique: true),
+///         .email:    E2.Index(\User.email,    unique: true),
+///         .country:  E2.Index(\User.country,  unique: false),
+///         .sex:      E2.Index(\User.sex,      unique: false),
+///     ]
+///
+///     // ...
+///
+///     public static func existsBy(
+///         username: String,
+///         on eventLoop: EventLoop
+///     ) -> EventLoopFuture<Bool> {
+///         User.existsByIndex(
+///             key: .username,
+///             value: username,
+///             on: eventLoop
+///         )
+///     }
+///
+///     public static func loadBy(
+///         username: String,
+///         on eventLoop: EventLoop
+///     ) -> EventLoopFuture<User?> {
+///         User.loadByIndex(
+///             key: .username,
+///             value: username,
+///             on: eventLoop
+///         )
+///     }
+///
+///     public static func loadAllBy(
+///         sex: Sex,
+///         on eventLoop: EventLoop
+///     ) -> EventLoopFuture<[User]> {
+///         User.loadAllByIndex(
+///             key: .sex,
+///             value: sex,
+///             on: eventLoop
+///         )
+///     }
+///
+///     // ...
+/// }
+/// ```
 public protocol Entita2FDBIndexedEntity: E2FDBEntity {
     associatedtype IndexKey: AnyIndexKey
 

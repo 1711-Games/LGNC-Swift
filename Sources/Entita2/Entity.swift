@@ -2,18 +2,27 @@ import LGNCore
 import NIO
 
 public extension E2 {
+    /// Serialization format
     enum Format: String, CaseIterable {
         case JSON, MsgPack
     }
 }
 
+/// A root entity type in Entita2
 public protocol E2Entity: Codable {
+    /// Type of ID field of entity
     associatedtype Identifier: Identifiable
+
+    /// Type of storage for entity
     associatedtype Storage: E2Storage
 
+    /// Path to ID field
     typealias IDKeyPath = KeyPath<Self, Identifier>
 
+    /// Serialization format for all entities of this kind
     static var format: E2.Format { get }
+
+    /// Storage delegate for all entities of this kind
     static var storage: Storage { get }
 
     /// Entity name for identifying in DB

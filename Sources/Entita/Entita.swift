@@ -1,4 +1,4 @@
-public struct Entita {
+public enum Entita {
     public typealias Dict = [String: Any]
 
     /// Controls whether `keyDictionary` is used when packing/unpacking the entity

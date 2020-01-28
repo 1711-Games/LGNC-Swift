@@ -2,13 +2,14 @@ import Entita
 import Foundation
 import LGNS
 
-public extension Contracts {}
-
+/// A type erased contract entity. Must know how to init itself with validation.
 public protocol ContractEntity: Entity {
+    /// Returns a future of initiated self from given dictionary and context, or an error if initialization failed due to malformed request or validation failure.
     static func initWithValidation(from dictionary: Entita.Dict, context: LGNCore.Context) -> Future<Self>
 }
 
 public extension ContractEntity {
+    /// An internal method for performing all previously setup validations
     @inlinable
     static func reduce(
         validators: [String: Future<Void>],

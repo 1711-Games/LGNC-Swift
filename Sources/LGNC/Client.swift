@@ -147,7 +147,7 @@ public extension LGNC.Client {
                 return context
             }
 
-            return context.clone(transport: transport)
+            return context.cloned(transport: transport)
         }
 
         return LGNCore.Context(
@@ -258,84 +258,5 @@ public extension LGNC.Client {
                 context: context
             )
         }
-    }
-}
-
-public extension Contract {
-    static func execute(
-        at address: LGNCore.Address,
-        with request: Self.Request,
-        using client: LGNCClient,
-        //as clientID: String? = nil,
-        context maybeContext: LGNCore.Context? = nil
-    ) -> Future<Self.Response> {
-        let profiler = LGNCore.Profiler.begin()
-        let eventLoop = maybeContext?.eventLoop ?? client.eventLoopGroup.next()
-        let transport = Self.preferredTransport
-
-        let context = LGNC.Client.getRequestContext(
-            from: maybeContext,
-            transport: transport,
-            eventLoop: eventLoop
-        )
-
-        context.logger.debug(
-            "Executing remote contract \(transport.rawValue.lowercased())://\(address)/\(Self.URI)",
-            metadata: [
-                "requestID": "\(context.uuid.string)",
-            ]
-        )
-
-        let payload: Bytes
-        do {
-            payload = try request.getDictionary().pack(to: Self.preferredContentType)
-        } catch {
-            return eventLoop.makeFailedFuture(LGNC.Client.E.PackError("Could not pack request: \(error)"))
-        }
-
-        let result: Future<Self.Response> = client
-            .send(
-                contract: Self.self,
-                payload: payload,
-                at: address,
-                context: context
-            )
-            .flatMapThrowing { responseBytes, responseContext in
-                (dict: try responseBytes.unpack(from: Self.preferredContentType), responseContext: responseContext)
-            }
-            .flatMap { (dict: Entita.Dict, responseContext: LGNCore.Context) -> Future<LGNC.Entity.Result> in
-                LGNC.Entity.Result.initFromResponse(
-                    from: dict,
-                    context: responseContext,
-                    type: Self.Response.self
-                )
-            }
-            .flatMapThrowing { (result: LGNC.Entity.Result) in
-                guard result.success == true else {
-                    throw LGNC.E.MultipleError(result.errors)
-                }
-                guard let resultEntity = result.result else {
-                    throw LGNC.E.UnpackError("Empty result")
-                }
-                return resultEntity as! Self.Response
-            }
-            .flatMapErrorThrowing {
-                if let error = $0 as? NIOConnectionError {
-                    context.logger.error("""
-                        Could not execute contract '\(self)' on service '\(self.ParentService.self)' \
-                        @ \(address): \(error)
-                    """)
-                    throw LGNC.ContractError.RemoteContractExecutionFailed
-                }
-                throw $0
-            }
-
-        result.whenComplete { _ in
-            context.logger.info(
-                "Remote contract 'lgns://\(address)/\(URI)' execution took \(profiler.end().rounded(toPlaces: 4))s"
-            )
-        }
-
-        return result
     }
 }

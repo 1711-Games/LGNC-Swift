@@ -3,23 +3,27 @@ import FDB
 import NIO
 
 public protocol E2FDBStorage: E2Storage, AnyFDB {
+    /// Unwraps a given optional `AnyFDBTransaction` transaction into a non-optional transaction or begins a new one
     func unwrapAnyTransactionOrBegin(
         _ anyTransaction: AnyFDBTransaction?,
         on eventLoop: EventLoop
     ) -> Future<AnyFDBTransaction>
 
+    /// Commits a given transaction if `commit` is `true`
     func commitIfNecessary(
         commit: Bool,
         transaction: AnyFDBTransaction,
         on eventLoop: EventLoop
     ) -> Future<Void>
 
+    /// Tries to load a value from FDB by given key within a given optional transaction
     func load(
         by key: Bytes,
         within transaction: AnyFDBTransaction?,
         on eventLoop: EventLoop
     ) -> Future<Bytes?>
 
+    /// Tries to load a value from FDB by given key within a given optional transaction (uses snapshot)
     func load(
         by key: Bytes,
         within transaction: AnyFDBTransaction?,
@@ -27,6 +31,7 @@ public protocol E2FDBStorage: E2Storage, AnyFDB {
         on eventLoop: EventLoop
     ) -> Future<Bytes?>
 
+    /// Loads all values from FDB by given range key within a given optional transaction
     func loadAll(
         by range: FDB.RangeKey,
         limit: Int32,
@@ -34,6 +39,7 @@ public protocol E2FDBStorage: E2Storage, AnyFDB {
         on eventLoop: EventLoop
     ) -> Future<FDB.KeyValuesResult>
 
+    /// Loads all values from FDB by given range key within a given optional transaction (uses snapshot)
     func loadAll(
         by range: FDB.RangeKey,
         limit: Int32,
@@ -42,6 +48,7 @@ public protocol E2FDBStorage: E2Storage, AnyFDB {
         on eventLoop: EventLoop
     ) -> Future<FDB.KeyValuesResult>
 
+    /// Saves given bytes in FDB at given key within an optional transaction
     func save(
         bytes: Bytes,
         by key: Bytes,
@@ -49,6 +56,7 @@ public protocol E2FDBStorage: E2Storage, AnyFDB {
         on eventLoop: EventLoop
     ) -> Future<Void>
 
+    /// Deletes a value from FDB at given key within an optional transaction
     func delete(by key: Bytes, within transaction: AnyFDBTransaction?, on eventLoop: EventLoop) -> Future<Void>
 }
 

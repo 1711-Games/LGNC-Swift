@@ -94,6 +94,7 @@ public extension LGNC {
 public extension LGNC.Entity {
     typealias Meta = [String: String]
 
+    /// A general body-agnostic wrapper (envelope) for all contract responses
     final class Result: ContractEntity {
         public static var keyDictionary: [String: String] {
             return [

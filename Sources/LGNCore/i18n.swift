@@ -3,21 +3,26 @@ import Logging
 
 public extension LGNCore {
     enum i18n {
+        /// Global translator delegate.
+        /// Defaults to `DummyTranslator` which doesn't translate anything, but rather just returns all keys as is.
         public static var translator: LGNCTranslator = DummyTranslator()
 
+        /// Translates given key to given locale and optionally performs substitutions of given interpolations
         @inlinable public static func tr(
             _ key: String,
             _ locale: LGNCore.i18n.Locale,
             _ interpolations: [String: Any] = [:]
         ) -> String {
-            return self.translator.tr(key, locale, interpolations)
+            self.translator.tr(key, locale, interpolations)
         }
     }
 }
 
 public protocol LGNCTranslator {
+    /// A list of allowed locales
     var allowedLocales: LGNCore.i18n.AllowedLocales { get }
 
+    /// Translates given key to given locale and optionally performs substitutions of given interpolations
     func tr(
         _ key: String,
         _ locale: LGNCore.i18n.Locale,
@@ -26,6 +31,7 @@ public protocol LGNCTranslator {
 }
 
 public extension LGNCore.i18n {
+    /// Simple non-translating translator. It just forwards input as is, only performing interpolation substitutions
     struct DummyTranslator: LGNCTranslator {
         public let allowedLocales: LGNCore.i18n.AllowedLocales = []
 
@@ -36,15 +42,16 @@ public extension LGNCore.i18n {
             _ locale: Locale,
             _ interpolations: [String: Any]
         ) -> String {
-            return interpolate(input: key, interpolations: interpolations)
+            interpolate(input: key, interpolations: interpolations)
         }
     }
 }
 
-@usableFromInline internal func interpolate(input: String, interpolations: [String: Any]) -> String {
+@usableFromInline
+internal func interpolate(input: String, interpolations: [String: Any]) -> String {
     var result = input
 
-    // Early exit if there are no placeholders
+    /// Early exit if there are no placeholders
     if !input.contains("{") || interpolations.isEmpty {
         return result
     }
@@ -57,6 +64,7 @@ public extension LGNCore.i18n {
 }
 
 public extension LGNCore.i18n {
+    /// Simple translator working with in-memory translation registry
     struct FactoryTranslator: LGNCTranslator {
         public let allowedLocales: LGNCore.i18n.AllowedLocales
 
@@ -141,6 +149,7 @@ public extension LGNCore.i18n {
     typealias AllowedLocales = [Locale]
     typealias Phrases = [String: Phrase]
 
+    /// A generic phrase for translation with all possible plural forms
     struct Phrase: Codable, ExpressibleByStringLiteral {
         public let zero: String?
         public let one: String?
@@ -178,6 +187,7 @@ public extension LGNCore.i18n {
         }
     }
 
+    /// A locale.
     enum Locale: String {
         case afZA = "af-ZA"
         case amET = "am-ET"
@@ -404,6 +414,7 @@ public extension LGNCore.i18n {
             self = instance
         }
 
+        /// A Foundation version of current locale
         public var foundationLocale: Foundation.Locale {
             return Foundation.Locale(identifier: self.rawValue.replacingOccurrences(of: "-", with: "_"))
         }

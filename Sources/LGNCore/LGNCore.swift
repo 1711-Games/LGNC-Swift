@@ -11,6 +11,7 @@ public enum LGNCore {
     }
 }
 
+/// Represents application environment
 public enum AppEnv: String, CaseIterable {
     case local
     case dev

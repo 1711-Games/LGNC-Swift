@@ -107,7 +107,7 @@ internal extension LGNS {
                     userAgent: userAgent,
                     locale: locale,
                     uuid: message.uuid,
-                    isSecure: message.controlBitmask.contains(.encrypted),
+                    isSecure: message.controlBitmask.contains(.encrypted) || message.controlBitmask.hasSignature,
                     transport: .LGNS,
                     eventLoop: context.eventLoop
                 )

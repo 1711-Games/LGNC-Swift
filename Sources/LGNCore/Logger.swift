@@ -40,6 +40,7 @@ public extension Logging.Logger.Level {
 }
 
 public extension LGNCore {
+    /// Custom SSWG Logger backend implementation
     struct Logger: LogHandler {
         enum E: Error {
             case DataToJSONConvertionError

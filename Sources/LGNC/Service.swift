@@ -5,19 +5,34 @@ import LGNP
 import LGNS
 import NIO
 
+/// A type-erased service
 public protocol Service {
+    /// A storage for all keydictionaries of requests and responses of all contracts
     static var keyDictionary: [String: Entita.Dict] { get }
+
+    /// A storage for storing `URI -> Contract` connection, used for routing
     static var contractMap: [String: AnyContract.Type] { get }
+
+    /// Contains allowed service transports and respective ports
     static var transports: [LGNCore.Transport: Int] { get }
+
+    /// A storage for custom KV info defined in LGNC schema
     static var info: [String: String] { get }
+
+    /// A storage for getting contracts guarantee statuses
     static var guaranteeStatuses: [String: Bool] { get set }
 
+    /// Checks contracts guarantee statuses and returns `false` if some contracts are not garanteed
     static func checkContractsCallbacks() -> Bool
+
+    /// Executes a contract at given URI with given raw dictionary and context
     static func executeContract(
         URI: String,
         dict: Entita.Dict,
         context: LGNCore.Context
     ) -> Future<Entity>
+
+    /// Starts a LGNS server at given target. Returns a future with a server, which must be waited for until claiming the server as operational.
     static func startServerLGNS(
         at target: LGNS.Server.BindTo?,
         cryptor: LGNP.Cryptor,
@@ -26,6 +41,8 @@ public protocol Service {
         readTimeout: TimeAmount,
         writeTimeout: TimeAmount
     ) -> Future<AnyServer>
+
+    /// Starts a HTTP server at given target. Returns a future with a server, which must be waited for until claiming the server as operational.
     static func startServerHTTP(
         at target: LGNS.Server.BindTo?,
         eventLoopGroup: EventLoopGroup,

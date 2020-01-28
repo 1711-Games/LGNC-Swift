@@ -8,16 +8,39 @@ public extension LGNCore {
         // case LGNSS, HTTPS // once, maybe
     }
 
+    /// Request or response context
     struct Context {
+        /// Network address from which this request physically came from.
+        /// It might not be actual client address, but rather last proxy server address.
         public let remoteAddr: String
+
+        /// End client address.
         public let clientAddr: String
+
+        /// Unique client identifier (currently implemented only in LGNS, as `cid` meta key in LGNP message).
+        /// Used for identifying clients where necessary.
         public let clientID: String?
+
+        /// User agent. In HTTP - `User-Agent` header, in LGNS - `ua` meta key in LGNP message.
         public let userAgent: String
+
+        /// User locale of request of response. In HTTP - `Accept-Language` header, in LGNS - `lc` meta key in LGNP message.
         public let locale: LGNCore.i18n.Locale
+
+        /// Unique identifier of request/response in UUID v4 format.
         public let uuid: UUID
+
+        /// Indicates if request was encrypted and/or signed.
+        /// Currently supported only in LGNS (`.encrypted`, `.hasSignature` in control bitmask), HTTPS doesn't set this value to `true`.
         public let isSecure: Bool
+
+        /// Request transport
         public let transport: Transport
+
+        /// Event loop on which this request is performed
         public var eventLoop: EventLoop
+
+        /// Logger
         public var logger: Logging.Logger
 
         public init(
@@ -45,7 +68,8 @@ public extension LGNCore {
             self.logger[metadataKey: "requestID"] = "\(self.uuid.string)"
         }
 
-        public func clone(
+        /// Clones current context
+        public func cloned(
             remoteAddr: String? = nil,
             clientAddr: String? = nil,
             clientID: String? = nil,
@@ -55,7 +79,7 @@ public extension LGNCore {
             isSecure: Bool? = nil,
             transport: Transport? = nil
         ) -> Context {
-            return Context(
+            Context(
                 remoteAddr: remoteAddr ?? self.remoteAddr,
                 clientAddr: clientAddr ?? self.clientAddr,
                 clientID: clientID ?? self.clientID,
