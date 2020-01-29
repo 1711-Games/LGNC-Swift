@@ -37,21 +37,24 @@ public extension LGNP {
         }
 
         /// Encrypts input bytes using given UUID as IV
-        @inlinable public func encrypt(input: Bytes, uuid: UUID) throws -> Bytes {
+        @inlinable
+        public func encrypt(input: Bytes, uuid: UUID) throws -> Bytes {
             try self
                 .getAES(uuid: uuid)
                 .encrypt(input)
         }
 
         /// Decrypts input bytes using given UUID as IV
-        @inlinable public func decrypt(input: Bytes, uuid: UUID) throws -> Bytes {
+        @inlinable
+        public func decrypt(input: Bytes, uuid: UUID) throws -> Bytes {
             try self
                 .getAES(uuid: uuid)
                 .decrypt(input)
         }
 
         /// Creates an instance of AES cryptor with given UUID as IV
-        @usableFromInline internal func getAES(uuid: UUID) throws -> AES {
+        @usableFromInline
+        internal func getAES(uuid: UUID) throws -> AES {
             try AES(
                 key: self.key,
                 blockMode: CBC(iv: self.getIV(from: uuid)),
@@ -60,7 +63,8 @@ public extension LGNP {
         }
 
         /// Computes IV from given UUID
-        @usableFromInline internal func getIV(from uuid: UUID) -> Bytes {
+        @usableFromInline
+        internal func getIV(from uuid: UUID) -> Bytes {
             self.salt + LGNCore.getBytes(uuid)[0 ..< Cryptor.IV_SIZE - self.salt.count]
         }
     }

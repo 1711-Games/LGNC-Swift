@@ -1,6 +1,7 @@
 import NIO
 
 public extension EventLoopFuture {
+    // TODO deprecate
     func mapThrowing<NewValue>(
         file: StaticString = #file,
         line: UInt = #line,

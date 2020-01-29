@@ -4,7 +4,10 @@ import NIO
 
 public extension LGNS {
     // todo add delegate
+
+    /// A client for LGNS servers
     class Client {
+        /// Response tuple type
         public typealias Response = (LGNP.Message, LGNCore.Context)
 
         public static var logger = Logger(label: "LGNS.Client")
@@ -20,6 +23,7 @@ public extension LGNS {
         private var clientHandler: LGNS.ClientHandler? = nil
         public var responsePromise: Promise<Response>? = nil
 
+        /// Returns `true` if connection is alive
         public var isConnected: Bool {
             self.channel?.isActive == true
         }
@@ -42,18 +46,11 @@ public extension LGNS {
             assert(!self.isConnected, "LGNS.Client must be disconnected explicitly")
         }
 
-        public func connectIfNeeded(at address: LGNCore.Address) -> Future<Void> {
-            if self.isConnected {
-                return self.eventLoopGroup.next().makeSucceededFuture()
-            }
-
-            return self.connect(at: address)
-        }
-
+        /// Connects to a remote LGNS server at given address
         public func connect(at address: LGNCore.Address, reconnectIfNeeded: Bool = true) -> Future<Void> {
             let eventLoop = self.eventLoopGroup.next()
 
-            guard self.channel == nil else {
+            guard !self.isConnected else {
                 return eventLoop.makeSucceededFuture()
             }
 
@@ -115,8 +112,9 @@ public extension LGNS {
             }
         }
 
+        /// Disconnects from a remote LGNS server
         public func disconnect(on eventLoop: EventLoop? = nil) -> Future<Void> {
-            guard let channel = self.channel else {
+            guard let channel = self.channel, channel.isActive else {
                 return (eventLoop ?? self.eventLoopGroup.next()).makeSucceededFuture()
             }
 
@@ -127,6 +125,11 @@ public extension LGNS {
             }
         }
 
+        /// Sends a message to a remote LGNS server at given address.
+        ///
+        /// This method is not thread-safe, because an existing connection might be established, and other event loop might be waiting for a response.
+        /// If you want to have a shared client for multi thread event loop group, use `singleRequest(at:with:on)` method which clones current instance
+        /// every time for each request.
         public func request(
             at address: LGNCore.Address,
             with message: LGNP.Message,
@@ -143,7 +146,7 @@ public extension LGNS {
             self.clientHandler?.promise = self.responsePromise
 
             return self
-                .connectIfNeeded(at: address)
+                .connect(at: address)
                 .flatMap { self.channel!.writeAndFlush(message) }
                 .flatMap { responsePromise.futureResult }
                 .flatMap { response in
@@ -161,6 +164,9 @@ public extension LGNS {
                 }
         }
 
+        /// Sends a single message to a remote LGNS server at given address.
+        ///
+        /// This method differs from `request(at:with:on:)` because it clones current client instance before sending a request.
         public func singleRequest(
             at address: LGNCore.Address,
             with message: LGNP.Message,
@@ -173,6 +179,7 @@ public extension LGNS {
                 .flatMap { response in cloned.disconnect(on: eventLoop).map { response } }
         }
 
+        /// Clones current client instance
         public func cloned() -> Self {
             Self(
                 cryptor: self.cryptor,

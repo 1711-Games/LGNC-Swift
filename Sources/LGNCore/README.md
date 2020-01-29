@@ -1,0 +1,214 @@
+# LGNCore
+
+## About
+This is a core module containing all shared tools required by all other LGNKit modules.
+
+In particular, it has following useful tools:
+* `LGNCore.Config` a simple class for loading, validating and using configs from current environment.
+* `LGNCore.i18n` a tool for translating strings, comes with two builtin backends: `DummyTranslator`, which doesn't do anything at all except for proxying all input with respective optional interpolation, and `FactoryTranslator`, which holds an in memory translation registry.
+* `LGNCore.Profiler` a very simple tool for profiling your code.
+* `LGNCore.AppEnv` for managing application environment (local, dev, qa, stage, production)
+* `LGNCore.Context` is a simple struct for holding request and response context details like event loop, logger, remote address, locale etc. Heavily used in LGNC (todo link).
+* `LGNCore.Logger` - a custom backend for SSWG `Logging` logger with pretty output
+* Minor tools:
+* * `AnyServer` protocol used in LGNS and LGNC for defining general server interface (`AnyServer.swift`)
+* * Various unsafe `Array<UInt8>` extensions for casting anything to bytes and back (`BytesTrickery.swift`)
+* * A polyfill version of `precondition` function which prints error message even if product is built in RELEASE mode, an extension for `Foundation.UUID` which initializes a UUID instance with `Array<UInt8>` (`Helpers.swift`)
+* * An extension for `NIO.EventLoop.makeSucceededFuture` which does not take any parameters and returns a new `EventLoopFuture<Void>`.
+
+Additionally, this module defines following typealises:
+* `typealias Byte = UInt8`
+* `typealias Bytes = [Byte]`
+* `typealias Future = EventLoopFuture`
+* `typealias Promise = EventLoopPromise`
+
+## `LGNCore.Config` usage
+In order to use this class you have to define an `enum` with all config keys. Example:
+
+```swift
+public enum ConfigKeys: String, AnyConfigKey {
+    case KEY
+    case SALT
+    case LOG_LEVEL
+    case HTTP_PORT
+    case PRIVATE_IP
+    case REGISTER_TO_CONSUL
+}
+```
+
+Then you try to init the config. `main.swift` is not the worst place for it, as it doesn't require `try` calls to be wrapped into `do catch`:
+
+```swift
+let config = try LGNCore.Config<ConfigKeys>(
+    env: AppEnv.detect() // see documentation on `LGNCore.AppEnv` below,
+    rawConfig: ProcessInfo.processInfo.environment, // this is optional, you may provide any `[AnyHashable: String]` input here
+    localConfig: [
+        .KEY: "sdfdfg",
+        .SALT: "mysecretsalt",
+        .LOG_LEVEL: "trace",
+        .HTTP_PORT: "8081",
+        .PRIVATE_IP: "127.0.0.1",
+        .REGISTER_TO_CONSUL: "false",
+    ]
+)
+```
+
+`localConfig` argument contains default config entries for `local` app environment, or else it exits the application with respective message if one or more config entries are missing from config. Then you use config like this:
+
+```swift
+let cryptor = try LGNP.Cryptor(salt: config[.SALT], key: config[.KEY])
+```
+
+Please notice that subscript with enum keys returns non-optional string value. It's because all keys are expected to be present in initialized config, and if not, there is something very wrong with `LGNCore.Config`, and should be reported. However, if it happens, the return value will be something like `__HTTP_PORT__MISSING`. But again, it should not happen at all.
+
+Additionally you can try to get a config value by string key name:
+
+```swift
+let HTTPPort: String? = config["HTTP_PORT"]
+```
+
+This call returns optional string because of obvious reasons.
+
+## `LGNCore.i18n` usage
+i18n component is initialized in following way:
+
+```swift
+typealias Phrase = LGNCore.i18n.Phrase
+
+let phrases: [LGNCore.i18n.Locale: Phrases] = [
+    .ruRU: [
+        "Comment must be less than {Length} characters long": Phrase(
+            one: "Комментарий должен быть не короче {Length} символа",
+            few: "Комментарий должен быть не короче {Length} символов",
+            many: "Комментарий должен быть не короче {Length} символов",
+            other: "Комментарий должен быть не короче {Length} символа"
+        ),
+        "Fields must be identical": "Поля должны быть идентичны",
+        "Invalid date format (valid format: {format})": "Неправильный формат даты (правильный формат: {format})",
+    ],
+    .enUS: [:],
+]
+
+LGNCore.i18n.translator = LGNCore.i18n.FactoryTranslator(
+    phrases: phrases,
+    allowedLocales: [.enUS, .ruRU]
+)
+```
+
+And then use it like this:
+
+```swift
+let translatedString: String = LGNCore.i18n.tr(
+    "Comment must be less than {Length} characters long",
+    .ruRU,
+    ["Length": 10]
+)
+```
+
+Of course it looks a little bit cumbersome, so you may define a handy extension:
+
+```swift
+public extension String {
+    @inlinable func tr(_ locale: LGNCore.i18n.Locale, _ interpolations: [String: Any] = [:]) -> String {
+        LGNCore.i18n.tr(self, locale, interpolations)
+    }
+}
+```
+
+and thus use it like this:
+
+```swift
+let translated = "Fields must be identical".tr(context.locale)
+```
+
+If you do not initialize the translator, `tr` will do nothing except for interpolations, so it's quite safe to use uninitialized translator.
+
+## `LGNCore.Profiler` usage
+Extremely simple:
+
+```swift
+let profiler = LGNCore.Profiler.begin()
+// some heavy work
+let time: Float = profiler.end()
+```
+
+You might also want to round the result to something reasonable like `0.322`.
+
+Another case:
+
+```swift
+let time: Float = LGNCore.profiled {
+    // some heavy work
+}
+```
+
+## `LGNCore.AppEnv` usage
+By default it's implied that you store your app config, including `APP_ENV` value in `$ENV`. In this case you initialize your `APP_ENV` like this:
+
+```swift
+let APP_ENV = AppEnv.detect()
+```
+
+In case it's done in other way, you should pass a `[String: String]` dictionary:
+
+```swift
+let APP_ENV = AppEnv.detect(from: dictionary)
+```
+
+On macOS the result value defaults to `.local` if no `APP_ENV` is provided in environment. Otherwise it exits the application with an error, because `APP_ENV` must always be provided explicitly in non-local environment.
+
+## `LGNCore.Logger` usage
+If you want to utilize custom LGNCore logger backend implementation, do the following:
+
+```swift
+LoggingSystem.bootstrap(LGNCore.Logger.init)
+```
+
+Additionally, you may also set a default log level for ALL further loggers:
+
+```swift
+LGNCore.Logger.logLevel = .trace
+```
+
+Or, using previously initialized config:
+
+```swift
+let defaultLogger = Logger(label: "LGNCore.Default")
+
+guard let logLevel = Logger.Level(string: config[.LOG_LEVEL]) else {
+    defaultLogger.critical("Invalid LOG_LEVEL value: \(config[.LOG_LEVEL])")
+    fatalError()
+}
+
+LGNCore.Logger.logLevel = logLevel
+```
+
+## Bytes trickery usage
+**Attention: following tools are a pathway to many abilities some consider to be unnatural.**
+
+Say, you want to convert your string or integer variable into an array of bytes for further sending over network. You should do following:
+
+```swift
+let myString = "Hello world"
+let myInteger: Int64 = 322
+
+let myStringBytes: Bytes = LGNCore.getBytes(myString) // [72, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100]
+let myIntegerBytes: Bytes = LGNCore.getBytes(myInteger) // [66, 1, 0, 0, 0, 0, 0, 0]
+```
+
+Now while operation above is relatively safe, operation below isn't that safe and might crash your application:
+
+```swift
+let myStringUnpacked: String = try myStringBytes.cast() // "Hello world"
+let myIntegerUnpacked: Int = try myIntegerBytes.cast() // 322
+```
+
+Remark: in reality, you can convert literally anything to bytes (and back again) with this function, yet, it becomes utterly unsafe to do that with anything other than scalars. This is not a serialization mechanism. Please use proper serialization like `Codable`.
+
+Additionally there is an internal yet public extension for byte array which converts it to ASCII string:
+
+```swift
+Bytes([72, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100])._string // "Hello world"
+```
+
+Even though `_string` implementation contains force unwrap `!`, I personally don't consider it an unsafe, because I haven't yet encountered a single crash while using it (and I used it a lot, like a lot). But you shouldn't rely on it in real production environment. Please, only use it for development, it's really handy.
