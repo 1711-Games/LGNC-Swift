@@ -4,15 +4,15 @@
 This is a core module containing all shared tools required by all other LGNKit modules.
 
 In particular, it has following useful tools:
-* `LGNCore.Config` a simple class for loading, validating and using configs from current environment.
-* `LGNCore.i18n` a tool for translating strings, comes with two builtin backends: `DummyTranslator`, which doesn't do anything at all except for proxying all input with respective optional interpolation, and `FactoryTranslator`, which holds an in memory translation registry.
-* `LGNCore.Profiler` a very simple tool for profiling your code.
-* `LGNCore.AppEnv` for managing application environment (local, dev, qa, stage, production)
-* `LGNCore.Context` is a simple struct for holding request and response context details like event loop, logger, remote address, locale etc. Heavily used in LGNC (todo link).
-* `LGNCore.Logger` - a custom backend for SSWG `Logging` logger with pretty output
+* [`LGNCore.Config`](#lgncoreconfig-usage), a simple class for managing application config (by default loads `$ENV`).
+* [`LGNCore.i18n`](#lgncorei18n-usage), a tool for translating strings, comes with two builtin backends: `DummyTranslator`, which doesn't do anything at all except for proxying all input with respective optional interpolation, and `FactoryTranslator`, which holds an in memory translation registry.
+* [`LGNCore.Profiler`](#lgncoreprofiler-usage), a very simple tool for profiling your code.
+* [`LGNCore.AppEnv`](#lgncoreappenv-usage) for managing application environment (local, dev, qa, stage, production)
+* `LGNCore.Context`, a simple structure for holding request and response context details like event loop, logger, remote address, locale etc. Heavily used in LGNC (todo link).
+* [`LGNCore.Logger`](#lgncorelogger-usage), a custom backend for SSWG `Logging` logger with pretty output
 * Minor tools:
-* * `AnyServer` protocol used in LGNS and LGNC for defining general server interface (`AnyServer.swift`)
-* * Various unsafe `Array<UInt8>` extensions for casting anything to bytes and back (`BytesTrickery.swift`)
+* * `AnyServer`, a protocol used in LGNS and LGNC for defining general server interface (`AnyServer.swift`)
+* * Various unsafe `Array<UInt8>` extensions for casting anything to bytes and back ([`BytesTrickery.swift`](#bytes-trickery-usage))
 * * A polyfill version of `precondition` function which prints error message even if product is built in RELEASE mode, an extension for `Foundation.UUID` which initializes a UUID instance with `Array<UInt8>` (`Helpers.swift`)
 * * An extension for `NIO.EventLoop.makeSucceededFuture` which does not take any parameters and returns a new `EventLoopFuture<Void>`.
 
@@ -36,7 +36,7 @@ public enum ConfigKeys: String, AnyConfigKey {
 }
 ```
 
-Then you try to init the config. `main.swift` is not the worst place for it, as it doesn't require `try` calls to be wrapped into `do catch`:
+Then you try to init the config. `main.swift` is not the worst place for it, as it doesn't require `try` calls to be wrapped with `do catch`:
 
 ```swift
 let config = try LGNCore.Config<ConfigKeys>(
@@ -143,7 +143,7 @@ let time: Float = LGNCore.profiled {
 ```
 
 ## `LGNCore.AppEnv` usage
-By default it's implied that you store your app config, including `APP_ENV` value in `$ENV`. In this case you initialize your `APP_ENV` like this:
+By default it's implied that you store your app config, including `APP_ENV` value, in `$ENV`. In this case you initialize your `APP_ENV` like this:
 
 ```swift
 let APP_ENV = AppEnv.detect()
@@ -211,4 +211,4 @@ Additionally there is an internal yet public extension for byte array which conv
 Bytes([72, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100])._string // "Hello world"
 ```
 
-Even though `_string` implementation contains force unwrap `!`, I personally don't consider it an unsafe, because I haven't yet encountered a single crash while using it (and I used it a lot, like a lot). But you shouldn't rely on it in real production environment. Please, only use it for development, it's really handy.
+Even though `_string` implementation contains force unwrap `!`, I personally don't consider it unsafe, because I haven't yet encountered a single crash while using it (and I used it a lot, like a lot). But you shouldn't rely on it in real production environment. Please, only use it for development, it's really handy.
