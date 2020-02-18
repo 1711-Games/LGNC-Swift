@@ -1,5 +1,6 @@
 import Foundation
 import LGNCore
+import Crypto
 
 /// LGNP stands for LGN Protocol and is used for sending data over network in a strict, compact and secure way.
 /// Atomic unit of data in LGNP is called a message.
@@ -9,7 +10,7 @@ import LGNCore
 /// - `SIZE` 4 bytes of message size in LE `UInt32` (this size includes sizes of `HEAD` and `SIZE` blocks)
 /// - `UUID` 16 bytes of UUID
 /// - `BMSK` 2 bytes of control bitmask in LE `UInt16`
-/// - `SIGN` (optional, if stated in `BMSK`) Some number of bytes of signature (depends of algo), computed as `hash(URI + MSZE + META + BODY + SALT + UUID)`
+/// - `SIGN` (optional, if stated in `BMSK`) Some number of bytes of HMAC-signature (depends of algo), computed as `HMAC(URI + MSZE + META + BODY + UUID, KEY)`
 /// - `URI` Some number of bytes of URI and a terminating `NUL` byte
 /// - `MSZE` (optional, if stated in `BMSK`) 4 bytes of meta section size in LE `UInt32`
 /// - `META` (optional, if stated in `BMSK`) Some number of bytes of meta section (size is specified in `MSZE`)
@@ -17,7 +18,7 @@ import LGNCore
 ///
 /// # Notes
 ///
-/// - Sections starting from `SIGN` (uncluding one) may be encrypted with AES (using external secret key and part of `UUID` + secret salt as IV)
+/// - Sections starting from `SIGN` (uncluding one) may be encrypted with AES.GCM (using external secret key and first 12 bytes of `UUID` as nonce)
 /// - Sections starting from `URI` (including one) are hashed into `SIGN` (before encryption)
 /// - It's recommended to fail parsing if there is more data than stated in `SIZE` block
 public enum LGNP {
@@ -71,8 +72,8 @@ public enum LGNP {
         return length
     }
 
-    /// Returns compiled body bytes for given `Message` and optional `Cryptor`
-    internal static func getCompiledBodyFor(_ message: Message, with cryptor: Cryptor? = nil) throws -> Bytes {
+    /// Returns compiled body bytes for given `Message` and `Cryptor`
+    internal static func getCompiledBodyFor(_ message: Message, with cryptor: Cryptor) throws -> Bytes {
         var messageBlocks: [LGNPMessageBlock] = []
 
         messageBlocks.append(Message.Block.URI(message.URI))
@@ -93,23 +94,20 @@ public enum LGNP {
             .map { $0.bytes }
             .flatMap { $0 }
 
-        if let signature = self.getSignature(body: rawBody, message: message) {
+        let signature = self.getSignature(bodySoFar: rawBody, cryptor: cryptor, message: message)
+        if signature.count > 0 {
             self.logger.debug(
-                "[\(message.uuid.uuidString)] Compiled message signature \(signature.toHexString()) (from body \(rawBody))"
+                "[\(message.uuid.uuidString)] Compiled message signature \(signature.hexString) (from body \(rawBody))"
             )
             rawBody.insert(contentsOf: Message.Block.SIGN(signature).bytes, at: 0)
         }
 
         if message.controlBitmask.contains(.encrypted) {
-            if let cryptor = cryptor {
-                do {
-                    rawBody = try cryptor.encrypt(input: rawBody, uuid: message.uuid)
-                    self.logger.debug("[\(message.uuid.uuidString)] Encrypted message with aes")
-                } catch {
-                    throw E.EncryptionFailed("Encryption failed: \(error)")
-                }
-            } else {
-                self.logger.debug("[\(message.uuid.uuidString)] Encrypted bitmask provided, but no Cryptor")
+            do {
+                rawBody = try cryptor.encrypt(input: rawBody, uuid: message.uuid)
+                self.logger.debug("[\(message.uuid.uuidString)] Encrypted message with")
+            } catch {
+                throw E.EncryptionFailed("Encryption failed: \(error)")
             }
         }
 
@@ -132,55 +130,50 @@ public enum LGNP {
         return rawBody
     }
 
-    /// Returns computed signature for given body bytes, salt, control bitmask and UUID
+    /// Returns computed signature for given body bytes, control bitmask and UUID
     private static func getSignature(
-        body: Bytes,
-        salt: Bytes,
+        bodySoFar: Bytes,
+        cryptor: Cryptor,
         controlBitmask: Message.ControlBitmask,
         uuid: UUID
-    ) -> Bytes? {
-        var saltedBody = body
+    ) -> Bytes {
+        var result = Bytes()
 
-        // TODO: order and algorithm of diffusing salt and uuid into saltedBody might be regulated
-        // by private params in cryptor or smth
-        saltedBody.append(salt)
-        saltedBody.append(LGNCore.getBytes(uuid))
+        guard controlBitmask.hasSignature else {
+            return result
+        }
+
+        let saltedBody = bodySoFar + LGNCore.getBytes(uuid)
 
         self.logger.debug("Salted prefix: \(saltedBody)")
 
-        var result: Bytes?
-
-        if controlBitmask.contains(.signatureRIPEMD320) {
-            self.logger.debug("RIPEMD320 not implemented yet")
-        }
-
-        if controlBitmask.contains(.signatureRIPEMD160) {
-            self.logger.debug("RIPEMD160 not implemented yet")
-        }
-
         if controlBitmask.contains(.signatureSHA256) {
-            result = saltedBody.sha256()
+            result = Bytes(HMAC<SHA256>.authenticationCode(for: saltedBody, using: cryptor.symmetricKey))
         }
 
-        if controlBitmask.contains(.signatureSHA1) {
-            result = saltedBody.sha1()
+        if controlBitmask.contains(.signatureSHA384) {
+            result = Bytes(HMAC<SHA384>.authenticationCode(for: saltedBody, using: cryptor.symmetricKey))
+        }
+
+        if controlBitmask.contains(.signatureSHA512) {
+            result = Bytes(HMAC<SHA512>.authenticationCode(for: saltedBody, using: cryptor.symmetricKey))
         }
 
         return result
     }
 
     /// Returns computed signature for given body bytes and message
-    private static func getSignature(body: Bytes, message: Message) -> Bytes? {
-        return self.getSignature(
-            body: body,
-            salt: message.salt,
+    private static func getSignature(bodySoFar: Bytes, cryptor: Cryptor, message: Message) -> Bytes {
+        self.getSignature(
+            bodySoFar: bodySoFar,
+            cryptor: cryptor,
             controlBitmask: message.controlBitmask,
             uuid: message.uuid
         )
     }
 
-    /// Returns complete message bytes for given message and optional cryptor
-    public static func encode(message: Message, with cryptor: Cryptor? = nil) throws -> Bytes {
+    /// Returns complete message bytes for given message and cryptor
+    public static func encode(message: Message, with cryptor: Cryptor) throws -> Bytes {
         var result = Bytes()
 
         self.logger.debug("[\(message.uuid.uuidString)] Began encoding message")
@@ -200,11 +193,10 @@ public enum LGNP {
         return result
     }
 
-    /// Returns decoded message from given body, optional cryptor and salt bytes
+    /// Returns decoded message from given body and cryptor
     public static func decode(
         body: Bytes,
-        with cryptor: Cryptor? = nil,
-        salt: Bytes
+        with cryptor: Cryptor
     ) throws -> Message {
         /**
          For some reason subscripting without casting `Self.MESSAGE_HEADER_LENGTH` (which is `UInt8`) to signed Int
@@ -224,17 +216,15 @@ public enum LGNP {
         return try self.decodeHeadless(
             body: Bytes(body[Self.MESSAGE_HEADER_LENGTH...]),
             length: try self.validateMessageProtocolAndParseLength(from: body),
-            with: cryptor,
-            salt: salt
+            with: cryptor
         )
     }
 
-    /// Returns decoded message from given body, message length, optional cryptor and salt bytes
+    /// Returns decoded message from given body, message length and cryptor
     public static func decodeHeadless(
         body: Bytes,
         length: Message.Block.SIZE.TYPE,
-        with cryptor: Cryptor? = nil,
-        salt: Bytes
+        with cryptor: Cryptor
     ) throws -> Message {
         let realLength = length - Message.Block.SIZE.TYPE(MESSAGE_HEADER_LENGTH)
         guard body.count >= realLength else {
@@ -264,9 +254,6 @@ public enum LGNP {
         }
 
         if controlBitmask.contains(.encrypted) {
-            guard let cryptor = cryptor else {
-                throw E.DecryptionFailed("Cryptor not provided for decryption")
-            }
             do {
                 payload = try cryptor.decrypt(input: payload, uuid: uuid)
                 self.logger.debug("Decrypted")
@@ -278,7 +265,7 @@ public enum LGNP {
         payload = try validateSignatureAndGetBody(
             from: payload,
             uuid: uuid,
-            salt: salt,
+            cryptor: cryptor,
             controlBitmask: controlBitmask
         )
 
@@ -303,7 +290,6 @@ public enum LGNP {
             URI: URI,
             payload: payload,
             meta: meta,
-            salt: salt,
             controlBitmask: controlBitmask,
             uuid: uuid
         )
@@ -334,59 +320,53 @@ public enum LGNP {
         return meta
     }
 
-    /// Validates given signature and returns body from given payload, salt and control bitmask
+    /// Validates given signature and returns body from given payload and control bitmask
     internal static func validateSignatureAndGetBody(
         from payload: Bytes,
         uuid: UUID,
-        salt: Bytes,
+        cryptor: Cryptor,
         controlBitmask: Message.ControlBitmask
     ) throws -> Bytes {
         if !controlBitmask.hasSignature {
             return payload
         }
 
-        var signatureLength: UInt!
+        var signatureLength: Int!
         var signatureName: String = "unknownAlgo"
-
-        if controlBitmask.contains(.signatureRIPEMD320) {
-            signatureName = "RIPEMD320"
-            throw E.SignatureVerificationFailed("RIPEMD320 not implemented yet")
-        }
-
-        if controlBitmask.contains(.signatureRIPEMD160) {
-            signatureName = "RIPEMD160"
-            throw E.SignatureVerificationFailed("RIPEMD160 not implemented yet")
-        }
 
         if controlBitmask.contains(.signatureSHA256) {
             signatureName = "SHA256"
-            signatureLength = 32
+            signatureLength = SHA256.byteCount
         }
 
-        if controlBitmask.contains(.signatureSHA1) {
-            signatureName = "SHA1"
-            signatureLength = 20
+        if controlBitmask.contains(.signatureSHA384) {
+            signatureName = "SHA384"
+            signatureLength = SHA384.byteCount
         }
 
-        let _length: Int = Int(signatureLength)
-        let givenSignature = Bytes(payload[0 ..< _length])
-        let result = Bytes(payload[_length...])
+        if controlBitmask.contains(.signatureSHA512) {
+            signatureName = "SHA512"
+            signatureLength = SHA512.byteCount
+        }
+
+        let givenSignature = Bytes(payload[0 ..< signatureLength])
+        let result = Bytes(payload[signatureLength...])
 
         self.logger.debug("""
-        Sample signature source \(Bytes(payload[_length...])), \
-        uuid: \(uuid), salt \(salt), bitmask \(controlBitmask)
+        Sample signature source \(Bytes(payload[signatureLength...])), \
+        uuid: \(uuid), bitmask \(controlBitmask)
         """)
         let sampleSignature = self.getSignature(
-            body: Bytes(payload[_length...]),
-            salt: salt,
+            bodySoFar: Bytes(payload[signatureLength...]),
+            cryptor: cryptor,
             controlBitmask: controlBitmask,
             uuid: uuid
         )
-        let sampleSignatureHexString = sampleSignature?.toHexString() ?? "NULL"
+        let sampleSignatureHexString = sampleSignature.count > 0 ? sampleSignature.hexString : "NULL"
 
         guard givenSignature == sampleSignature else {
             self.logger.error("""
-            Given \(signatureName) signature (\(givenSignature.toHexString())) does not match \
+            Given \(signatureName) signature (\(givenSignature.hexString)) does not match \
             with sample (\(sampleSignatureHexString))
             """)
             throw E.SignatureVerificationFailed("Signature mismatch")

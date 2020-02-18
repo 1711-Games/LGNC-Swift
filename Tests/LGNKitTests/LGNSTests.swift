@@ -79,8 +79,8 @@ final class LGNSTests: XCTestCase {
 
     func testLGNS() throws {
         let address = LGNCore.Address.port(32269)
-        let cryptor = try! LGNP.Cryptor(salt: "123456", key: "1234567812345678")
-        let controlBitmask = LGNP.Message.ControlBitmask([.encrypted, .signatureSHA1, .contentTypeJSON])
+        let cryptor = try! LGNP.Cryptor(key: "1234567812345678")
+        let controlBitmask = LGNP.Message.ControlBitmask([.encrypted, .signatureSHA512, .contentTypeJSON])
         let nul: Bytes = [0]
         let nl: Bytes = [10]
         let meta: Bytes = [
@@ -126,7 +126,6 @@ final class LGNSTests: XCTestCase {
             URI: "/test1",
             payload: "henlo".bytes,
             meta: [0, 255] + meta,
-            salt: cryptor.salt,
             controlBitmask: controlBitmask
         )
         let LGNSClient = LGNS.Client(cryptor: cryptor, controlBitmask: controlBitmask, eventLoopGroup: self.eventLoopGroup)
@@ -147,7 +146,6 @@ final class LGNSTests: XCTestCase {
                     URI: "/test2",
                     payload: "henlo".bytes,
                     meta: [0, 255] + meta,
-                    salt: cryptor.salt,
                     controlBitmask: controlBitmask
                 ),
                 on: self.eventLoop
@@ -161,7 +159,7 @@ final class LGNSTests: XCTestCase {
                 to: address,
                 payload: "LGNP".bytes + [0,0,0,0] + [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1] + [2,3,4]
             ),
-            salt: []
+            with: cryptor
         )
 
         XCTAssertEqual(zeroErrorMessage._payloadAsString.split(separator: " ", maxSplits: 1).first, "103")
@@ -177,20 +175,20 @@ final class LGNSTests: XCTestCase {
                     Bytes([0,0]) +
                     Bytes(repeating: 0, count: 20)
             ),
-            salt: []
+            with: cryptor
         )
         XCTAssertEqual(requiredBitmaskErrorMessage._payloadAsString.split(separator: " ", maxSplits: 1).first, "201")
         XCTAssertTrue(requiredBitmaskErrorMessage.containsError)
 
         // 202 Connection timeout
-        let timeoutErrorMessage = try LGNP.decode(body: self.write(to: address, payload: "LUL".bytes), salt: [])
+        let timeoutErrorMessage = try LGNP.decode(body: self.write(to: address, payload: "LUL".bytes), with: cryptor)
         XCTAssertEqual(timeoutErrorMessage._payloadAsString.split(separator: " ", maxSplits: 1).first, "202")
         XCTAssertTrue(timeoutErrorMessage.containsError)
     }
 
     func testKeepAliveServer() {
         let address = LGNCore.Address.port(32269)
-        let cryptor = try! LGNP.Cryptor(salt: "123456", key: "1234567812345678")
+        let cryptor = try! LGNP.Cryptor(key: "1234567812345678")
         let controlBitmask = LGNP.Message.ControlBitmask.defaultValues
 
         let request1 = "first"
@@ -244,14 +242,14 @@ final class LGNSTests: XCTestCase {
         XCTAssertEqual(
             try client.request(
                 at: address,
-                with: LGNP.Message(URI: request1, payload: [], salt: cryptor.salt, controlBitmask: [.keepAlive])
+                with: LGNP.Message(URI: request1, payload: [], controlBitmask: [.keepAlive])
             ).wait().0.URI,
             response1
         )
         XCTAssertEqual(
             try client.request(
                 at: address,
-                with: LGNP.Message(URI: request2, payload: [], salt: cryptor.salt, controlBitmask: [.keepAlive])
+                with: LGNP.Message(URI: request2, payload: [], controlBitmask: [.keepAlive])
             ).wait().0.URI,
             response2
         )
@@ -261,9 +259,8 @@ final class LGNSTests: XCTestCase {
                 with: LGNP.Message(
                     URI: request3,
                     payload: [],
-                    salt: cryptor.salt,
                     controlBitmask: [
-                        .keepAlive // this should be ignored by server ignored
+                        .keepAlive // this should be ignored by server
                     ]
                 )
             ).wait().0.URI,

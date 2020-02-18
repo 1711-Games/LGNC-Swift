@@ -64,7 +64,7 @@ public extension Service {
                         body = try $0.getDictionary().pack(to: request.contentType)
                     } catch {
                         context.logger.critical("Could not pack entity to \(request.contentType): \(error)")
-                        body = "500 Internal Server Error".bytes
+                        body = LGNCore.getBytes("500 Internal Server Error")
                     }
 
                     return (body: body, headers: headers)

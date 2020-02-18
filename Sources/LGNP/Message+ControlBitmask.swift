@@ -25,18 +25,16 @@ public extension LGNP.Message {
         /// Indicates that message contains (or is an) error
         public static let containsError        = ControlBitmask(rawValue: 1 << 4)
 
-        /// Indicates that message is signed with SHA1
-        public static let signatureSHA1        = ControlBitmask(rawValue: 1 << 5)
-
         /// Indicates that message is signed with SHA256
-        public static let signatureSHA256      = ControlBitmask(rawValue: 1 << 6)
+        public static let signatureSHA256      = ControlBitmask(rawValue: 1 << 5)
 
-        /// Indicates that message is signed with RIPEMD160 (currently unavailable)
-        public static let signatureRIPEMD160   = ControlBitmask(rawValue: 1 << 7)
+        /// Indicates that message is signed with SHA384
+        public static let signatureSHA384      = ControlBitmask(rawValue: 1 << 6)
 
-        /// Indicates that message is signed with RIPEMD320 (currently unavailable)
-        public static let signatureRIPEMD320   = ControlBitmask(rawValue: 1 << 8)
+        /// Indicates that message is signed with SHA512
+        public static let signatureSHA512      = ControlBitmask(rawValue: 1 << 7)
 
+        // reserved                                                            8
         // reserved                                                            9
         // reserved                                                            10
 
@@ -58,10 +56,9 @@ public extension LGNP.Message {
         /// Returns `true` if message is signed
         @inlinable public var hasSignature: Bool {
             return false
-                || self.contains(.signatureSHA1)
                 || self.contains(.signatureSHA256)
-                || self.contains(.signatureRIPEMD160)
-                || self.contains(.signatureRIPEMD320)
+                || self.contains(.signatureSHA384)
+                || self.contains(.signatureSHA512)
         }
 
         /// Returns `false` if message doesn't have a content type set (or if plain text is set)

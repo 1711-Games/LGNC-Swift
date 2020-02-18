@@ -1,4 +1,4 @@
-import CryptoSwift
+import Crypto
 import Foundation
 import Gzip
 import LGNCore
@@ -6,66 +6,71 @@ import LGNCore
 public extension LGNP {
     /// A helper structure for encrypting and decrypting messages using AES
     struct Cryptor {
-        private static let MIN_SALT_SIZE = 6
-        private static let MAX_SALT_SIZE = 12
-        private static let IV_SIZE = AES.blockSize
+        private static let NONCE_SIZE: Int = 12
+        private static let TAG_SIZE: Int = 16
 
-        public let salt: Bytes
         public let key: Bytes
+        internal let symmetricKey: SymmetricKey
 
-        /// Creates an instance of Cryptor with given `salt` and `key`.
-        /// `salt` must be from 6 to 12 bytes long
+        /// Creates an instance of Cryptor with given `key`.
         /// `key` must be 16, 24 or 32 bytes long
-        public init(salt: Bytes, key: Bytes) throws {
-            guard salt.count >= Cryptor.MIN_SALT_SIZE && salt.count <= Cryptor.MAX_SALT_SIZE else {
-                throw E.InvalidSalt("Salt must be between 6 and 12 bytes (currently \(salt.count))")
-            }
-
+        public init(key: Bytes) throws {
             guard key.count == 32 || key.count == 24 || key.count == 16 else {
                 throw E.InvalidKey("Key must be 16, 24 or 32 bytes long (currently \(key.count))")
             }
 
-            self.salt = salt
             self.key = key
+            self.symmetricKey = SymmetricKey(data: key)
         }
 
-        public init(salt: String, key: String) throws {
-            try self.init(
-                salt: LGNCore.getBytes(salt),
-                key: LGNCore.getBytes(key)
-            )
+        public init(key: String) throws {
+            try self.init(key: LGNCore.getBytes(key))
         }
 
-        /// Encrypts input bytes using given UUID as IV
+        /// Encrypts input bytes using given UUID as nonce
         @inlinable
         public func encrypt(input: Bytes, uuid: UUID) throws -> Bytes {
-            try self
-                .getAES(uuid: uuid)
-                .encrypt(input)
+            try self.encrypt(input, nonce: self.getNonce(from: uuid))
         }
 
-        /// Decrypts input bytes using given UUID as IV
+        /// Decrypts input bytes using given UUID as nonce
         @inlinable
         public func decrypt(input: Bytes, uuid: UUID) throws -> Bytes {
-            try self
-                .getAES(uuid: uuid)
-                .decrypt(input)
+            try self.decrypt(input, nonce: self.getNonce(from: uuid))
         }
 
-        /// Creates an instance of AES cryptor with given UUID as IV
+        /// Computes nonce from given UUID
         @usableFromInline
-        internal func getAES(uuid: UUID) throws -> AES {
-            try AES(
-                key: self.key,
-                blockMode: CBC(iv: self.getIV(from: uuid)),
-                padding: .pkcs7
+        internal func getNonce(from uuid: UUID) -> Bytes {
+            Bytes(LGNCore.getBytes(uuid)[0 ..< Self.NONCE_SIZE])
+        }
+
+        @usableFromInline
+        internal func encrypt(_ input: Bytes, nonce: Bytes) throws -> Bytes {
+            let box = try AES.GCM.seal(
+                input,
+                using: self.symmetricKey,
+                nonce: AES.GCM.Nonce(data: nonce)
             )
+            return Bytes(box.ciphertext + box.tag)
         }
 
-        /// Computes IV from given UUID
         @usableFromInline
-        internal func getIV(from uuid: UUID) -> Bytes {
-            self.salt + LGNCore.getBytes(uuid)[0 ..< Cryptor.IV_SIZE - self.salt.count]
+        internal func decrypt(_ input: Bytes, nonce: Bytes) throws -> Bytes {
+            guard input.count >= Self.TAG_SIZE else {
+                throw E.DecryptionFailed("Encrypted payload must be 16+ bytes long (ending with a tag)")
+            }
+
+            return Bytes(
+                try AES.GCM.open(
+                    AES.GCM.SealedBox(
+                        nonce: AES.GCM.Nonce(data: nonce),
+                        ciphertext: input[0 ..< input.count - Self.TAG_SIZE],
+                        tag: input[(input.count - Self.TAG_SIZE)...]
+                    ),
+                    using: self.symmetricKey
+                )
+            )
         }
     }
 }

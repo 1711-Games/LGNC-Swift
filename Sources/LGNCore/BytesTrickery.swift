@@ -59,6 +59,10 @@ public extension Array where Element == Byte {
         self.append(0)
     }
 
+    @inlinable var hexString: String {
+        self.map { String(format: "%02hhx", $0) }.joined()
+    }
+
     /// Performs failable conversion from current byte array to target structure
     ///
     /// Caution! This operation is unsafe by its nature, and should be performed only when you're confident.
