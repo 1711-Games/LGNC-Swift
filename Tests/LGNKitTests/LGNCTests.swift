@@ -272,7 +272,7 @@ final class LGNCTests: XCTestCase {
     }
 
     func testWithDynamicClient() throws {
-        let cryptor = try LGNP.Cryptor(salt: [1,2,3,4,5,6], key: [1,2,3,4,5,6,7,8,1,2,3,4,5,6,7,8])
+        let cryptor = try LGNP.Cryptor(key: [1,2,3,4,5,6,7,8,1,2,3,4,5,6,7,8])
         let controlBitmask: LGNP.Message.ControlBitmask = [.contentTypeMsgPack]
 
         let promiseStartAuthLGNS: PromiseVoid = self.eventLoop.makePromise()

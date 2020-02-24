@@ -9,9 +9,6 @@ public extension LGNP {
         /// Message payload body
         public let payload: Bytes
 
-        /// Message salt
-        public let salt: Bytes
-
         /// Message UUID
         public var uuid: UUID
 
@@ -49,14 +46,12 @@ public extension LGNP {
             URI: String,
             payload: Bytes,
             meta: Bytes? = nil,
-            salt: Bytes,
             controlBitmask: ControlBitmask = .defaultValues,
             uuid: UUID = UUID()
         ) {
             self.URI = URI
             self.payload = payload
             self.meta = meta
-            self.salt = salt
             self.uuid = uuid
 
             var _controlBitmask = controlBitmask
@@ -69,7 +64,7 @@ public extension LGNP {
 
         /// Returns a message with given error message in payload
         public static func error(message: String) -> Message {
-            return self.init(URI: "", payload: message.bytes, salt: [])
+            return self.init(URI: "", payload: LGNCore.getBytes(message))
         }
 
         /// Copies current message replacing payload, control bitmask (optional), URI (optional) and UUID (optional)
@@ -82,7 +77,6 @@ public extension LGNP {
             Message(
                 URI: URI ?? self.URI,
                 payload: payload,
-                salt: salt,
                 controlBitmask: (controlBitmask ?? self.controlBitmask).subtracting(.containsMeta),
                 uuid: uuid ?? self.uuid
             )

@@ -55,7 +55,6 @@ extension LGNS.Client: LGNCClient {
                     URI: C.URI,
                     payload: payload,
                     meta: LGNC.getCompiledMeta(from: requestContext, clientID: requestContext.clientID),
-                    salt: self.cryptor.salt,
                     controlBitmask: self.controlBitmask,
                     uuid: requestContext.uuid
                 ),

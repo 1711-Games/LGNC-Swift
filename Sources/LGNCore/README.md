@@ -8,7 +8,7 @@ In particular, it has following useful tools:
 * [`LGNCore.i18n`](#lgncorei18n-usage), a tool for translating strings, comes with two builtin backends: `DummyTranslator`, which doesn't do anything at all except for proxying all input with respective optional interpolation, and `FactoryTranslator`, which holds an in memory translation registry.
 * [`LGNCore.Profiler`](#lgncoreprofiler-usage), a very simple tool for profiling your code.
 * [`LGNCore.AppEnv`](#lgncoreappenv-usage) for managing application environment (local, dev, qa, stage, production)
-* `LGNCore.Context`, a simple structure for holding request and response context details like event loop, logger, remote address, locale etc. Heavily used in LGNC (todo link).
+* [`LGNCore.Context`](#lgncorecontext-usage), a simple structure for holding request and response context details like event loop, logger, remote address, locale etc. Heavily used in LGNC (todo link).
 * [`LGNCore.Logger`](#lgncorelogger-usage), a custom backend for SSWG `Logging` logger with pretty output
 * Minor tools:
 * * `AnyServer`, a protocol used in LGNS and LGNC for defining general server interface (`AnyServer.swift`)
@@ -157,12 +157,35 @@ let APP_ENV = AppEnv.detect(from: dictionary)
 
 On macOS the result value defaults to `.local` if no `APP_ENV` is provided in environment. Otherwise it exits the application with an error, because `APP_ENV` must always be provided explicitly in non-local environment.
 
+## `LGNCore.Context` usage
+`LGNCore.Context` is a simple struct holding essential request or response data, such as:
+
+1. `remoteAddr` — network address from which this request physically came from. It might not be actual client address, but rather last proxy server address.
+2. `clientAddr` — actual end client address (see details in LGNS and LGNC modules on how this field is populated).
+3. `clientID` — an optional field holding client unique ID (used only in LGNS, see details in readme).
+4. `userAgent` — a user agent, nuff said.
+5. `locale` — user locale of request or response (see details in LGNS and LGNC).
+6. `uuid` — a unique identifier of this request (in UUID v4 format)
+7. `isSecure` — indicates whether request has been encrypted/signed (only relevant for LGNS, not for HTTPS)
+8. `transport` — request transport (LGNS, HTTP)
+9. `eventLoop` — and `EventLoop` on which this request is being processed
+10. `logger` — logger for current request (already contains `uuid` as `requestID` in metadata)
+
 ## `LGNCore.Logger` usage
-If you want to utilize custom LGNCore logger backend implementation, do the following:
+LGNCore comes with custom Logger backend implementation which produces following output (human-readable date, file in which log message has been emitted and JSON formatting of metadata):
 
 ```swift
 LoggingSystem.bootstrap(LGNCore.Logger.init)
+
+let myLogger = Logger(label: "test")
+
+myLogger.info("Some test message", metadata: ["foo": "bar", "requestID": "\(UUID())"])
+
+// Output will be
+// [2020-02-18 14:38:48 @ main:8] [info] [F41988B9-1ED7-4AAC-9827-588D077B81F9]: Some test message (metadata: {"foo":"bar"})
 ```
+
+Please notice that `requestID` was extracted from metadata and put in front of the rest of the message.
 
 Additionally, you may also set a default log level for ALL further loggers:
 

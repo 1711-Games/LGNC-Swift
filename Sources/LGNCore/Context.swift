@@ -37,7 +37,7 @@ public extension LGNCore {
         /// Request transport
         public let transport: Transport
 
-        /// Event loop on which this request is performed
+        /// Event loop on which this request is being processed
         public var eventLoop: EventLoop
 
         /// Logger
@@ -79,7 +79,7 @@ public extension LGNCore {
             isSecure: Bool? = nil,
             transport: Transport? = nil
         ) -> Context {
-            Context(
+            Self(
                 remoteAddr: remoteAddr ?? self.remoteAddr,
                 clientAddr: clientAddr ?? self.clientAddr,
                 clientID: clientID ?? self.clientID,

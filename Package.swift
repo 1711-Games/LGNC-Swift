@@ -5,6 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "LGNKit-Swift",
+    platforms: [.macOS(.v10_15)],
     products: [
         .library(name: "LGNCore", targets: ["LGNCore"]),
         .library(name: "LGNP", targets: ["LGNP"]),
@@ -30,7 +31,7 @@ let package = Package(
         .package(url: "https://github.com/kirilltitov/FDBSwift.git", .upToNextMajor(from: "4.0.0")),
 
         // used by LGNP
-        .package(url: "https://github.com/krzyzanowskim/CryptoSwift.git", .upToNextMajor(from: "1.1.3")),
+        .package(url: "https://github.com/apple/swift-crypto.git", .upToNextMajor(from: "1.0.0")),
         .package(url: "https://github.com/1024jp/GzipSwift.git", .upToNextMajor(from: "5.1.1")),
     ],
     targets: [
@@ -40,7 +41,7 @@ let package = Package(
         ),
         .target(
             name: "LGNP",
-            dependencies: ["LGNCore", "Gzip", "CryptoSwift"]
+            dependencies: ["LGNCore", "Gzip", "Crypto"]
         ),
         .target(
             name: "LGNPContenter",

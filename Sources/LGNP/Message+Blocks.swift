@@ -31,7 +31,7 @@ public extension LGNP.Message.Block {
     struct HEAD: LGNPMessageStaticBlock {
         public typealias TYPE = String // 4
 
-        public static let bytes = "LGNP".bytes
+        public static let bytes = LGNCore.getBytes("LGNP")
         public static let size = Self.bytes.count
 
         public let bytes: Bytes = Self.bytes

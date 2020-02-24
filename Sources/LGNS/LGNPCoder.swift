@@ -22,7 +22,6 @@ internal extension LGNS {
 
         private let cryptor: LGNP.Cryptor
         private let requiredBitmask: LGNP.Message.ControlBitmask
-        private let salt: Bytes
         private let validateRequiredBitmask: Bool
 
         public init(
@@ -32,7 +31,6 @@ internal extension LGNS {
         ) {
             self.cryptor = cryptor
             self.requiredBitmask = requiredBitmask
-            self.salt = self.cryptor.salt
             self.validateRequiredBitmask = validateRequiredBitmask
         }
 
@@ -98,8 +96,7 @@ internal extension LGNS {
                         let message = try LGNP.decodeHeadless(
                             body: bytes,
                             length: messageLength,
-                            with: cryptor,
-                            salt: salt
+                            with: cryptor
                         )
                         if message.containsError {
                             context.fireErrorCaught(LGNS.E.LGNPError(message._payloadAsString))

@@ -38,8 +38,7 @@ internal extension LGNS {
                 wrapOutboundOut(
                     LGNP.Message(
                         URI: "",
-                        payload: "\(error.tuple.code) \(error.tuple.message)".bytes,
-                        salt: [],
+                        payload: LGNCore.getBytes("\(error.tuple.code) \(error.tuple.message)"),
                         controlBitmask: .containsError
                     )
                 ),

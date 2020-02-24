@@ -2,6 +2,13 @@ import Foundation
 import XCTest
 import LGNCore
 @testable import LGNP
+import Crypto
+
+internal extension String {
+    var bytes: Bytes {
+        LGNCore.getBytes(self)
+    }
+}
 
 final class LGNPTests: XCTestCase {
     override class func setUp() {
@@ -10,17 +17,16 @@ final class LGNPTests: XCTestCase {
 
     func testCryptor() throws {
         LGNP.logger.logLevel = .trace
-        XCTAssertThrowsError(try LGNP.Cryptor(salt: [1,2,3,4,5], key: [1,2,3,4,5,6,7,8]))
-        XCTAssertThrowsError(try LGNP.Cryptor(salt: [1,2,3,4,5,6], key: [1,2,3,4,5,6,7,8,1,2,3,4,5,6,7]))
-        XCTAssertNoThrow(try LGNP.Cryptor(salt: [1,2,3,4,5, 6], key: [1,2,3,4,5,6,7,8,1,2,3,4,5,6,7,8]))
+        XCTAssertThrowsError(try LGNP.Cryptor(key: [1,2,3,4,5,6,7,8]))
+        XCTAssertThrowsError(try LGNP.Cryptor(key: [1,2,3,4,5,6,7,8,1,2,3,4,5,6,7]))
+        XCTAssertNoThrow(try LGNP.Cryptor(key: [1,2,3,4,5,6,7,8,1,2,3,4,5,6,7,8]))
         XCTAssertNoThrow(
             try LGNP.Cryptor(
-                salt: [1,2,3,4,5,6],
                 key: [1,2,3,4,5,6,7,8,1,2,3,4,5,6,7,8,1,2,3,4,5,6,7,8,1,2,3,4,5,6,7,8,]
             )
         )
 
-        let cryptor = try LGNP.Cryptor(salt: "foobar", key: "1234567812345678")
+        let cryptor = try LGNP.Cryptor(key: "1234567812345678")
 
         let sampleData: Bytes = (0...16).map { _ in Byte.random(in: (Byte.min...Byte.max)) }
         let uuid = UUID()
@@ -44,7 +50,6 @@ final class LGNPTests: XCTestCase {
             URI: "foo",
             payload: [1,2,3],
             meta: [0,0,0],
-            salt: [4,5,6],
             controlBitmask: .defaultValues,
             uuid: uuid
         )
@@ -61,13 +66,11 @@ final class LGNPTests: XCTestCase {
         XCTAssertEqual(message.controlBitmask.hasSignature, false)
         XCTAssertTrue(message.controlBitmask.contains(.contentTypeJSON))
 
-        message.controlBitmask = .signatureSHA1
-        XCTAssertEqual(message.controlBitmask.hasSignature, true)
         message.controlBitmask = .signatureSHA256
         XCTAssertEqual(message.controlBitmask.hasSignature, true)
-        message.controlBitmask = .signatureRIPEMD160
+        message.controlBitmask = .signatureSHA384
         XCTAssertEqual(message.controlBitmask.hasSignature, true)
-        message.controlBitmask = .signatureRIPEMD320
+        message.controlBitmask = .signatureSHA512
         XCTAssertEqual(message.controlBitmask.hasSignature, true)
         message.controlBitmask = .defaultValues
         XCTAssertEqual(message.controlBitmask.hasSignature, false)
@@ -99,7 +102,6 @@ final class LGNPTests: XCTestCase {
                 URI: "bar",
                 payload: [3,2,2],
                 meta: nil,
-                salt: message.salt,
                 controlBitmask: .compressed,
                 uuid: uuid2
             )
@@ -110,7 +112,6 @@ final class LGNPTests: XCTestCase {
                 URI: "foo",
                 payload: [3,2,2],
                 meta: nil,
-                salt: message.salt,
                 controlBitmask: message.controlBitmask,
                 uuid: uuid
             )
@@ -119,20 +120,19 @@ final class LGNPTests: XCTestCase {
 
     func testLGNP() throws {
         let uuid = UUID()
-        let cryptor = try LGNP.Cryptor(salt: "foobar", key: "1234567812345678")
+        let cryptor = try LGNP.Cryptor(key: "1234567812345678")
         var message = LGNP.Message(
             URI: "foo",
             payload: [1,2,3],
             meta: [4,5,6],
-            salt: cryptor.salt,
-            controlBitmask: [.contentTypePlainText, .signatureSHA1],
+            controlBitmask: [.contentTypePlainText, .signatureSHA512],
             uuid: uuid
         )
 
         XCTAssertEqual(
             try LGNP.decode(
                 body: LGNP.encode(message: message, with: cryptor),
-                salt: cryptor.salt
+                with: cryptor
             ),
             message
         )
@@ -144,13 +144,12 @@ final class LGNPTests: XCTestCase {
                         URI: "foo",
                         payload: [1,2,3],
                         meta: [4,5,6],
-                        salt: cryptor.salt,
                         controlBitmask: [.contentTypePlainText, .signatureSHA256],
                         uuid: uuid
                     ),
                     with: cryptor
                 ),
-                salt: cryptor.salt
+                with: cryptor
             ),
             message
         )
@@ -161,8 +160,7 @@ final class LGNPTests: XCTestCase {
         XCTAssertEqual(
             try LGNP.decode(
                 body: LGNP.encode(message: message, with: cryptor),
-                with: cryptor,
-                salt: cryptor.salt
+                with: cryptor
             ),
             message
         )
@@ -241,9 +239,12 @@ final class LGNPTests: XCTestCase {
     }
 
     func testGetCompiledBodyFor() {
+        let cryptor = try! LGNP.Cryptor(key: "1234567812345678")
+
         XCTAssertThrowsError(
             try LGNP.getCompiledBodyFor(
-                LGNP.Message(URI: "", payload: [1,2,3], meta: nil, salt: [], controlBitmask: .containsMeta)
+                LGNP.Message(URI: "", payload: [1,2,3], meta: nil, controlBitmask: .containsMeta),
+                with: cryptor
             )
         ) { error in
             guard case LGNP.E.MetaSectionNotFound = error else {
@@ -254,27 +255,15 @@ final class LGNPTests: XCTestCase {
 
         XCTAssertNoThrow(
             try LGNP.getCompiledBodyFor(
-                LGNP.Message(URI: "", payload: [1,2,3], meta: nil, salt: [], controlBitmask: .encrypted)
-            )
-        )
-
-        let cryptor = try! LGNP.Cryptor(salt: "foobar", key: "1234567812345678")
-
-        XCTAssertNoThrow(
-            try LGNP.getCompiledBodyFor(
-                LGNP.Message(URI: "", payload: [1,2,3], meta: nil, salt: [], controlBitmask: .signatureSHA1)
+                LGNP.Message(URI: "", payload: [1,2,3], meta: nil, controlBitmask: .encrypted),
+                with: cryptor
             )
         )
 
         XCTAssertNoThrow(
             try LGNP.getCompiledBodyFor(
-                LGNP.Message(
-                    URI: "",
-                    payload: [1,2,3],
-                    meta: nil,
-                    salt: [],
-                    controlBitmask: [.signatureRIPEMD320, .signatureRIPEMD160]
-                )
+                LGNP.Message(URI: "", payload: [1,2,3], meta: nil, controlBitmask: .signatureSHA256),
+                with: cryptor
             )
         )
 
@@ -284,22 +273,23 @@ final class LGNPTests: XCTestCase {
                     URI: "",
                     payload: [1,2,3],
                     meta: [1,2,3],
-                    salt: [],
                     controlBitmask: [.containsMeta, .signatureSHA256]
-                )
+                ),
+                with: cryptor
             )
         )
 
         XCTAssertNoThrow(
             try LGNP.getCompiledBodyFor(
-                LGNP.Message(URI: "", payload: [1,2,3], meta: nil, salt: [], controlBitmask: .encrypted),
+                LGNP.Message(URI: "", payload: [1,2,3], meta: nil, controlBitmask: .encrypted),
                 with: cryptor
             )
         )
 
         XCTAssertThrowsError(
             try LGNP.getCompiledBodyFor(
-                LGNP.Message(URI: "", payload: [1,2,3], meta: nil, salt: [], controlBitmask: .compressed)
+                LGNP.Message(URI: "", payload: [1,2,3], meta: nil, controlBitmask: .compressed),
+                with: cryptor
             )
         ) { error in
             guard case LGNP.E.CompressionFailed(let message) = error else {
@@ -314,8 +304,10 @@ final class LGNPTests: XCTestCase {
     }
 
     func testDecode() {
+        let cryptor = try! LGNP.Cryptor(key: "1234567812345678")
+
         XCTAssertThrowsError(
-            try LGNP.decode(body: "error".bytes, salt: [])
+            try LGNP.decode(body: "error".bytes, with: cryptor)
         ) { error in
             guard case LGNP.E.InvalidMessage(let message) = error else {
                 XCTFail("Unexpected error \(error)")
@@ -328,7 +320,7 @@ final class LGNPTests: XCTestCase {
         }
 
         XCTAssertThrowsError(
-            try LGNP.decode(body: [], salt: [])
+            try LGNP.decode(body: [], with: cryptor)
         ) { error in
             guard case LGNP.E.InvalidMessageProtocol(let message) = error else {
                 XCTFail("Unexpected error \(error)")
@@ -341,7 +333,7 @@ final class LGNPTests: XCTestCase {
         }
 
         XCTAssertThrowsError(
-            try LGNP.decodeHeadless(body: [], length: 48, salt: [])
+            try LGNP.decodeHeadless(body: [], length: 48, with: cryptor)
         ) { error in
             guard case LGNP.E.ParsingFailed(let message) = error else {
                 XCTFail("Unexpected error \(error)")
@@ -353,6 +345,7 @@ final class LGNPTests: XCTestCase {
             }
         }
 
+
         // .compressed
         XCTAssertThrowsError(
             try LGNP.decode(
@@ -360,7 +353,7 @@ final class LGNPTests: XCTestCase {
                     76, 71, 78, 80, 30, 0, 0, 0, 184, 148, 23, 34, 12, 79, 74,
                     224, 149, 247, 118, 235, 247, 85, 37, 162, 4, 0, 0, 1, 2, 3,
                 ],
-                salt: []
+                with: cryptor
             )
         ) { error in
             guard case LGNP.E.DecompressionFailed(let message) = error else {
@@ -374,52 +367,36 @@ final class LGNPTests: XCTestCase {
         }
 
         let uuid = UUID()
-        let cryptor = try! LGNP.Cryptor(salt: "foobar", key: "1234567812345678")
         let message = LGNP.Message(
             URI: "foo",
             payload: [1,2,3],
             meta: [4,5,6],
-            salt: cryptor.salt,
-            controlBitmask: [.contentTypePlainText, .signatureSHA1, .encrypted],
+            controlBitmask: [.contentTypePlainText, .signatureSHA512, .encrypted],
             uuid: uuid
         )
         let encoded = try! LGNP.encode(message: message, with: cryptor)
         let headlessBody = Bytes(encoded[Int(LGNP.MESSAGE_HEADER_LENGTH)...])
 
-        XCTAssertThrowsError(
-            try LGNP.decodeHeadless(
-                body: headlessBody,
-                length: UInt32(encoded.count),
-                salt: cryptor.salt
-            )
-        ) { error in
-            guard case LGNP.E.DecryptionFailed(let message) = error else {
-                XCTFail("Unexpected error \(error)")
-                return
-            }
-            guard message.starts(with: "Cryptor not provided for decryption") else {
-                XCTFail("Unexpected message \(message)")
-                return
-            }
-        }
-
         var corruptedHeadlessBody: Bytes = headlessBody
         corruptedHeadlessBody.replaceSubrange(
             30...,
-            with: [1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,]
+            with: [
+                1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,0,1,2,3,4,5,0,1,2,3,4,5,1,2,3,4,5,6,7,
+                6,7,8,9,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,0,1,2,3,4,5,1,2,1,2,3,4,5,6,7,
+            ]
         )
         XCTAssertThrowsError(
             try LGNP.decodeHeadless(
                 body: corruptedHeadlessBody,
                 length: UInt32(encoded.count),
-                with: cryptor,
-                salt: cryptor.salt
+                with: cryptor
             )
         ) { error in
             guard case LGNP.E.DecryptionFailed(let message) = error else {
                 XCTFail("Unexpected error \(error)")
                 return
             }
+
             guard message.starts(with: "Could not decrypt payload: ") else {
                 XCTFail("Unexpected message \(message)")
                 return
@@ -429,14 +406,13 @@ final class LGNPTests: XCTestCase {
         let message2 = LGNP.Message(
             URI: "AAAAAAAAAAAAA",
             payload: [1,2,3],
-            salt: cryptor.salt,
             controlBitmask: .defaultValues,
             uuid: uuid
         )
-        var encoded2 = try! LGNP.encode(message: message2)
+        var encoded2 = try! LGNP.encode(message: message2, with: cryptor)
         encoded2[encoded2.count - 4] = 100
         XCTAssertThrowsError(
-            try LGNP.decode(body: encoded2, salt: cryptor.salt)
+            try LGNP.decode(body: encoded2, with: cryptor)
         ) { error in
             guard case LGNP.E.URIParsingFailed(let message) = error else {
                 XCTFail("Unexpected error \(error)")
@@ -480,39 +456,12 @@ final class LGNPTests: XCTestCase {
     func testValidateSignatureAndGetBody() {
         let uuid = UUID()
 
-        XCTAssertThrowsError(
-            try LGNP.validateSignatureAndGetBody(from: [], uuid: uuid, salt: [], controlBitmask: .signatureRIPEMD160)
-        ) { error in
-            guard case LGNP.E.SignatureVerificationFailed(let message) = error else {
-                XCTFail("Unexpected error \(error)")
-                return
-            }
-            guard message.starts(with: "RIPEMD160 not implemented yet") else {
-                XCTFail("Unexpected message \(message)")
-                return
-            }
-        }
-
-        XCTAssertThrowsError(
-            try LGNP.validateSignatureAndGetBody(from: [], uuid: uuid, salt: [], controlBitmask: .signatureRIPEMD320)
-        ) { error in
-            guard case LGNP.E.SignatureVerificationFailed(let message) = error else {
-                XCTFail("Unexpected error \(error)")
-                return
-            }
-            guard message.starts(with: "RIPEMD320 not implemented yet") else {
-                XCTFail("Unexpected message \(message)")
-                return
-            }
-        }
-
-        let cryptor = try! LGNP.Cryptor(salt: "foobar", key: "1234567812345678")
+        let cryptor = try! LGNP.Cryptor(key: "1234567812345678")
         let message = LGNP.Message(
             URI: "FFFF",
             payload: [1,2,3],
             meta: [4,5,6],
-            salt: cryptor.salt,
-            controlBitmask: .signatureSHA1,
+            controlBitmask: .signatureSHA384,
             uuid: uuid
         )
 
@@ -520,7 +469,7 @@ final class LGNPTests: XCTestCase {
             try LGNP.validateSignatureAndGetBody(
                 from: try LGNP.encode(message: message, with: cryptor),
                 uuid: uuid,
-                salt: [],
+                cryptor: cryptor,
                 controlBitmask: message.controlBitmask
             )
         ) { error in

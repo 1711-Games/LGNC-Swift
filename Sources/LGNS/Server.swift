@@ -21,7 +21,6 @@ public extension LGNS {
         private let readTimeout: TimeAmount
         private let writeTimeout: TimeAmount
         private let cryptor: LGNP.Cryptor
-        private lazy var saltBytes = self.cryptor.salt
 
         public let eventLoopGroup: EventLoopGroup
         public var channel: Channel!
