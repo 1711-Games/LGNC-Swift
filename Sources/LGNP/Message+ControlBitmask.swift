@@ -8,7 +8,7 @@ public extension LGNP.Message {
         public let rawValue: TYPE
 
         /// Empty bitmask with all options in `false`
-        public static let defaultValues        = ControlBitmask(rawValue: 0)
+        public static let defaultValues        = ControlBitmask([])
 
         /// Indicates that connection should not be closed as more messages are to come
         public static let keepAlive            = ControlBitmask(rawValue: 1 << 0)
