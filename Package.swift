@@ -13,8 +13,6 @@ let package = Package(
         .library(name: "LGNS", targets: ["LGNS"]),
         .library(name: "LGNC", targets: ["LGNC"]),
         .library(name: "Entita", targets: ["Entita"]),
-        .library(name: "Entita2", targets: ["Entita2"]),
-        .library(name: "Entita2FDB", targets: ["Entita2FDB"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio.git", .upToNextMajor(from: "2.0.0")),
@@ -22,13 +20,7 @@ let package = Package(
         .package(url: "https://github.com/swift-server/async-http-client.git", .upToNextMajor(from: "1.0.0")),
 
         // used by LGNPContenter
-        .package(url: "https://github.com/kirilltitov/MessagePack.git", .upToNextMajor(from: "2.0.0")),
-
-        // used by Entita2
         .package(url: "https://github.com/kirilltitov/SwiftMsgPack.git", .upToNextMajor(from: "2.0.0")),
-
-        // used by Entita2FDB
-        .package(url: "https://github.com/kirilltitov/FDBSwift.git", .upToNextMajor(from: "4.0.0")),
 
         // used by LGNP
         .package(url: "https://github.com/apple/swift-crypto.git", .upToNextMajor(from: "1.0.0")),
@@ -59,14 +51,6 @@ let package = Package(
             name: "Entita",
             dependencies: ["LGNCore", "NIO"]
         ),
-        .target(
-            name: "Entita2",
-            dependencies: ["LGNCore", "MessagePack", "NIO"]
-        ),
-        .target(
-            name: "Entita2FDB",
-            dependencies: ["LGNCore", "Entita2", "FDB", "NIO"]
-        ),
         .testTarget(
             name: "LGNKitTests",
             dependencies: [
@@ -76,8 +60,6 @@ let package = Package(
                 "LGNS",
                 "LGNC",
                 "Entita",
-                "Entita2",
-                "Entita2FDB",
             ]
         ),
     ]
