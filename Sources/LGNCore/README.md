@@ -155,6 +155,16 @@ In case it's done in other way, you should pass a `[String: String]` dictionary:
 let APP_ENV = AppEnv.detect(from: dictionary)
 ```
 
+There are five levels of app environment:
+
+```
+local
+dev
+qa
+stage
+production
+```
+
 On macOS the result value defaults to `.local` if no `APP_ENV` is provided in environment. Otherwise it exits the application with an error, because `APP_ENV` must always be provided explicitly in non-local environment.
 
 ## `LGNCore.Context` usage
