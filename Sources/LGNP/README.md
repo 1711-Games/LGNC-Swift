@@ -20,14 +20,14 @@ LGNP message consists of following blocks (placed in logical order):
 * `META` — (optional, if stated in `BMSK`) some number of bytes of meta section (size is specified in `MSZE`), see details in respective section.
 * `BODY` — some number of payload bytes (size is `SIZE` minus size of every preceeding block, e.g. `BODY` is the rest of message trimming after `SIZE`)
 
-Sections starting from `SIGN` (uncluding one) may be encrypted with AES (GCM) using external secret key and first 12 bytes of `UUID` as nonce, encrypted payload is followed by tag. Sections starting from `URI` (including one) are hashed into `SIGN` (before encryption).
+Sections starting from `SIGN` (uncluding one) may be encrypted with AES (GCM) using external secret key and first 12 bytes of `UUID` as nonce, encrypted payload is followed by a tag.
 
 Possible failfast scenarios:
 * message size is less than 28 bytes 
 * `HEAD` isn't `LGNP` bytes
 * `UUID` isn't a v4 UUID
 
-## Control bitmask (`MBSK` block)
+## Control bitmask (`BMSK` block)
 Control bitmask is a 2 bytes block which holds a bitmask with various flags related to current message. Possible values are:
 * `0 << 0 (0)` — default params (no signature, no encryption, no compression, no explicit content type)
 * `1 << 0 (1)` — keep connection alive after this message
@@ -35,9 +35,9 @@ Control bitmask is a 2 bytes block which holds a bitmask with various flags rela
 * `1 << 2 (4)` — message is GZIP-compressed
 * `1 << 3 (8)` — message contains meta section
 * `1 << 4 (16)` — message contains protocol error response
-* `1 << 5 (32)` — SHA256 signature (32 bytes)
-* `1 << 6 (64)` — SHA384 signature (48 bytes)
-* `1 << 7 (128)` — SHA512 signature (64 bytes)
+* `1 << 5 (32)` — signature is SHA256 (32 bytes)
+* `1 << 6 (64)` — signature is SHA384 (48 bytes)
+* `1 << 7 (128)` — signature is SHA512 (64 bytes)
 * `1 << 8 (256)` — reserved
 * `1 << 9 (512)` — reserved
 * `1 << 10 (1024)` — reserved
@@ -48,7 +48,7 @@ Control bitmask is a 2 bytes block which holds a bitmask with various flags rela
 * `1 << 15 (2^15)` — reserved
 * `1 << 16 (2^16)` — reserved
 
-## Meta section
+## Meta section (`MSZE` and `META` blocks)
 Meta section is introduced in order to send additional arbitrary data, but in a logically separated way from payload. LGNS uses it for sending various info like client address, remote address, locale, user agent etc as lines (separated by `NL` octet, `0x10`) of `NUL`-separated key-value pairs. Example: `0x00 0x255 KEY 0x00 VALUE 0x10 ANOTHERKEY 0x00 ANOTHERVALUE 0x10` (spaces for readability). `NUL` and `0x255` octets in the beginning are added for failfast check.
 
 ## Limitations
@@ -69,9 +69,9 @@ let message = LGNP.Message(
 )
 ```
 
-You don't have to set `.containsMeta` flag into control bitmask if you explicitly set the meta.
+You don't have to set `.containsMeta` flag into control bitmask if you explicitly set the meta. Respectively, you don't have to remove this flag if you set `meta` property to `nil`.
 
-Then you would like to encode this message to bytes. First, you need a Cryptor, which is just a reusable helper for encryption:
+Then you would like to encode this message to bytes. First, you need a Cryptor, which is just a reusable helper for encryption and decryption:
 
 ```swift
 let cryptor = try LGNP.Cryptor(key: "1234567890123456")
@@ -89,7 +89,7 @@ And the final step is encoding the message:
 let encoded: Bytes = try LGNP.encode(message: message, with: cryptor)
 ```
 
-It does encryption and HMAC signing for you, don't worry :)
+It does encryption and HMAC signing for you.
 
 In order to decode a message from bytes, you do following:
 
