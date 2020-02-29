@@ -1,7 +1,7 @@
-# LGNP
+# LGNP — LGN Protocol
 
 ## About
-LGNP stands for LGN Protocol. It's an application protocol for sending compact packets of binary data (messages) across public or private network. It's somewhat similar to HTTP: it has rudimentary form of HTTP headers (as control bitmask and optional meta section), it supports keep-alive, and also some other things. LGNP supports end-to-end encryption (AES GCM) and HMAC.
+LGNP is an application protocol for sending compact packets of binary data (messages) across public or private network. It's somewhat similar to HTTP: it has rudimentary form of HTTP headers (as control bitmask and optional meta section), it supports keep-alive, and also some other things. LGNP supports end-to-end encryption (AES GCM) and HMAC.
 
 The main purpose of LGNP is exchanging small messages between services. Surprisingly, you don't need all power of HTTP for that simple task :) LGNP is heavily used in LGNS (LGN Server).
 
