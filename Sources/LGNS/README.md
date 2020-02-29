@@ -26,21 +26,22 @@ let eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads
 let cryptor = try LGNP.Cryptor(key: [1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6])
 
 // A required control bitmask, which, in this particular case requires all messages to be signed with
-// SHA512 HMAC signature, additionally messages must be encrypted (key above in Cryptor, same key must be used in
-// all other services. And finally, messages must always be in MsgPack format. BTW, it's actually recommended
-// in general, as it's more compact than JSON.
+// SHA512 HMAC signature, additionally messages must be encrypted (key above in Cryptor, same key
+// must be used in all other services. And finally, messages must always be in MsgPack format.
+// BTW, it's actually recommended in general, as it's more compact than JSON.
 let requiredBitmask = LGNP.Message.ControlBitmask([.encrypted, .signatureSHA512, .contentTypeMsgPack])
 
-// Instance of LGN Server with all previous credentials/options. Last argument is a resolver closure which must
-// route the message to concrete action. It receives LGNP Message and context struct (see LGNCore documentation),
-// and expects to return an EventLoopFuture with optional response LGNP Message as Value type.
+// Instance of LGN Server with all previous credentials/options. Last argument is a resolver closure
+// which must route the message to concrete action. It receives LGNP Message and context struct
+// (see LGNCore doc), and expects to return a Future with optional response LGNP Message as Value type.
+// In this particular example we route the request with imaginary router, receiving optional action.
 let server: AnyServer = LGNS.Server(
     cryptor: cryptor,
     requiredBitmask: requiredBitmask,
     eventLoopGroup: eventLoopGroup
 ) { (message: LGNP.Message, context: LGNCore.Context) -> Future<LGNP.Message?> in
-    guard
-        let action: (LGNP.Message, LGNCore.Context) -> Future<LGNP.Message?> = MyCustomAppRouter.route(URI: message.URI)
+    guard let action: (LGNP.Message, LGNCore.Context) -> Future<LGNP.Message?>
+        = MyCustomAppRouter.route(URI: message.URI)
     else {
         return context.eventLoop.makeSucceededFuture(nil)
     }
@@ -48,9 +49,9 @@ let server: AnyServer = LGNS.Server(
     return action(message, context)
 }
 
-// Next we define a trap function to be executed on INT or TERM signal. All servers that conform to AnyServer protocol
-// must register themselves in SignalObserver class. When signal is caught, we inform SignalObserver with that signal,
-// and it shuts down all registered servers.
+// Next we define a trap function to be executed on INT or TERM signal. All servers that conform
+// to AnyServer protocol must register themselves in SignalObserver class. When signal is caught,
+// we inform SignalObserver with that signal, and it shuts down all registered servers.
 let trap: @convention(c) (Int32) -> Void = { s in
     logger.info("Received signal \(s)")
 
@@ -62,8 +63,9 @@ let trap: @convention(c) (Int32) -> Void = { s in
 signal(SIGINT, trap)
 signal(SIGTERM, trap)
 
-// At this point server hasn't started yet, so we bind it to an address and wait for this process to complete.
-// It's safe to call .wait() on EventLoopFuture on main thread, because we're not in EventLoop context.
+// At this point server hasn't started yet, so we bind it to an address and wait for this process
+// to complete. It's safe to call .wait() on EventLoopFuture on main thread, because we're
+// not in EventLoop context.
 try server.bind(to: .ip(host: "0.0.0.0", port: 1711)).wait()
 logger.info("Server started")
 
