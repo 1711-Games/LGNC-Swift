@@ -44,6 +44,42 @@ public enum LGNC {
     /// Translator, by default `LGNCore.i18n.DummyTranslator` which doesn't actually translate anything, but only proxy input
     public static var translator: LGNCTranslator = LGNCore.i18n.DummyTranslator()
 
+    /// Starts an HTTP server for given service and params. Returns a future with a server, which must be waited for until claiming the server as operational.
+    public static func startServerHTTP<S: Service>(
+        service: S.Type,
+        at target: LGNCore.Address? = nil,
+        eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
+        readTimeout: TimeAmount = .minutes(1),
+        writeTimeout: TimeAmount = .minutes(1)
+    ) -> Future<AnyServer> {
+        S.startServerHTTP(
+            at: target,
+            eventLoopGroup: eventLoopGroup,
+            readTimeout: readTimeout,
+            writeTimeout: writeTimeout
+        )
+    }
+
+    /// Starts an LGNS server for given service and params. Returns a future with a server, which must be waited for until claiming the server as operational.
+    public static func startServerLGNS<S: Service>(
+        service: S.Type,
+        at target: LGNCore.Address? = nil,
+        cryptor: LGNP.Cryptor,
+        eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
+        requiredBitmask: LGNP.Message.ControlBitmask = .defaultValues,
+        readTimeout: TimeAmount = .seconds(1),
+        writeTimeout: TimeAmount = .seconds(1)
+    ) -> Future<AnyServer> {
+        S.startServerLGNS(
+            at: target,
+            cryptor: cryptor,
+            eventLoopGroup: eventLoopGroup,
+            requiredBitmask: requiredBitmask,
+            readTimeout: readTimeout,
+            writeTimeout: writeTimeout
+        )
+    }
+
     public static func getCompiledMeta(
         from context: LGNCore.Context?,
         clientID: String? = nil

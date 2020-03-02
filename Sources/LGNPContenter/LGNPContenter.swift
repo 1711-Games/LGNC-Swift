@@ -3,7 +3,7 @@ import LGNCore
 import LGNP
 import SwiftMsgPack
 
-public struct LGNPContenter {
+public enum LGNPContenter {
     public enum E: Error {
         case ContentError(String)
         case UnpackError(String)

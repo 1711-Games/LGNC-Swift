@@ -7,7 +7,7 @@ import NIO
 
 public extension Service {
     static func startServerHTTP(
-        at target: LGNS.Server.BindTo? = nil,
+        at target: LGNCore.Address? = nil,
         eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
         readTimeout: TimeAmount = .minutes(1),
         writeTimeout: TimeAmount = .minutes(1)

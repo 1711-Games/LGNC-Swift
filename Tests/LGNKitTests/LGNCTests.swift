@@ -285,7 +285,8 @@ final class LGNCTests: XCTestCase {
         }
         self.queue1.async {
             do {
-                let server = try Services.Auth.startServerLGNS(
+                let server = try LGNC.startServerLGNS(
+                    service: Services.Auth.self,
                     cryptor: cryptor,
                     eventLoopGroup: Self.eventLoopGroup,
                     requiredBitmask: controlBitmask
@@ -312,7 +313,8 @@ final class LGNCTests: XCTestCase {
 
         self.queue3.async {
             do {
-                let server = try Services.Auth.startServerHTTP(
+                let server = try LGNC.startServerHTTP(
+                    service: Services.Auth.self,
                     at: .ip(host: "127.0.0.1", port: 27022),
                     eventLoopGroup: Self.eventLoopGroup
                 ).wait()

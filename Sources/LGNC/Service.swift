@@ -51,17 +51,6 @@ public protocol Service {
     ) -> Future<AnyServer>
 }
 
-public extension LGNC {
-    typealias ServicesRegistry = [
-        String: (
-            transports: [LGNCore.Transport: Int],
-            contracts: [
-                String: (visibility: ContractVisibility, transports: [LGNCore.Transport])
-            ]
-        )
-    ]
-}
-
 public extension Service {
     static func checkContractsCallbacks() -> Bool {
         self.guaranteeStatuses

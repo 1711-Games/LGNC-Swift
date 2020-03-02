@@ -6,7 +6,7 @@ import NIO
 
 public extension Service {
     static func startServerLGNS(
-        at target: LGNS.Server.BindTo? = nil,
+        at target: LGNCore.Address? = nil,
         cryptor: LGNP.Cryptor,
         eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
         requiredBitmask: LGNP.Message.ControlBitmask = .defaultValues,
