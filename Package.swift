@@ -4,7 +4,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "LGNKit-Swift",
+    name: "LGNKit",
     platforms: [.macOS(.v10_15)],
     products: [
         .library(name: "LGNCore", targets: ["LGNCore"]),
