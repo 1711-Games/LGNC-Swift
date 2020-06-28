@@ -54,85 +54,6 @@ final class LGNCoreTests: XCTestCase {
         XCTAssertEqual(array, [1, 2, 3, 4, 5, 6, 7, 8, 9, 0])
     }
 
-    func testConfig() {
-        enum ConfigKeys: String, AnyConfigKey {
-            case FOO
-            case BAR
-        }
-
-        // Local with missing key and empty local values
-        XCTAssertThrowsError(try LGNCore.Config<ConfigKeys>(
-            env: .local,
-            rawConfig: [
-                "FOO": "foo_val_raw"
-            ]
-        )) { error in
-            guard case LGNCore.Config<ConfigKeys>.E.MissingEntries(let missingKeys) = error else {
-                XCTFail("Unexpected error: \(error)")
-                return
-            }
-            XCTAssertEqual(missingKeys, [.BAR])
-        }
-
-        // Local with empty raw values
-        let instance1 = try! LGNCore.Config<ConfigKeys>(
-            env: .local,
-            rawConfig: [:],
-            localConfig: [
-                .FOO: "foo_val_local",
-                .BAR: "bar_val_local",
-            ]
-        )
-        XCTAssertEqual(instance1.get("FOO"), String?("foo_val_local"))
-        XCTAssertEqual(instance1[.FOO], "foo_val_local")
-        XCTAssertEqual(instance1[.BAR], "bar_val_local")
-
-        // Local with empty local values
-        let instance2 = try! LGNCore.Config<ConfigKeys>(
-            env: .local,
-            rawConfig: [
-                "FOO": "foo_val_raw",
-                "BAR": "bar_val_raw",
-            ]
-        )
-        XCTAssertEqual(instance2.get("FOO"), String?("foo_val_raw"))
-        XCTAssertEqual(instance2[.FOO], "foo_val_raw")
-        XCTAssertEqual(instance2[.BAR], "bar_val_raw")
-
-        // Non-local with missing keys and filled local values
-        XCTAssertThrowsError(try LGNCore.Config<ConfigKeys>(
-            env: .qa,
-            rawConfig: [:],
-            localConfig: [
-                .FOO: "foo_val_local",
-                .BAR: "bar_val_local",
-            ]
-        )) { error in
-            guard case LGNCore.Config<ConfigKeys>.E.MissingEntries(let missingKeys) = error else {
-                XCTFail("Unexpected error: \(error)")
-                return
-            }
-            XCTAssertEqual(missingKeys, [.FOO, .BAR])
-        }
-
-        // Prod with filled local values
-        let instance3 = try! LGNCore.Config<ConfigKeys>(
-            env: .prod,
-            rawConfig: [
-                "FOO": "foo_val_raw_prod",
-                "BAR": "bar_val_raw_prod",
-            ],
-            localConfig: [
-                .FOO: "foo_val_local",
-                .BAR: "bar_val_local",
-            ]
-        )
-        XCTAssertEqual(instance3.get("FOO"), String?("foo_val_raw_prod"))
-        XCTAssertEqual(instance3.get("LUL"), nil)
-        XCTAssertEqual(instance3[.FOO], "foo_val_raw_prod")
-        XCTAssertEqual(instance3[.BAR], "bar_val_raw_prod")
-    }
-
     func testRounded() {
         XCTAssertEqual(Float(0.1 + 0.2).rounded(toPlaces: 4), 0.3000)
         XCTAssertEqual(Float(13.37).rounded(toPlaces: 0), 13)
@@ -252,7 +173,6 @@ final class LGNCoreTests: XCTestCase {
     static var allTests = [
         ("testByteTrickery_getBytes_cast", testByteTrickery_getBytes_cast),
         ("testByteTrickery_append_prepend_addNul", testByteTrickery_append_prepend_addNul),
-        ("testConfig", testConfig),
         ("testRounded", testRounded),
         ("testContext", testContext),
         ("testi18nDummyTranslator", testi18nDummyTranslator),

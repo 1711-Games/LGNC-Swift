@@ -16,29 +16,6 @@ extension Logging.Logger.MetadataValue: Encodable {
     }
 }
 
-public extension Logging.Logger.Level {
-    init?(string: String) {
-        switch string {
-        case "trace":
-            self = .trace
-        case "debug":
-            self = .debug
-        case "info":
-            self = .info
-        case "notice":
-            self = .notice
-        case "warning":
-            self = .warning
-        case "error":
-            self = .error
-        case "critical":
-            self = .critical
-        default:
-            return nil
-        }
-    }
-}
-
 public extension LGNCore {
     /// Custom SSWG Logger backend implementation
     struct Logger: LogHandler {
