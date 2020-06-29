@@ -118,11 +118,20 @@ public extension LGNS {
                 return (eventLoop ?? self.eventLoopGroup.next()).makeSucceededFuture()
             }
 
-            return channel.close().map {
-                self.channel = nil
-                self.responsePromise = nil
-                self.clientHandler = nil
-            }
+            return channel
+                .close()
+                .map {
+                    self.channel = nil
+                    self.responsePromise = nil
+                    self.clientHandler = nil
+                }
+                .flatMapErrorThrowing { error in
+                    if case ChannelError.alreadyClosed = error {
+                        Self.logger.debug("Caught NIO error 'ChannelError.alreadyClosed', but it's ok")
+                        return
+                    }
+                    throw error
+                }
         }
 
         /// Sends a message to a remote LGNS server at given address.
