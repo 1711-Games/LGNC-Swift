@@ -265,9 +265,16 @@ public extension Contract {
                 throw $0
             }
 
-        result.whenComplete { _ in
+        result.whenComplete { result in
+            let resultString: String
+            switch result {
+            case .success(_):
+                resultString = "successful"
+            case .failure(let error):
+                resultString = "a failure (\(error))"
+            }
             context.logger.info(
-                "Remote contract 'lgns://\(address)/\(URI)' execution took \(profiler.end().rounded(toPlaces: 4))s"
+                "Remote contract 'lgns://\(address)/\(URI)' execution was \(resultString) and took \(profiler.end().rounded(toPlaces: 4))s"
             )
         }
 
