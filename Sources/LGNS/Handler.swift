@@ -86,57 +86,58 @@ internal extension LGNS {
                 allowedLocales: LGNCore.i18n.translator.allowedLocales
             )
 
+            let requestContext = LGNCore.Context(
+                remoteAddr: remoteAddr,
+                clientAddr: clientAddr,
+                clientID: clientID,
+                userAgent: userAgent,
+                locale: locale,
+                uuid: message.uuid,
+                isSecure: message.controlBitmask.contains(.encrypted) || message.controlBitmask.hasSignature,
+                transport: .LGNS,
+                eventLoop: context.eventLoop
+            )
+
             if profiler != nil {
-                LGNS.logger.debug(
+                requestContext.logger.debug(
                     """
                     About to serve request at URI '\(message.URI)' \
                     from remoteAddr \(remoteAddr) (clientAddr \(clientAddr)) by \
                     clientID '\(clientID ?? "UNKNOWN")' (userAgent '\(userAgent)'), locale \(locale)
-                    """,
-                    metadata: ["requestID": "\(message.uuid)"]
+                    """
                 )
             }
 
-            let future = self.resolver(
-                message,
-                LGNCore.Context(
-                    remoteAddr: remoteAddr,
-                    clientAddr: clientAddr,
-                    clientID: clientID,
-                    userAgent: userAgent,
-                    locale: locale,
-                    uuid: message.uuid,
-                    isSecure: message.controlBitmask.contains(.encrypted) || message.controlBitmask.hasSignature,
-                    transport: .LGNS,
-                    eventLoop: context.eventLoop
-                )
-            )
+            let resultFuture = self.resolver(message, requestContext)
 
             self.cleanup()
 
             if let profiler = profiler {
-                future.whenComplete { _ in
-                    LGNS.logger.debug("""
+                resultFuture.whenComplete { _ in
+                    requestContext.logger.debug("""
                         LGNS \(type(of: self)) request '\(message.URI)' execution \
                         took \(profiler.end().rounded(toPlaces: 5)) s
-                        """,
-                        metadata: ["requestID": "\(message.uuid)"]
+                        """
                     )
                 }
             }
 
-            future.whenFailure {
+            resultFuture.whenFailure {
+                requestContext.logger.debug("Writing error to channel")
                 self.errorCaught(context: context, error: $0)
             }
 
-            future.whenSuccess {
+            resultFuture.whenSuccess {
                 guard let message = $0 else {
+                    requestContext.logger.debug("No LGNP message returned from resolver, do nothing")
                     return
                 }
 
+                requestContext.logger.debug("Writing LGNP message to channel")
                 context.writeAndFlush(self.wrapInboundOut(message), promise: nil)
 
                 if !message.controlBitmask.contains(.keepAlive) {
+                    requestContext.logger.debug("Closing the channel as keepAlive is 'false'")
                     context.close(promise: nil)
                 }
             }
