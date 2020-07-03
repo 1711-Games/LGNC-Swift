@@ -112,19 +112,21 @@ public extension LGNS {
             }
         }
 
+        fileprivate func disconnectRoutine() {
+            self.channel = nil
+            self.responsePromise = nil
+            self.clientHandler = nil
+        }
+
         /// Disconnects from a remote LGNS server
         public func disconnect(on eventLoop: EventLoop? = nil) -> Future<Void> {
             guard let channel = self.channel, channel.isActive, self.clientHandler?.isOpen == true else {
+                self.disconnectRoutine()
                 return (eventLoop ?? self.eventLoopGroup.next()).makeSucceededFuture()
             }
 
-            return channel
+            let result = channel
                 .close()
-                .map {
-                    self.channel = nil
-                    self.responsePromise = nil
-                    self.clientHandler = nil
-                }
                 .flatMapErrorThrowing { error in
                     if case ChannelError.alreadyClosed = error {
                         Self.logger.debug("Caught NIO error 'ChannelError.alreadyClosed', but it's ok")
@@ -132,6 +134,10 @@ public extension LGNS {
                     }
                     throw error
                 }
+
+            result.whenComplete { _ in self.disconnectRoutine() }
+
+            return result
         }
 
         /// Sends a message to a remote LGNS server at given address.
