@@ -50,7 +50,7 @@ public extension LGNS {
                         BackPressureHandler(),
                         IdleStateHandler(readTimeout: self.readTimeout, writeTimeout: self.writeTimeout),
                         LGNS.LGNPCoder(cryptor: self.cryptor, requiredBitmask: self.requiredBitmask),
-                        LGNS.ServerHandler(resolver: resolver)
+                        LGNS.ServerHandler(logger: Self.logger, resolver: resolver)
                     )
                 }
 
