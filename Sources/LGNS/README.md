@@ -11,8 +11,9 @@ LGNS doesn't have any form of routing, in fact, it only has one resolver which r
 and expects an `EventLoopFuture<LGNP.Message?>` as output. That simple. It's up to programmer on how to route the request.
 
 ## Usage
-Please see complete example:
+Please see complete example.
 
+### Server
 ```swift
 import LGNS
 
@@ -94,6 +95,57 @@ If you press Ctrl+C, the server will stop:
 
 You're good :)
 
+### Client
+
+```swift
+// Like always, for convenience
+let logger = Logger(label: "main")
+
+// An event loop group to run client on
+let eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
+
+// Control bitmask. Keep in mind that this control bitmask must be a subset of a required control bitmask
+// set on server.
+let controlBitmask = LGNP.Message.ControlBitmask([.contentTypeMsgPack, .encrypted, .signatureSHA512])
+
+// Client instance
+let client = LGNS.Client(
+    cryptor: try LGNP.Cryptor(key: [1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6]),
+    controlBitmask: controlBitmask,
+    eventLoopGroup: eventLoopGroup
+)
+
+// singleRequest means that there will be created a copy of the client to ensure thread safety.
+// It's because an instance of a client is meant to be used by one user at a time, but in
+// a multithread environment it's a nonesense, therefore a copy should be created.
+// However, when there is one client working with a server (or multiple servers) on continuous
+// basis (.keepAlive control bitmask flag), it's totally cool, and no copy should be created,
+// just use method .request with the same interface
+let futureResult: Future<(LGNP.Message, LGNCore.Context)> = client.singleRequest(
+    at: .ip(host: "127.0.0.1", port: 1711),
+    with: LGNP.Message(URI: "/some/uri", payload: [1,3,3,7], controlBitmask: controlBitmask)
+)
+
+// Result handling. The result is always a tuple of LGNP Message and a Context struct.
+// In this particular case .whenComplete operates with builtin Swift monad — Result<Value, Error>,
+// and therefore should first be unwrapped (pretty much like Optional, right)
+futureResult.whenComplete { resultMonad in
+    switch resultMonad {
+    case let .failure(error):
+        logger.error("Could not send message: \(error)")
+    case let .success((message, context)):
+        logger.info(
+            """
+            Received message.\
+                Body: \(message._payloadAsString).\
+                UUID: \(message.uuid).\
+                Locale: \(context.locale).
+            """
+        )
+    }
+}
+```
+
 ## FAQ
 
 ### Should I use bare LGNS?
@@ -111,5 +163,3 @@ together more _than they could_. I'm quite sure this fact critically violates Th
 App methodology (probably even more than one paragraph). You may even call the system built with LGNS (or LGNC) a loosely coupled
 (a distributed) monolith, if you'd like, however, real world has real challenges, that are rarely solved by idealistic methologies. Sorry about that
 (no).
-
-
