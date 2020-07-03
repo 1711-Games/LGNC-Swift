@@ -61,16 +61,19 @@ internal extension LGNS {
 
         func channelActive(context: ChannelHandlerContext) {
             self.isOpen = true
+            self.logger.debug("Became active (\(context.remoteAddress?.description ?? "unknown addr"))")
             context.fireChannelActive()
         }
 
         public func channelInactive(context: ChannelHandlerContext) {
             self.isOpen = false
+            self.logger.debug("Became inactive")
             self.promise?.fail(LGNS.E.ConnectionClosed)
             context.fireChannelInactive()
         }
 
         public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
+            self.logger.debug("Channel read (\(context.remoteAddress?.description ?? "unknown addr"))")
             var profiler: LGNCore.Profiler?
             if Self.profile == true {
                 profiler = LGNCore.Profiler.begin()
