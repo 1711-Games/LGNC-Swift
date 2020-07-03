@@ -26,6 +26,7 @@ internal extension LGNS {
         public init(
             promise: Promise<(LGNP.Message, LGNCore.Context)>? = nil,
             logger: Logger = Logger(label: "LGNS.BaseHandler"),
+            file: String = #file, line: Int = #line,
             resolver: @escaping Resolver
         ) {
             self.promise = promise
@@ -33,7 +34,7 @@ internal extension LGNS {
             self.resolver = resolver
 
             self.logger[metadataKey: "ID"] = "\(ObjectIdentifier(self).hashValue)"
-            self.logger.debug("Handler initialized")
+            self.logger.debug("Handler initialized from \(file):\(line)")
         }
 
         deinit {
