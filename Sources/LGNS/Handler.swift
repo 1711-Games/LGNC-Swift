@@ -20,12 +20,24 @@ internal extension LGNS {
             false
         }
 
+        public private(set) var isOpen: Bool = false
+        public var logger: Logger
+
         public init(
             promise: Promise<(LGNP.Message, LGNCore.Context)>? = nil,
+            logger: Logger = Logger(label: "LGNS.BaseHandler"),
             resolver: @escaping Resolver
         ) {
             self.promise = promise
+            self.logger = logger
             self.resolver = resolver
+
+            self.logger[metadataKey: "ID"] = "\(ObjectIdentifier(self).hashValue)"
+            self.logger.debug("Handler initialized")
+        }
+
+        deinit {
+            self.logger.debug("Handler deinitialized")
         }
 
         internal func sendError(to context: ChannelHandlerContext, error: ErrorTupleConvertible) {
@@ -47,7 +59,13 @@ internal extension LGNS {
             // context.fireErrorCaught(error)
         }
 
+        func channelActive(context: ChannelHandlerContext) {
+            self.isOpen = true
+            context.fireChannelActive()
+        }
+
         public func channelInactive(context: ChannelHandlerContext) {
+            self.isOpen = false
             self.promise?.fail(LGNS.E.ConnectionClosed)
             context.fireChannelInactive()
         }

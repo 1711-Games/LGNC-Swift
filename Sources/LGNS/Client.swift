@@ -63,7 +63,7 @@ public extension LGNS {
             return resultFuture.flatMap {
                 let connectProfiler = LGNCore.Profiler.begin()
 
-                let clientHandler = LGNS.ClientHandler() { message, context in
+                let clientHandler = LGNS.ClientHandler(logger: Self.logger) { message, context in
                     self.responsePromise?.succeed((message, context))
                     if !message.controlBitmask.contains(.keepAlive), let channel = self.channel {
                         return channel.close().map { nil }
@@ -114,7 +114,7 @@ public extension LGNS {
 
         /// Disconnects from a remote LGNS server
         public func disconnect(on eventLoop: EventLoop? = nil) -> Future<Void> {
-            guard let channel = self.channel, channel.isActive else {
+            guard let channel = self.channel, channel.isActive, self.clientHandler?.isOpen == true else {
                 return (eventLoop ?? self.eventLoopGroup.next()).makeSucceededFuture()
             }
 
