@@ -1,0 +1,3 @@
+import LGNC
+
+print("Hi")

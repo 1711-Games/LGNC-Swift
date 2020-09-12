@@ -52,6 +52,8 @@ public protocol Service {
 }
 
 public extension Service {
+    static var info: [String: String] { [:] }
+
     static func checkContractsCallbacks() -> Bool {
         self.guaranteeStatuses
             .filter { URI, status in

@@ -1,7 +1,8 @@
 .DS_Store
-/.idea
-/.build
-/.swiftpm
+.idea
+.build
+.swiftpm
 /Packages
-/*.xcodeproj
+*.xcodeproj
 Package.resolved
+/IntegrationTests/Sources/IntegrationTests/Codegen/
