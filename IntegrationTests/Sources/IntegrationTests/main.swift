@@ -51,10 +51,6 @@ struct Execute: ParsableCommand {
         let testCasesResults: [String: Bool] = .init(
             uniqueKeysWithValues: try FileManager.default
                 .contentsOfDirectory(at: self.testsDirectoryURL, includingPropertiesForKeys: [.isDirectoryKey])
-                .map {
-                    dump($0)
-                    return $0
-                }
                 .filter { try $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true }
                 .filter { $0.lastPathComponent.starts(with: "test_") }
                 .map(executeTestCase(under:))
