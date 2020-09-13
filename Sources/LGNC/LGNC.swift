@@ -19,10 +19,12 @@ public enum LGNC {
     public static var ALLOW_INCOMPLETE_GUARANTEE = false {
         didSet {
             if self.ALLOW_INCOMPLETE_GUARANTEE == true {
-                self.logger.warning("""
-                    LGNC.ALLOW_INCOMPLETE_GUARANTEE is set to true,\
+                self.logger.warning(
+                    """
+                    LGNC.ALLOW_INCOMPLETE_GUARANTEE is set to true, \
                     service may bootstrap without all contracts guaranteed
-                """)
+                    """
+                )
             }
         }
     }
@@ -33,10 +35,12 @@ public enum LGNC {
     public static var ALLOW_ALL_TRANSPORTS = false {
         didSet {
             if self.ALLOW_ALL_TRANSPORTS == true {
-                self.logger.warning("""
-                    LGNC.ALLOW_ALL_TRANSPORTS is set to true, all contracts may be executed via HTTP,\
+                self.logger.warning(
+                    """
+                    LGNC.ALLOW_ALL_TRANSPORTS is set to true, all contracts may be executed via HTTP, \
                     which is not secure and is recommended only for development purposes
-                """)
+                    """
+                )
             }
         }
     }

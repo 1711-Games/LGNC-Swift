@@ -11,6 +11,6 @@ ${BUILDERPATH}/Scripts/generate \
     --input ${BUILDERPATH}/IntegrationTests/Schema \
     --output ${DIR}/Sources/IntegrationTests/Codegen
 
-swift run --package-path ${DIR}
+swift run --package-path ${DIR} IntegrationTests --tests-directory ${BUILDERPATH}/IntegrationTests/Tests
 
 exit

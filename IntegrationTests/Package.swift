@@ -6,13 +6,15 @@ let package = Package(
     name: "IntegrationTests",
     platforms: [.macOS(.v10_15)],
     dependencies: [
+        .package(url: "https://github.com/apple/swift-argument-parser", .upToNextMinor(from: "0.2.0")),
         .package(name: "LGNKit", url: "git@github.com:1711-games/LGNKit-Swift.git", .branch("master")),
     ],
     targets: [
         .target(
             name: "IntegrationTests",
             dependencies: [
-            .product(name: "LGNC", package: "LGNKit"),
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .product(name: "LGNC", package: "LGNKit"),
             ]
         ),
         .testTarget(name: "IntegrationTestsTests", dependencies: ["IntegrationTests"]),
