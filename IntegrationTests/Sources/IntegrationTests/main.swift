@@ -48,20 +48,18 @@ struct Execute: ParsableCommand {
 
         print("About to execute tests under \(self.testsDirectory)")
 
-        let testCasesResults: [String: Bool] = .init(
-            uniqueKeysWithValues: try FileManager.default
-                .contentsOfDirectory(at: self.testsDirectoryURL, includingPropertiesForKeys: [.isDirectoryKey])
-                .filter { try $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true }
-                .filter { $0.lastPathComponent.starts(with: "test_") }
-                .map(executeTestCase(under:))
-        )
+        let testCasesResults: [(String, Bool)] = try FileManager.default
+            .contentsOfDirectory(at: self.testsDirectoryURL, includingPropertiesForKeys: [.isDirectoryKey])
+            .filter { try $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true }
+            .filter { $0.lastPathComponent.starts(with: "test_") }
+            .map(executeTestCase(under:))
 
         print(
             """
 
             Test results: \
-            \(testCasesResults.values.filter { $0 }.count) succeeded, \
-            \(testCasesResults.values.filter { !$0 }.count) failed.
+            \(testCasesResults.filter { $1 }.count) succeeded, \
+            \(testCasesResults.filter { !$1 }.count) failed.
 
             \(testCasesResults
                 .map { name, result in "[\(result ? "OK" : "FAIL")] \(name)" }
