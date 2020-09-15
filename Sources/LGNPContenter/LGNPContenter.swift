@@ -21,7 +21,7 @@ public extension Dictionary where Key == String {
 
     func getJSON() throws -> Bytes {
         return try autoreleasepool {
-            try Bytes(JSONSerialization.data(withJSONObject: self, options: .prettyPrinted))
+            try Bytes(JSONSerialization.data(withJSONObject: self, options: .sortedKeys))
         }
     }
 
@@ -29,7 +29,7 @@ public extension Dictionary where Key == String {
         return try autoreleasepool {
             switch format {
             case .MsgPack: return try self.getMsgPack()
-            case .JSON: return try Bytes(JSONSerialization.data(withJSONObject: self))
+            case .JSON: return try Bytes(JSONSerialization.data(withJSONObject: self, options: .sortedKeys))
             case .XML: throw LGNPContenter.E.ContentError("XML content type not implemented yet")
             case .PlainText: throw LGNPContenter.E.ContentError("Dictionary cannot be plain text")
             }
