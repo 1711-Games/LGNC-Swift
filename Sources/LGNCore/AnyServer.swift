@@ -15,12 +15,17 @@ public protocol AnyServer: class {
 
     var eventLoopGroup: EventLoopGroup { get }
 
+    var address: LGNCore.Address { get }
+
     static var logger: Logger { get }
     static var defaultPort: Int { get }
 
-    /// Binds to a given address and starts a server,
+    /// Binds to an address and starts a server,
     /// `Void` future is fulfilled when server is started
-    func bind(to address: LGNCore.Address) -> EventLoopFuture<Void>
+    func bind() -> EventLoopFuture<Void>
+
+    /// Performs server shutdown and return a `Void` future when server is down
+    func shutdown() -> EventLoopFuture<Void>
 
     /// Blocks current thread until server is stopped.
     /// This method **must not** be called in `EventLoop` context, only on dedicated threads/dispatch queues/main thread
@@ -30,15 +35,15 @@ public protocol AnyServer: class {
 public extension AnyServer {
     fileprivate var name: String { "\(type(of: self))" }
 
-    func bind(to address: LGNCore.Address) -> EventLoopFuture<Void> {
-        Self.logger.info("LGNS Server: Trying to bind at \(address)")
+    func bind() -> EventLoopFuture<Void> {
+        Self.logger.info("LGNS Server: Trying to bind at \(self.address)")
 
-        let bindFuture: EventLoopFuture<Channel> = self.bootstrap.bind(to: address, defaultPort: Self.defaultPort)
+        let bindFuture: EventLoopFuture<Channel> = self.bootstrap.bind(to: self.address, defaultPort: Self.defaultPort)
 
         bindFuture.whenComplete { result in
             switch result {
-            case .success(_): Self.logger.info("LGNS Server: Succesfully started on \(address)")
-            case let .failure(error): Self.logger.info("LGNS Server: Could not start on \(address): \(error)")
+            case .success(_): Self.logger.info("LGNS Server: Succesfully started on \(self.address)")
+            case let .failure(error): Self.logger.info("LGNS Server: Could not start on \(self.address): \(error)")
             }
         }
 

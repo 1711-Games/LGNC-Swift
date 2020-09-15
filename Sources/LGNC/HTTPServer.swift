@@ -62,17 +62,20 @@ public extension LGNC.HTTP {
         public static var logger: Logger = Logger(label: "LGNC.HTTP")
         public static var defaultPort: Int = 8080
 
+        public let address: LGNCore.Address
         public let eventLoopGroup: EventLoopGroup
         public var channel: Channel!
         public var bootstrap: ServerBootstrap!
         public var isRunning: Bool = false
 
         public required init(
+            address: LGNCore.Address,
             eventLoopGroup: EventLoopGroup,
             readTimeout: Time = .minutes(1),
             writeTimeout: Time = .minutes(1),
             resolver: @escaping Resolver
         ) {
+            self.address = address
             self.readTimeout = readTimeout
             self.writeTimeout = writeTimeout
             self.eventLoopGroup = eventLoopGroup

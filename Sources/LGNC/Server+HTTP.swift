@@ -25,6 +25,7 @@ public extension Service {
         }
 
         let server = LGNC.HTTP.Server(
+            address: address,
             eventLoopGroup: eventLoopGroup,
             readTimeout: readTimeout,
             writeTimeout: writeTimeout
@@ -74,6 +75,6 @@ public extension Service {
             }
         }
 
-        return server.bind(to: address).map { server }
+        return server.bind().map { server }
     }
 }

@@ -93,6 +93,7 @@ final class LGNSTests: XCTestCase {
             .reduce(into: Bytes([])) { $0.append(contentsOf: $1 + nl) }
 
         let server = LGNS.Server(
+            address: address,
             cryptor: cryptor,
             requiredBitmask: controlBitmask,
             eventLoopGroup: self.eventLoopGroup,
@@ -113,7 +114,7 @@ final class LGNSTests: XCTestCase {
         }
         self.queue.async {
             do {
-                try server.bind(to: address).wait()
+                try server.bind().wait()
                 promiseStart.succeed(())
                 try server.waitForStop()
 
@@ -199,6 +200,7 @@ final class LGNSTests: XCTestCase {
         let response3 = "third response, bye"
 
         let server: AnyServer = LGNS.Server(
+            address: address,
             cryptor: cryptor,
             requiredBitmask: controlBitmask,
             eventLoopGroup: self.eventLoopGroup
@@ -233,7 +235,7 @@ final class LGNSTests: XCTestCase {
 
             return context.eventLoop.makeSucceededFuture(response)
         }
-        try! server.bind(to: address).wait()
+        try! server.bind().wait()
         defer { try! server.shutdown().wait() }
 
         let client = LGNS.Client(cryptor: cryptor, controlBitmask: controlBitmask, eventLoopGroup: self.eventLoopGroup)

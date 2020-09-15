@@ -22,12 +22,14 @@ public extension LGNS {
         private let writeTimeout: TimeAmount
         private let cryptor: LGNP.Cryptor
 
+        public let address: LGNCore.Address
         public let eventLoopGroup: EventLoopGroup
         public var channel: Channel!
         public private(set) var bootstrap: ServerBootstrap!
         public var isRunning: Bool = false
 
         public required init(
+            address: LGNCore.Address,
             cryptor: LGNP.Cryptor,
             requiredBitmask: ControlBitmask,
             eventLoopGroup: EventLoopGroup,
@@ -35,6 +37,7 @@ public extension LGNS {
             writeTimeout: Time = .seconds(1),
             resolver: @escaping Resolver
         ) {
+            self.address = address
             self.cryptor = cryptor
             self.requiredBitmask = requiredBitmask
             self.readTimeout = readTimeout

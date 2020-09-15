@@ -27,6 +27,7 @@ public extension Service {
         }
 
         let server = LGNS.Server(
+            address: address,
             cryptor: cryptor,
             requiredBitmask: requiredBitmask,
             eventLoopGroup: eventLoopGroup,
@@ -54,6 +55,6 @@ public extension Service {
             }
         }
 
-        return server.bind(to: address).map { server }
+        return server.bind().map { server }
     }
 }
