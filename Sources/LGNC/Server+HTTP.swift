@@ -6,26 +6,17 @@ import LGNS
 import NIO
 
 public extension Service {
-    static func startServerHTTP(
+    static func getServerHTTP(
         at target: LGNCore.Address? = nil,
         eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
         readTimeout: TimeAmount = .minutes(1),
         writeTimeout: TimeAmount = .minutes(1)
-    ) -> EventLoopFuture<AnyServer> {
-        let address: LGNCore.Address
+    ) throws -> AnyServer {
+        try self.validate(transport: .HTTP)
+        try self.checkGuarantees()
 
-        do {
-            try self.validate(transport: .HTTP)
-
-            address = try self.unwrapAddress(from: target)
-
-            try self.checkGuarantees()
-        } catch {
-            return eventLoopGroup.next().makeFailedFuture(error)
-        }
-
-        let server = LGNC.HTTP.Server(
-            address: address,
+        return LGNC.HTTP.Server(
+            address: try self.unwrapAddress(from: target),
             eventLoopGroup: eventLoopGroup,
             readTimeout: readTimeout,
             writeTimeout: writeTimeout
@@ -74,7 +65,24 @@ public extension Service {
                 return request.eventLoop.makeFailedFuture(error)
             }
         }
+    }
 
-        return server.bind().map { server }
+    static func startServerHTTP(
+        at target: LGNCore.Address? = nil,
+        eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
+        readTimeout: TimeAmount = .minutes(1),
+        writeTimeout: TimeAmount = .minutes(1)
+    ) -> EventLoopFuture<AnyServer> {
+        do {
+            let server: AnyServer = try self.getServerHTTP(
+                at: target,
+                eventLoopGroup: eventLoopGroup,
+                readTimeout: readTimeout,
+                writeTimeout: writeTimeout
+            )
+            return server.bind().map { server }
+        } catch {
+            return eventLoopGroup.next().makeFailedFuture(error)
+        }
     }
 }

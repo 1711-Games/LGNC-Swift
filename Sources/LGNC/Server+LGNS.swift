@@ -5,29 +5,20 @@ import LGNS
 import NIO
 
 public extension Service {
-    static func startServerLGNS(
+    static func getServerLGNS(
         at target: LGNCore.Address? = nil,
         cryptor: LGNP.Cryptor,
         eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
         requiredBitmask: LGNP.Message.ControlBitmask = .defaultValues,
         readTimeout: TimeAmount = .seconds(1),
         writeTimeout: TimeAmount = .seconds(1)
-    ) -> EventLoopFuture<AnyServer> {
-        let address: LGNCore.Address
+    ) throws -> AnyServer {
+        try self.validate(transport: .LGNS)
+        try self.validate(controlBitmask: requiredBitmask)
+        try self.checkGuarantees()
 
-        do {
-            try self.validate(transport: .LGNS)
-            try self.validate(controlBitmask: requiredBitmask)
-
-            address = try self.unwrapAddress(from: target)
-
-            try self.checkGuarantees()
-        } catch {
-            return eventLoopGroup.next().makeFailedFuture(error)
-        }
-
-        let server = LGNS.Server(
-            address: address,
+        return LGNS.Server(
+            address: try self.unwrapAddress(from: target),
             cryptor: cryptor,
             requiredBitmask: requiredBitmask,
             eventLoopGroup: eventLoopGroup,
@@ -54,7 +45,28 @@ public extension Service {
                 return context.eventLoop.makeFailedFuture(error)
             }
         }
+    }
 
-        return server.bind().map { server }
+    static func startServerLGNS(
+        at target: LGNCore.Address? = nil,
+        cryptor: LGNP.Cryptor,
+        eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
+        requiredBitmask: LGNP.Message.ControlBitmask = .defaultValues,
+        readTimeout: TimeAmount = .seconds(1),
+        writeTimeout: TimeAmount = .seconds(1)
+    ) -> EventLoopFuture<AnyServer> {
+        do {
+            let server: AnyServer = try self.getServerLGNS(
+                at: target,
+                cryptor: cryptor,
+                eventLoopGroup: eventLoopGroup,
+                requiredBitmask: requiredBitmask,
+                readTimeout: readTimeout,
+                writeTimeout: writeTimeout
+            )
+            return server.bind().map { server }
+        } catch {
+            return eventLoopGroup.next().makeFailedFuture(error)
+        }
     }
 }
