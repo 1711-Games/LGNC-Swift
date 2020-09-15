@@ -30,7 +30,7 @@ public protocol Service {
         URI: String,
         dict: Entita.Dict,
         context: LGNCore.Context
-    ) -> Future<Entity>
+    ) -> EventLoopFuture<Entity>
 
     /// Starts a LGNS server at given target. Returns a future with a server, which must be waited for until claiming the server as operational.
     static func startServerLGNS(
@@ -40,7 +40,7 @@ public protocol Service {
         requiredBitmask: LGNP.Message.ControlBitmask,
         readTimeout: TimeAmount,
         writeTimeout: TimeAmount
-    ) -> Future<AnyServer>
+    ) -> EventLoopFuture<AnyServer>
 
     /// Starts a HTTP server at given target. Returns a future with a server, which must be waited for until claiming the server as operational.
     static func startServerHTTP(
@@ -48,7 +48,7 @@ public protocol Service {
         eventLoopGroup: EventLoopGroup,
         readTimeout: TimeAmount,
         writeTimeout: TimeAmount
-    ) -> Future<AnyServer>
+    ) -> EventLoopFuture<AnyServer>
 }
 
 public extension Service {
@@ -70,8 +70,8 @@ public extension Service {
         URI: String,
         dict: Entita.Dict,
         context: LGNCore.Context
-    ) -> Future<Entity> {
-        let result: Future<LGNC.Entity.Result>
+    ) -> EventLoopFuture<Entity> {
+        let result: EventLoopFuture<LGNC.Entity.Result>
 
         let profiler = LGNCore.Profiler.begin()
 

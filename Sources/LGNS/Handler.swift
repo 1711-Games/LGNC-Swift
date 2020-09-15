@@ -14,7 +14,7 @@ internal extension LGNS {
         private static let EOL: Byte = 10
 
         private let resolver: LGNS.Resolver
-        public var promise: Promise<(LGNP.Message, LGNCore.Context)>?
+        public var promise: EventLoopPromise<(LGNP.Message, LGNCore.Context)>?
 
         fileprivate class var profile: Bool {
             false
@@ -24,7 +24,7 @@ internal extension LGNS {
         public var logger: Logger
 
         public init(
-            promise: Promise<(LGNP.Message, LGNCore.Context)>? = nil,
+            promise: EventLoopPromise<(LGNP.Message, LGNCore.Context)>? = nil,
             logger: Logger = Logger(label: "LGNS.BaseHandler"),
             file: String = #file, line: Int = #line,
             resolver: @escaping Resolver

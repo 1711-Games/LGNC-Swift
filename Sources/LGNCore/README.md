@@ -13,14 +13,12 @@ In particular, it has following useful tools:
 * Minor tools:
 * * `AnyServer`, a protocol used in LGNS and LGNC for defining general server interface (`AnyServer.swift`)
 * * Various unsafe `Array<UInt8>` extensions for casting anything to bytes and back ([`BytesTrickery.swift`](#bytes-trickery-usage))
-* * A polyfill version of `precondition` function which prints error message even if product is built in RELEASE mode, an extension for `Foundation.UUID` which initializes a UUID instance with `Array<UInt8>` (`Helpers.swift`)
+* * A polyfill version of `precondition` function which prints error message even if product is built in RELEASE mode, an extension for `Foundation.UUID` which initializes an UUID instance with `Array<UInt8>` (`Helpers.swift`)
 * * An extension for `NIO.EventLoop.makeSucceededFuture` which does not take any parameters and returns a new `EventLoopFuture<Void>`.
 
 Additionally, this module defines following typealises:
 * `typealias Byte = UInt8`
 * `typealias Bytes = [Byte]`
-* `typealias Future = EventLoopFuture`
-* `typealias Promise = EventLoopPromise`
 
 ## `LGNCore.Config` usage
 In order to use this class you have to define an `enum` with all config keys. Example:

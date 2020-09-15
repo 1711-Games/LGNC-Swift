@@ -2,8 +2,6 @@ import LGNCore
 import LGNP
 import NIO
 
-public typealias FutureVoid = Future<Void>
-
 public extension Channel {
     var remoteAddrString: String {
         var remoteAddr: String = ""

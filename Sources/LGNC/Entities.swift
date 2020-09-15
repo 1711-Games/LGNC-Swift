@@ -5,19 +5,19 @@ import LGNS
 /// A type erased contract entity. Must know how to init itself with validation.
 public protocol ContractEntity: Entity {
     /// Returns a future of initiated self from given dictionary and context, or an error if initialization failed due to malformed request or validation failure.
-    static func initWithValidation(from dictionary: Entita.Dict, context: LGNCore.Context) -> Future<Self>
+    static func initWithValidation(from dictionary: Entita.Dict, context: LGNCore.Context) -> EventLoopFuture<Self>
 }
 
 public extension ContractEntity {
     /// An internal method for performing all previously setup validations
     @inlinable
     static func reduce(
-        validators: [String: Future<Void>],
+        validators: [String: EventLoopFuture<Void>],
         context: LGNCore.Context
-    ) -> Future<[String: ValidatorError]> {
-        Future.reduce(
+    ) -> EventLoopFuture<[String: ValidatorError]> {
+        EventLoopFuture.reduce(
             into: [:],
-            validators.map { (key: String, future: Future<Void>) -> Future<(String, ValidatorError?)> in
+            validators.map { (key: String, future: EventLoopFuture<Void>) -> EventLoopFuture<(String, ValidatorError?)> in
                 future
                     .map { nil }
                     .flatMapErrorThrowing { (error: Error) -> ValidatorError? in

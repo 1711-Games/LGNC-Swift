@@ -55,7 +55,7 @@ public enum LGNC {
         eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
         readTimeout: TimeAmount = .minutes(1),
         writeTimeout: TimeAmount = .minutes(1)
-    ) -> Future<AnyServer> {
+    ) -> EventLoopFuture<AnyServer> {
         S.startServerHTTP(
             at: target,
             eventLoopGroup: eventLoopGroup,
@@ -73,7 +73,7 @@ public enum LGNC {
         requiredBitmask: LGNP.Message.ControlBitmask = .defaultValues,
         readTimeout: TimeAmount = .seconds(1),
         writeTimeout: TimeAmount = .seconds(1)
-    ) -> Future<AnyServer> {
+    ) -> EventLoopFuture<AnyServer> {
         S.startServerLGNS(
             at: target,
             cryptor: cryptor,
@@ -210,7 +210,7 @@ public extension LGNC.Entity {
             let meta: Meta? = try? (self.extract(param: "meta", from: dictionary) as Meta)
             let success: Bool? = try? (self.extract(param: "success", from: dictionary) as Bool)
 
-            let validatorFutures: [String: Future<Void>] = [
+            let validatorFutures: [String: EventLoopFuture<Void>] = [
                 "result": eventLoop.submit {
                     guard let result = result else {
                         throw Validation.Error.MissingValue(context.locale)
@@ -243,7 +243,7 @@ public extension LGNC.Entity {
                         return eventLoop.makeFailedFuture(LGNC.E.DecodeError($0.mapValues { [$0] }))
                     }
 
-                    let future: Future<T?>
+                    let future: EventLoopFuture<T?>
                     if let result = result.flattened as? Entita.Dict {
                         future = T
                             .initWithValidation(from: result, context: context)

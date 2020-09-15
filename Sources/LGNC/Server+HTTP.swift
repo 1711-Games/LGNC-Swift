@@ -11,7 +11,7 @@ public extension Service {
         eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
         readTimeout: TimeAmount = .minutes(1),
         writeTimeout: TimeAmount = .minutes(1)
-    ) -> Future<AnyServer> {
+    ) -> EventLoopFuture<AnyServer> {
         let address: LGNCore.Address
 
         do {

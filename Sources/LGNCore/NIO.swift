@@ -1,12 +1,15 @@
 import NIO
 
+public typealias FutureVoid = EventLoopFuture<Void>
+public typealias PromiseVoid = EventLoopPromise<Void>
+
 public extension EventLoopFuture {
     // TODO deprecate
     func mapThrowing<NewValue>(
         file: StaticString = #file,
         line: UInt = #line,
         _ callback: @escaping (Value) throws -> NewValue
-    ) -> Future<NewValue> {
+    ) -> EventLoopFuture<NewValue> {
         return self.flatMapThrowing(file: file, line: line, callback)
     }
 }
@@ -24,7 +27,7 @@ public extension EventLoop {
 }
 
 public extension ClientBootstrap {
-    func connect(to address: LGNCore.Address, defaultPort: Int) -> Future<Channel> {
+    func connect(to address: LGNCore.Address, defaultPort: Int) -> EventLoopFuture<Channel> {
         switch address {
         case let .ip(host, port):
             return self.connect(host: host, port: port)
@@ -37,7 +40,7 @@ public extension ClientBootstrap {
 }
 
 public extension ServerBootstrap {
-    func bind(to address: LGNCore.Address, defaultPort: Int) -> Future<Channel> {
+    func bind(to address: LGNCore.Address, defaultPort: Int) -> EventLoopFuture<Channel> {
         switch address {
         case let .ip(host, port):
             return self.bind(host: host, port: port)

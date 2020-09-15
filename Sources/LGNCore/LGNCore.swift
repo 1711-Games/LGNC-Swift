@@ -2,9 +2,6 @@ import Foundation
 import Logging
 import NIO
 
-public typealias Future = EventLoopFuture
-public typealias Promise = EventLoopPromise
-
 public enum LGNCore {
     public enum E: Error {
         case CastError(String)

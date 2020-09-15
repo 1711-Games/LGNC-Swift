@@ -2,14 +2,8 @@ import Foundation
 import Logging
 import NIO
 
-/// Any shutdownable service (most commonly, a server)
-public protocol Shutdownable: class {
-    /// A method which must eventually shutdown current service and fulfill a returned future with `Void` or an error
-    func shutdown() -> Future<Void>
-}
-
 /// A type-erased server type
-public protocol AnyServer: Shutdownable {
+public protocol AnyServer: class {
     /// Indicates whether server is running (and serving requests) or not
     var isRunning: Bool { get set }
 
@@ -26,7 +20,7 @@ public protocol AnyServer: Shutdownable {
 
     /// Binds to a given address and starts a server,
     /// `Void` future is fulfilled when server is started
-    func bind(to address: LGNCore.Address) -> Future<Void>
+    func bind(to address: LGNCore.Address) -> EventLoopFuture<Void>
 
     /// Blocks current thread until server is stopped.
     /// This method **must not** be called in `EventLoop` context, only on dedicated threads/dispatch queues/main thread
@@ -36,10 +30,10 @@ public protocol AnyServer: Shutdownable {
 public extension AnyServer {
     fileprivate var name: String { "\(type(of: self))" }
 
-    func bind(to address: LGNCore.Address) -> Future<Void> {
+    func bind(to address: LGNCore.Address) -> EventLoopFuture<Void> {
         Self.logger.info("LGNS Server: Trying to bind at \(address)")
 
-        let bindFuture: Future<Channel> = self.bootstrap.bind(to: address, defaultPort: Self.defaultPort)
+        let bindFuture: EventLoopFuture<Channel> = self.bootstrap.bind(to: address, defaultPort: Self.defaultPort)
 
         bindFuture.whenComplete { result in
             switch result {
@@ -63,8 +57,8 @@ public extension AnyServer {
         try self.channel.closeFuture.wait()
     }
 
-    func shutdown() -> Future<Void> {
-        let promise: Promise<Void> = self.eventLoopGroup.next().makePromise()
+    func shutdown() -> EventLoopFuture<Void> {
+        let promise: PromiseVoid = self.eventLoopGroup.next().makePromise()
 
         Self.logger.info("LGNS Server: Shutting down")
 

@@ -14,9 +14,9 @@ final class LGNSTests: XCTestCase {
         public typealias OutboundOut = ByteBuffer
 
         let payload: Bytes
-        let promise: Promise<Bytes>
+        let promise: EventLoopPromise<Bytes>
 
-        init(payload: Bytes, promise: Promise<Bytes>) {
+        init(payload: Bytes, promise: EventLoopPromise<Bytes>) {
             self.payload = payload
             self.promise = promise
         }
@@ -98,7 +98,7 @@ final class LGNSTests: XCTestCase {
             eventLoopGroup: self.eventLoopGroup,
             readTimeout: .milliseconds(100),
             writeTimeout: .milliseconds(100)
-        ) { message, context -> Future<LGNP.Message?> in
+        ) { message, context -> EventLoopFuture<LGNP.Message?> in
             XCTAssertEqual(context.clientAddr, "195.248.161.225")
             XCTAssertEqual(context.clientID, "LGNSTests")
             XCTAssertEqual(context.userAgent, "NIO")
@@ -270,7 +270,7 @@ final class LGNSTests: XCTestCase {
     }
 
     func write(to address: LGNCore.Address, payload: Bytes) throws -> Bytes {
-        let promise: Promise<Bytes> = self.eventLoop.makePromise()
+        let promise: EventLoopPromise<Bytes> = self.eventLoop.makePromise()
 
         let channel = try ClientBootstrap(group: self.eventLoopGroup)
             .connectTimeout(.seconds(3))

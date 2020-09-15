@@ -50,21 +50,21 @@ final class LGNCTests: XCTestCase {
     }
 
     override func setUp() {
-        A.Signup.Request.validateEmail { (email, eventLoop) -> Future<A.Signup.Request.CallbackValidatorEmailAllowedValues?> in
+        A.Signup.Request.validateEmail { (email, eventLoop) -> EventLoopFuture<A.Signup.Request.CallbackValidatorEmailAllowedValues?> in
             eventLoop.makeSucceededFuture(
                 email == "foo@bar.com"
                     ? .UserWithGivenEmailAlreadyExists
                     : nil
             )
         }
-        A.Signup.Request.validateUsername { (username, eventLoop) -> Future<A.Signup.Request.CallbackValidatorUsernameAllowedValues?> in
+        A.Signup.Request.validateUsername { (username, eventLoop) -> EventLoopFuture<A.Signup.Request.CallbackValidatorUsernameAllowedValues?> in
             eventLoop.makeSucceededFuture(
                 username == "foobar"
                     ? .UserWithGivenUsernameAlreadyExists
                     : nil
             )
         }
-        A.Signup.guarantee { (request, context) -> Future<A.Signup.Response> in
+        A.Signup.guarantee { (request, context) -> EventLoopFuture<A.Signup.Response> in
             context.eventLoop.makeSucceededFuture(A.Signup.Response())
         }
 
@@ -92,7 +92,7 @@ final class LGNCTests: XCTestCase {
             )
         }
 
-        S.Goods.guarantee { (_, context) -> Future<(response: S.Goods.Response, meta: Meta)> in
+        S.Goods.guarantee { (_, context) -> EventLoopFuture<(response: S.Goods.Response, meta: Meta)> in
             context.eventLoop.makeSucceededFuture((
                 response: S.Goods.Response(
                     list: [
@@ -280,9 +280,6 @@ final class LGNCTests: XCTestCase {
         let promiseStartAuthHTTP: PromiseVoid = self.eventLoop.makePromise()
         let promiseStartShopHTTP: PromiseVoid = self.eventLoop.makePromise()
 
-        defer {
-            XCTAssertNoThrow(try SignalObserver.fire(signal: 322).wait())
-        }
         self.queue1.async {
             do {
                 let server = try LGNC.startServerLGNS(

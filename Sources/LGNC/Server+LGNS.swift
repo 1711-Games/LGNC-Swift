@@ -12,7 +12,7 @@ public extension Service {
         requiredBitmask: LGNP.Message.ControlBitmask = .defaultValues,
         readTimeout: TimeAmount = .seconds(1),
         writeTimeout: TimeAmount = .seconds(1)
-    ) -> Future<AnyServer> {
+    ) -> EventLoopFuture<AnyServer> {
         let address: LGNCore.Address
 
         do {

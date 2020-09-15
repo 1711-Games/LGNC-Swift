@@ -8,7 +8,7 @@ import NIOHTTP1
 
 public extension LGNC {
     struct HTTP {
-        public typealias Resolver = (Request) -> Future<(body: Bytes, headers: [(name: String, value: String)])>
+        public typealias Resolver = (Request) -> EventLoopFuture<(body: Bytes, headers: [(name: String, value: String)])>
     }
 }
 
@@ -90,8 +90,6 @@ public extension LGNC.HTTP {
                 .childChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
                 .childChannelOption(ChannelOptions.maxMessagesPerRead, value: 64)
                 .childChannelOption(ChannelOptions.recvAllocator, value: AdaptiveRecvByteBufferAllocator())
-
-            SignalObserver.add(self)
         }
 
         deinit {

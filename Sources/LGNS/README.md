@@ -40,8 +40,8 @@ let server: AnyServer = LGNS.Server(
     cryptor: cryptor,
     requiredBitmask: requiredBitmask,
     eventLoopGroup: eventLoopGroup
-) { (message: LGNP.Message, context: LGNCore.Context) -> Future<LGNP.Message?> in
-    guard let action: (LGNP.Message, LGNCore.Context) -> Future<LGNP.Message?>
+) { (message: LGNP.Message, context: LGNCore.Context) -> EventLoopFuture<LGNP.Message?> in
+    guard let action: (LGNP.Message, LGNCore.Context) -> EventLoopFuture<LGNP.Message?>
         = MyCustomAppRouter.route(URI: message.URI)
     else {
         return context.eventLoop.makeSucceededFuture(nil)
@@ -121,7 +121,7 @@ let client = LGNS.Client(
 // However, when there is one client working with a server (or multiple servers) on continuous
 // basis (.keepAlive control bitmask flag), it's totally cool, and no copy should be created,
 // just use method .request with the same interface
-let futureResult: Future<(LGNP.Message, LGNCore.Context)> = client.singleRequest(
+let futureResult: EventLoopFuture<(LGNP.Message, LGNCore.Context)> = client.singleRequest(
     at: .ip(host: "127.0.0.1", port: 1711),
     with: LGNP.Message(URI: "/some/uri", payload: [1,3,3,7], controlBitmask: controlBitmask)
 )

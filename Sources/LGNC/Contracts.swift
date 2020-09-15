@@ -8,7 +8,7 @@ public typealias Meta = LGNC.Entity.Meta
 /// A type erased contract
 public protocol AnyContract {
     /// Canonical form of contract body (guarantee) type
-    typealias Closure = (Entity, LGNCore.Context) -> Future<(response: Entity, meta: Meta)>
+    typealias Closure = (Entity, LGNCore.Context) -> EventLoopFuture<(response: Entity, meta: Meta)>
 
     /// URI of contract, must be unique for service
     static var URI: String { get }
@@ -35,7 +35,7 @@ public protocol AnyContract {
     static func invoke(
         with dict: Entita.Dict,
         context: LGNCore.Context
-    ) -> Future<(response: Entity, meta: Meta)>
+    ) -> EventLoopFuture<(response: Entity, meta: Meta)>
 }
 
 public extension AnyContract {
@@ -82,10 +82,10 @@ public protocol Contract: AnyContract {
     associatedtype ParentService: Service
 
     /// Contract body (guarantee) type in which contract returns a future with a tuple of Response and meta
-    typealias FutureClosureWithMeta =    (Request, LGNCore.Context) -> Future<(response: Response, meta: Meta)>
+    typealias FutureClosureWithMeta =    (Request, LGNCore.Context) -> EventLoopFuture<(response: Response, meta: Meta)>
 
     /// Contract body (guarantee) type in which contract returns a future with only Response
-    typealias FutureClosure =            (Request, LGNCore.Context) -> Future<           Response>
+    typealias FutureClosure =            (Request, LGNCore.Context) -> EventLoopFuture<           Response>
 
     /// Contract body (guarantee) type in which contract returns a tuple of Response and meta
     typealias NonFutureClosureWithMeta = (Request, LGNCore.Context) throws -> (response: Response, meta: Meta)
@@ -112,7 +112,7 @@ public protocol Contract: AnyContract {
         using client: LGNCClient,
         //as clientID: String? = nil,
         context maybeContext: LGNCore.Context?
-    ) -> Future<Self.Response>
+    ) -> EventLoopFuture<Self.Response>
 }
 
 public enum ContractVisibility {
@@ -157,8 +157,8 @@ public extension Contract {
     /// Normalizes given non-canonical contract body (guarantee) into canonical form
     static func normalize(guaranteeClosure: @escaping Self.NonFutureClosureWithMeta) -> Self.Closure {
         return self.normalize(
-            guaranteeClosure: { (request, context) -> Future<(response: Response, meta: Meta)> in
-                let promise: Promise<(response: Response, meta: Meta)> = context.eventLoop.makePromise()
+            guaranteeClosure: { (request, context) -> EventLoopFuture<(response: Response, meta: Meta)> in
+                let promise: EventLoopPromise<(response: Response, meta: Meta)> = context.eventLoop.makePromise()
 
                 do {
                     promise.succeed(try guaranteeClosure(request, context))
@@ -182,7 +182,7 @@ public extension Contract {
     static func invoke(
         with dict: Entita.Dict,
         context: LGNCore.Context
-    ) -> Future<(response: Entity, meta: Meta)> {
+    ) -> EventLoopFuture<(response: Entity, meta: Meta)> {
         guard let guaranteeClosure = self.guaranteeClosure else {
             return context.eventLoop.makeFailedFuture(
                 LGNC.E.ControllerError(
@@ -203,7 +203,7 @@ public extension Contract {
         using client: LGNCClient,
         //as clientID: String? = nil,
         context maybeContext: LGNCore.Context? = nil
-    ) -> Future<Self.Response> {
+    ) -> EventLoopFuture<Self.Response> {
         let profiler = LGNCore.Profiler.begin()
         let eventLoop = maybeContext?.eventLoop ?? client.eventLoopGroup.next()
         let transport = Self.preferredTransport
@@ -228,7 +228,7 @@ public extension Contract {
             return eventLoop.makeFailedFuture(LGNC.Client.E.PackError("Could not pack request: \(error)"))
         }
 
-        let result: Future<Self.Response> = client
+        let result: EventLoopFuture<Self.Response> = client
             .send(
                 contract: Self.self,
                 payload: payload,
@@ -238,7 +238,7 @@ public extension Contract {
             .flatMapThrowing { responseBytes, responseContext in
                 (dict: try responseBytes.unpack(from: Self.preferredContentType), responseContext: responseContext)
             }
-            .flatMap { (dict: Entita.Dict, responseContext: LGNCore.Context) -> Future<LGNC.Entity.Result> in
+            .flatMap { (dict: Entita.Dict, responseContext: LGNCore.Context) -> EventLoopFuture<LGNC.Entity.Result> in
                 LGNC.Entity.Result.initFromResponse(
                     from: dict,
                     context: responseContext,

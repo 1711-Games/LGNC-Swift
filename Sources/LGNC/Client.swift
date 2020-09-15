@@ -32,7 +32,7 @@ public protocol LGNCClient {
         payload: Bytes,
         at address: LGNCore.Address,
         context: LGNCore.Context
-    ) -> Future<(response: Bytes, context: LGNCore.Context)>
+    ) -> EventLoopFuture<(response: Bytes, context: LGNCore.Context)>
 }
 
 extension LGNS.Client: LGNCClient {
@@ -41,7 +41,7 @@ extension LGNS.Client: LGNCClient {
         payload: Bytes,
         at address: LGNCore.Address,
         context: LGNCore.Context
-    ) -> Future<(response: Bytes, context: LGNCore.Context)> {
+    ) -> EventLoopFuture<(response: Bytes, context: LGNCore.Context)> {
         let requestContext = LGNC.Client.getRequestContext(
             from: context,
             transport: .LGNS,
@@ -72,7 +72,7 @@ extension HTTPClient: LGNCClient {
         payload: Bytes,
         at address: LGNCore.Address,
         context: LGNCore.Context
-    ) -> Future<(response: Bytes, context: LGNCore.Context)> {
+    ) -> EventLoopFuture<(response: Bytes, context: LGNCore.Context)> {
         let contentType = C.preferredContentType
         let requestContext = LGNC.Client.getRequestContext(
             from: context,
@@ -178,7 +178,7 @@ public extension LGNC.Client {
             payload: Bytes,
             at address: LGNCore.Address,
             context: LGNCore.Context
-        ) -> Future<(response: Bytes, context: LGNCore.Context)> {
+        ) -> EventLoopFuture<(response: Bytes, context: LGNCore.Context)> {
             let requestContext = LGNC.Client.getRequestContext(
                 from: context,
                 transport: C.preferredTransport,
@@ -231,7 +231,7 @@ public extension LGNC.Client {
             try? self.clientHTTP.syncShutdown()
         }
 
-        public func disconnect() -> Future<Void> {
+        public func disconnect() -> EventLoopFuture<Void> {
             self.clientLGNS.disconnect()
         }
 
@@ -240,7 +240,7 @@ public extension LGNC.Client {
             payload: Bytes,
             at address: LGNCore.Address,
             context: LGNCore.Context
-        ) -> Future<(response: Bytes, context: LGNCore.Context)> {
+        ) -> EventLoopFuture<(response: Bytes, context: LGNCore.Context)> {
             let transport: LGNCore.Transport = C.preferredTransport
 
             let client: LGNCClient

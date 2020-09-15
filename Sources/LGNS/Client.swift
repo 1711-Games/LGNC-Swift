@@ -21,7 +21,7 @@ public extension LGNS {
 
         public var channel: Channel? = nil
         private var clientHandler: LGNS.ClientHandler? = nil
-        public var responsePromise: Promise<Response>? = nil
+        public var responsePromise: EventLoopPromise<Response>? = nil
 
         /// Returns `true` if connection is alive
         public var isConnected: Bool {
@@ -47,14 +47,14 @@ public extension LGNS {
         }
 
         /// Connects to a remote LGNS server at given address
-        public func connect(at address: LGNCore.Address, reconnectIfNeeded: Bool = true) -> Future<Void> {
+        public func connect(at address: LGNCore.Address, reconnectIfNeeded: Bool = true) -> EventLoopFuture<Void> {
             let eventLoop = self.eventLoopGroup.next()
 
             guard !self.isConnected else {
                 return eventLoop.makeSucceededFuture()
             }
 
-            var resultFuture: Future<Void> = eventLoop.makeSucceededFuture()
+            var resultFuture: EventLoopFuture<Void> = eventLoop.makeSucceededFuture()
 
             if self.channel?.isActive == false && reconnectIfNeeded == true {
                 resultFuture = self.disconnect()
@@ -119,7 +119,7 @@ public extension LGNS {
         }
 
         /// Disconnects from a remote LGNS server
-        public func disconnect(on eventLoop: EventLoop? = nil) -> Future<Void> {
+        public func disconnect(on eventLoop: EventLoop? = nil) -> EventLoopFuture<Void> {
             guard let channel = self.channel, channel.isActive, self.clientHandler?.isOpen == true else {
                 self.disconnectRoutine()
                 return (eventLoop ?? self.eventLoopGroup.next()).makeSucceededFuture()
@@ -149,14 +149,14 @@ public extension LGNS {
             at address: LGNCore.Address,
             with message: LGNP.Message,
             on eventLoop: EventLoop? = nil
-        ) -> Future<Response> {
+        ) -> EventLoopFuture<Response> {
             if self.responsePromise != nil {
                 Self.logger.warning("Trying to do a request while there is an existing promise")
             }
 
             let eventLoop = eventLoop ?? self.eventLoopGroup.next()
 
-            let responsePromise: Promise<Response> = eventLoop.makePromise()
+            let responsePromise: EventLoopPromise<Response> = eventLoop.makePromise()
             self.responsePromise = responsePromise
             self.clientHandler?.promise = self.responsePromise
 
@@ -165,7 +165,7 @@ public extension LGNS {
                 .flatMap { self.channel!.writeAndFlush(message) }
                 .flatMap { responsePromise.futureResult }
                 .flatMap { response in
-                    let result: Future<Void>
+                    let result: EventLoopFuture<Void>
 
                     if !response.0.controlBitmask.contains(.keepAlive) {
                         result = self.disconnect()
@@ -186,7 +186,7 @@ public extension LGNS {
             at address: LGNCore.Address,
             with message: LGNP.Message,
             on eventLoop: EventLoop? = nil
-        ) -> Future<Response> {
+        ) -> EventLoopFuture<Response> {
             let cloned = self.cloned()
 
             return cloned

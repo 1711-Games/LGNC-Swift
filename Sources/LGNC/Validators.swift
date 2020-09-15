@@ -74,7 +74,7 @@ public protocol Validator {
         _ input: Any,
         _ locale: LGNCore.i18n.Locale,
         on eventLoop: EventLoop
-    ) -> Future<ValidatorError?>
+    ) -> EventLoopFuture<ValidatorError?>
 }
 
 public extension Validator {
@@ -82,7 +82,7 @@ public extension Validator {
         _ input: Any,
         _ locale: LGNCore.i18n.Locale,
         on eventLoop: EventLoop
-    ) -> Future<ValidatorError?> {
+    ) -> EventLoopFuture<ValidatorError?> {
         return eventLoop.makeSucceededFuture(self.validate(input, locale))
     }
 }
@@ -284,7 +284,7 @@ public extension Validation {
     }
 
     struct Callback<Value>: Validator {
-        public typealias Callback = (Value, EventLoop) -> Future<(message: String, code: Int)?>
+        public typealias Callback = (Value, EventLoop) -> EventLoopFuture<(message: String, code: Int)?>
 
         public struct Error: ValidatorError {
             public let code: Int
@@ -306,7 +306,7 @@ public extension Validation {
             _ input: Any,
             _ locale: LGNCore.i18n.Locale,
             on eventLoop: EventLoop
-        ) -> Future<ValidatorError?> {
+        ) -> EventLoopFuture<ValidatorError?> {
             guard let value = input as? Value else {
                 return eventLoop.makeSucceededFuture(Validation.Error.InvalidType(locale))
             }
@@ -325,7 +325,7 @@ public extension Validation {
     struct CallbackWithAllowedValues<
         AllowedValues: CallbackWithAllowedValuesRepresentable & ValidatorErrorRepresentable
     >: Validator {
-        public typealias Callback = (AllowedValues.InputValue, EventLoop) -> Future<AllowedValues?>
+        public typealias Callback = (AllowedValues.InputValue, EventLoop) -> EventLoopFuture<AllowedValues?>
 
         public struct Error: ValidatorError {
             public let code: Int
@@ -346,7 +346,7 @@ public extension Validation {
             _ input: Any,
             _ locale: LGNCore.i18n.Locale,
             on eventLoop: EventLoop
-        ) -> Future<ValidatorError?> {
+        ) -> EventLoopFuture<ValidatorError?> {
             guard let value = input as? AllowedValues.InputValue else {
                 return eventLoop.makeSucceededFuture(Validation.Error.InvalidType(locale))
             }

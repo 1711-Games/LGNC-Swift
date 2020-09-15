@@ -11,6 +11,12 @@ ${BUILDERPATH}/Scripts/generate \
     --input ${BUILDERPATH}/IntegrationTests/Schema \
     --output ${DIR}/Sources/IntegrationTests/Codegen
 
+buildResult=$?
+
+if [ $buildResult -ne 0 ]; then
+    exit $buildResult
+fi
+
 swift run --package-path ${DIR} IntegrationTests --tests-directory ${BUILDERPATH}/IntegrationTests/Tests
 
 exit
