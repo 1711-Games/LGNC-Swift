@@ -1,5 +1,7 @@
 # LGNS — LGN Server
 
+![LGNS Logo](./logo.png)
+
 ## About
 LGNS is a server which uses LGNP as exchange protocol. The idea behind it is to send less data (compared to HTTP[S]) and use less
 middleware as LGNS doesn't require reverse proxy, directly listening port/socket and working with application code in the same runtime.

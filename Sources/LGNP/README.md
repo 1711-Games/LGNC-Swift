@@ -1,5 +1,7 @@
 # LGNP — LGN Protocol
 
+![LGNP Logo](./logo.png)
+
 ## About
 LGNP is an application protocol for sending compact packets of binary data (messages) across public or private network. It's somewhat similar to HTTP: it has rudimentary form of HTTP headers (as control bitmask and optional meta section), it supports keep-alive, and also some other things. LGNP supports end-to-end encryption (AES GCM) and HMAC.
 
