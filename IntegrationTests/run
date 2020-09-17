@@ -1,6 +1,9 @@
-#!/usr/bin/env sh
+#!/bin/bash
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+set -eu
+shopt -s nullglob
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 BUILDERPATH="${DIR}/Var/LGNBuilder"
 
 # git clone https://github.com/1711-Games/LGNBuilder.git ${BUILDERPATH}
