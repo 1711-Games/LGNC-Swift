@@ -1,6 +1,5 @@
 #!/bin/bash
 
-set -eu
 shopt -s nullglob
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -8,6 +7,8 @@ BUILDERPATH="${DIR}/Var/LGNBuilder"
 
 # git clone https://github.com/1711-Games/LGNBuilder.git ${BUILDERPATH}
 git clone git@github.com:1711-Games/LGNBuilder.git ${BUILDERPATH}
+
+set -eu
 
 ${BUILDERPATH}/Scripts/generate \
     --lang=Swift \
