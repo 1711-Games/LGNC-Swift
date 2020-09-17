@@ -114,7 +114,7 @@ public extension Service {
                 }
         } catch let error as LGNC.ContractError {
             result = context.eventLoop.makeSucceededFuture(
-                context.isSecure
+                context.isSecure || error.isPublicError
                     ? LGNC.Entity.Result(from: [LGNC.GLOBAL_ERROR_KEY: [error]])
                     : LGNC.Entity.Result.internalError
             )

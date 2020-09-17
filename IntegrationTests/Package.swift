@@ -7,7 +7,7 @@ let package = Package(
     platforms: [.macOS(.v10_15)],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", .upToNextMinor(from: "0.2.0")),
-        .package(name: "LGNKit", url: "git@github.com:1711-games/LGNKit-Swift.git", .branch("master")),
+        .package(name: "LGNKit", path: "../")
     ],
     targets: [
         .target(

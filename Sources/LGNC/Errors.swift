@@ -50,6 +50,17 @@ public extension LGNC {
         case RemoteContractExecutionFailed
         case InternalError
 
+        public var isPublicError: Bool {
+            let result: Bool
+
+            switch self {
+            case .URINotFound(_), .TransportNotAllowed(_), .InternalError: result = true
+            default: result = false
+            }
+
+            return result
+        }
+
         public func getErrorTuple() -> (message: String, code: Int) {
             switch self {
             case let .URINotFound(URI):

@@ -52,6 +52,7 @@ struct Execute: ParsableCommand {
             .contentsOfDirectory(at: self.testsDirectoryURL, includingPropertiesForKeys: [.isDirectoryKey])
             .filter { try $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true }
             .filter { $0.lastPathComponent.starts(with: "test_") }
+            .sorted(by: { $0.absoluteString < $1.absoluteString })
             .map(executeTestCase(under:))
 
         print(
