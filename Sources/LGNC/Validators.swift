@@ -265,9 +265,9 @@ public extension Validation {
         public let format: String
         public let message: String
 
-        public init(format: String = "yyyy-MM-dd kk:mm:ss.SSSSxxx", message: String = "Invalid date format") {
+        public init(format: String = "yyyy-MM-dd kk:mm:ss.SSSSxxx", message: String? = nil) {
             self.format = format
-            self.message = "\(message) (valid format: \(format))"
+            self.message = message ?? "Invalid date format (valid format: \(format))"
         }
 
         public func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {

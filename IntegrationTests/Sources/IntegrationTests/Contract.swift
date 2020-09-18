@@ -21,6 +21,9 @@ func setupContract() {
                 "mapCustomField            : \(request.mapCustomField.descr)",
                 request.optionalEnumField.map {
                 "optionalEnumField         : \($0)"
+                },
+                request.optionalDateField.map {
+                "optionalDateField         : \($0)"
                 }
             ]).compactMap { $0 }
         )
