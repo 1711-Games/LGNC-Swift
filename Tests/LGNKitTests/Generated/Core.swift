@@ -9,8 +9,8 @@ public enum Services {
     public enum Shared {}
 
     public static let list: [String: Service.Type] = [
-        "Shop": Shop.self,
         "Auth": Auth.self,
+        "Shop": Shop.self,
     ]
 }
 
@@ -34,6 +34,18 @@ public extension Services.Shared {
             from dictionary: Entita.Dict, context: LGNCore.Context
         ) -> EventLoopFuture<Good> {
             let eventLoop = context.eventLoop
+
+            if let error = self.ensureNecessaryItems(
+                in: dictionary,
+                necessaryItems: [
+                    "ID",
+                    "name",
+                    "description",
+                    "price",
+                ]
+            ) {
+                return eventLoop.makeFailedFuture(error)
+            }
 
             let ID: Int? = try? (self.extract(param: "ID", from: dictionary) as Int)
             let name: String? = try? (self.extract(param: "name", from: dictionary) as String)
