@@ -52,6 +52,6 @@ public extension ContractEntity {
             return nil
         }
 
-        return LGNC.ContractError.ExtraFieldsInRequest(.init(diff))
+        return LGNC.ContractError.ExtraFieldsInRequest(Array(diff).sorted())
     }
 }
