@@ -43,4 +43,15 @@ public extension ContractEntity {
             }
         )
     }
+
+    static func ensureNecessaryItems(in dictionary: Entita.Dict, necessaryItems: [String]) -> Error? {
+        let inputSet = Set<String>(dictionary.keys)
+        let diff = inputSet.subtracting(necessaryItems)
+
+        if diff.count == 0 {
+            return nil
+        }
+
+        return LGNC.ContractError.ExtraFieldsInRequest(.init(diff))
+    }
 }

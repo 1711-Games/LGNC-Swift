@@ -45,6 +45,7 @@ public extension LGNC {
 
     enum ContractError: ClientError {
         case URINotFound(String)
+        case ExtraFieldsInRequest([String])
         case TransportNotAllowed(LGNCore.Transport)
         case GeneralError(String, Int)
         case RemoteContractExecutionFailed
@@ -54,7 +55,7 @@ public extension LGNC {
             let result: Bool
 
             switch self {
-            case .URINotFound(_), .TransportNotAllowed(_), .InternalError: result = true
+            case .URINotFound(_), .TransportNotAllowed(_), .InternalError, .ExtraFieldsInRequest(_): result = true
             default: result = false
             }
 
@@ -65,6 +66,11 @@ public extension LGNC {
             switch self {
             case let .URINotFound(URI):
                 return (message: "URI '\(URI)' not found", code: 404)
+            case let .ExtraFieldsInRequest(fields):
+                return (
+                    message: "Input contains unexpected items: \(fields.map { "'\($0)'" }.joined(separator: ", "))",
+                    code: 422
+                )
             case let .TransportNotAllowed(transport):
                 return (message: "Transport '\(transport.rawValue)' not allowed", code: 405)
             case .InternalError, .RemoteContractExecutionFailed:
