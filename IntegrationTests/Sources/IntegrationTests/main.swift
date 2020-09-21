@@ -4,7 +4,8 @@ import LGNC
 import LGNCore
 
 typealias S = Services.First
-typealias C = Services.First.Contracts.DoThings
+typealias C1 = Services.First.Contracts.DoThings
+typealias C2 = Services.First.Contracts.DoCompletelyOtherThings
 
 LoggingSystem.bootstrap(LGNCore.Logger.init)
 LGNCore.Logger.logLevel = .error

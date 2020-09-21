@@ -6,6 +6,14 @@ public extension LGNCore {
     enum Transport: String {
         case LGNS, HTTP
         // case LGNSS, HTTPS // once, maybe
+
+        public init?(from rawValue: String) {
+            guard let result = Self(rawValue: rawValue.uppercased()) else {
+                return nil
+            }
+
+            self = result
+        }
     }
 
     /// Request or response context
@@ -37,6 +45,8 @@ public extension LGNCore {
         /// Request transport
         public let transport: Transport
 
+        public let meta: [String: String]
+
         /// Event loop on which this request is being processed
         public var eventLoop: EventLoop
 
@@ -52,6 +62,7 @@ public extension LGNCore {
             uuid: UUID,
             isSecure: Bool,
             transport: Transport,
+            meta: [String: String],
             eventLoop: EventLoop
         ) {
             self.remoteAddr = remoteAddr
@@ -62,6 +73,7 @@ public extension LGNCore {
             self.uuid = uuid
             self.isSecure = isSecure
             self.transport = transport
+            self.meta = meta
             self.eventLoop = eventLoop
 
             self.logger = Logging.Logger(label: "LGNCore.Context")
@@ -77,7 +89,8 @@ public extension LGNCore {
             locale: LGNCore.i18n.Locale? = nil,
             uuid: UUID? = nil,
             isSecure: Bool? = nil,
-            transport: Transport? = nil
+            transport: Transport? = nil,
+            meta: [String: String]? = nil
         ) -> Context {
             Self(
                 remoteAddr: remoteAddr ?? self.remoteAddr,
@@ -88,6 +101,7 @@ public extension LGNCore {
                 uuid: uuid ?? self.uuid,
                 isSecure: isSecure ?? self.isSecure,
                 transport: transport ?? self.transport,
+                meta: meta ?? self.meta,
                 eventLoop: self.eventLoop
             )
         }

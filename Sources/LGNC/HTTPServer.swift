@@ -5,10 +5,13 @@ import LGNPContenter
 import LGNS
 import NIO
 import NIOHTTP1
+import AsyncHTTPClient
 
 public extension LGNC {
-    struct HTTP {
+    enum HTTP {
         public typealias Resolver = (Request) -> EventLoopFuture<(body: Bytes, headers: [(name: String, value: String)])>
+
+        public static let COOKIE_META_KEY_PREFIX = "Set-Cookie: " // todo proper headers setting
     }
 }
 
@@ -50,6 +53,7 @@ public extension LGNC.HTTP {
         public let uuid: UUID
         public let contentType: LGNCore.ContentType
         public let method: HTTPMethod
+        public let meta: LGNC.Entity.Meta
         public let eventLoop: EventLoop
     }
 }
@@ -339,6 +343,7 @@ internal extension LGNC.HTTP {
                     uuid: uuid,
                     contentType: contentType,
                     method: infoSavedRequestHead!.method,
+                    meta: self.infoSavedRequestHead?.headers["Set-Cookie"].parseCookies() ?? [:],
                     eventLoop: context.eventLoop
                 )
                 let future = self.resolver(request)

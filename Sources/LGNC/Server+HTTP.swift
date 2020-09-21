@@ -32,6 +32,7 @@ public extension Service {
                 uuid: request.uuid,
                 isSecure: false,
                 transport: .HTTP,
+                meta: request.meta,
                 eventLoop: request.eventLoop
             )
             context.logger.debug("Serving request at HTTP URI '\(request.URI)'")
@@ -48,9 +49,16 @@ public extension Service {
                     context: context
                 ).map {
                     let body: Bytes
-                    let headers: [(name: String, value: String)] = [
+                    var headers: [(name: String, value: String)] = [
                         ("Content-Language", context.locale.rawValue)
                     ]
+
+                    headers.append(
+                        contentsOf: $0
+                            .meta
+                            .filter { k, _ in k.starts(with: LGNC.HTTP.COOKIE_META_KEY_PREFIX) }
+                            .map { _, v in ("Set-Cookie", v) }
+                    )
 
                     do {
                         body = try $0.getDictionary().pack(to: request.contentType)

@@ -88,10 +88,10 @@ public protocol Contract: AnyContract {
     typealias FutureClosure =            (Request, LGNCore.Context) -> EventLoopFuture<           Response>
 
     /// Contract body (guarantee) type in which contract returns a tuple of Response and meta
-    typealias NonFutureClosureWithMeta = (Request, LGNCore.Context) throws -> (response: Response, meta: Meta)
+    typealias NonFutureClosureWithMeta = (Request, LGNCore.Context) throws ->          (response: Response, meta: Meta)
 
     /// Contract body (guarantee) type in which contract returns only Response
-    typealias NonFutureClosure =         (Request, LGNCore.Context) throws ->            Response
+    typealias NonFutureClosure =         (Request, LGNCore.Context) throws ->                     Response
 
     /// Setter for contract body (guarantee)
     static func guarantee(_ guaranteeClosure: @escaping Self.FutureClosure)
@@ -106,11 +106,18 @@ public protocol Contract: AnyContract {
     static func guarantee(_ guaranteeClosure: @escaping Self.NonFutureClosureWithMeta)
 
     /// Executes current contract on remote node at given address with given request
+    static func executeReturningMeta(
+        at address: LGNCore.Address,
+        with request: Self.Request,
+        using client: LGNCClient,
+        context maybeContext: LGNCore.Context?
+    ) -> EventLoopFuture<(response: Self.Response, meta: LGNC.Entity.Meta)>
+
+    /// Executes current contract on remote node at given address with given request
     static func execute(
         at address: LGNCore.Address,
         with request: Self.Request,
         using client: LGNCClient,
-        //as clientID: String? = nil,
         context maybeContext: LGNCore.Context?
     ) -> EventLoopFuture<Self.Response>
 }
@@ -174,9 +181,9 @@ public extension Contract {
 
     /// Normalizes given non-canonical contract body (guarantee) into canonical form
     static func normalize(guaranteeClosure: @escaping Self.NonFutureClosure) -> Self.Closure {
-        return self.normalize(guaranteeClosure: { (request, context) -> (response: Response, meta: Meta) in
+        return self.normalize { (request, context) -> (response: Response, meta: Meta) in
             return try (response: guaranteeClosure(request, context), meta: [:])
-        })
+        }
     }
 
     static func invoke(
@@ -194,16 +201,28 @@ public extension Contract {
         return Request
             .initWithValidation(from: dict, context: context)
             .flatMap { guaranteeClosure($0 as Entity, context) }
-            .map { (response: $0.response as Entity, meta: $0.meta) }
+            .flatMapThrowing { response, meta in
+                var meta = meta
+
+                if context.transport == .HTTP && Response.hasCookieFields {
+                    for cookie in Mirror(reflecting: response)
+                        .children
+                        .compactMap({ $0.value as? LGNC.Entity.Cookie })
+                    {
+                        try meta.appending(cookie: cookie)
+                    }
+                }
+
+                return (response: response, meta: meta)
+            }
     }
 
-    static func execute(
+    static func executeReturningMeta(
         at address: LGNCore.Address,
         with request: Self.Request,
         using client: LGNCClient,
-        //as clientID: String? = nil,
         context maybeContext: LGNCore.Context? = nil
-    ) -> EventLoopFuture<Self.Response> {
+    ) -> EventLoopFuture<(response: Self.Response, meta: LGNC.Entity.Meta)> {
         let profiler = LGNCore.Profiler.begin()
         let eventLoop = maybeContext?.eventLoop ?? client.eventLoopGroup.next()
         let transport = Self.preferredTransport
@@ -228,7 +247,7 @@ public extension Contract {
             return eventLoop.makeFailedFuture(LGNC.Client.E.PackError("Could not pack request: \(error)"))
         }
 
-        let result: EventLoopFuture<Self.Response> = client
+        let result: EventLoopFuture<(response: Self.Response, meta: LGNC.Entity.Meta)> = client
             .send(
                 contract: Self.self,
                 payload: payload,
@@ -252,7 +271,10 @@ public extension Contract {
                 guard let resultEntity = result.result else {
                     throw LGNC.E.UnpackError("Empty result")
                 }
-                return resultEntity as! Self.Response
+                return (
+                    response: resultEntity as! Self.Response,
+                    meta: result.meta
+                )
             }
             .flatMapErrorThrowing {
                 if let error = $0 as? NIOConnectionError {
@@ -279,6 +301,17 @@ public extension Contract {
         }
 
         return result
+    }
+
+    static func execute(
+        at address: LGNCore.Address,
+        with request: Self.Request,
+        using client: LGNCClient,
+        context maybeContext: LGNCore.Context? = nil
+    ) -> EventLoopFuture<Self.Response> {
+        self
+            .executeReturningMeta(at: address, with: request, using: client, context: maybeContext)
+            .map { response, _ in response }
     }
 }
 

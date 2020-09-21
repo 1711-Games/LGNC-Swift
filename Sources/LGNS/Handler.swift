@@ -117,6 +117,7 @@ internal extension LGNS {
                 uuid: message.uuid,
                 isSecure: message.controlBitmask.contains(.encrypted) || message.controlBitmask.hasSignature,
                 transport: .LGNS,
+                meta: metaDict,
                 eventLoop: context.eventLoop
             )
 

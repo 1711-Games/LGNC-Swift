@@ -13,6 +13,16 @@ public enum LGNC {
 
     public static var logger = Logger(label: "LGNC")
 
+    public static let cookieDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+
+        formatter.locale = Locale(identifier: "en_US")
+        formatter.timeZone = TimeZone(identifier: "GMT")
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss z"
+
+        return formatter
+    }()
+
     /// Allows service startup without all contracts guaranteed.
     ///
     /// Intended to be used only for early development stages

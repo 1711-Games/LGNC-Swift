@@ -30,7 +30,7 @@ public protocol Service {
         URI: String,
         dict: Entita.Dict,
         context: LGNCore.Context
-    ) -> EventLoopFuture<Entity>
+    ) -> EventLoopFuture<LGNC.Entity.Result>
 
     /// Starts a LGNS server at given target. Returns a future with a server, which must be waited for until claiming the server as operational.
     static func startServerLGNS(
@@ -70,7 +70,7 @@ public extension Service {
         URI: String,
         dict: Entita.Dict,
         context: LGNCore.Context
-    ) -> EventLoopFuture<Entity> {
+    ) -> EventLoopFuture<LGNC.Entity.Result> {
         let result: EventLoopFuture<LGNC.Entity.Result>
 
         let profiler = LGNCore.Profiler.begin()
@@ -134,7 +134,7 @@ public extension Service {
             )
         }
 
-        return result.map { $0 as Entity }
+        return result
     }
 
     internal static func checkGuarantees() throws {

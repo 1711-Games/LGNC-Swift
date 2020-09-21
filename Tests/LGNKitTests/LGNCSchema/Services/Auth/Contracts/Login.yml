@@ -12,5 +12,5 @@ Request:
       DefaultNull: True
 Response:
   Fields:
-    token: String
     userID: Int
+    token: Cookie
