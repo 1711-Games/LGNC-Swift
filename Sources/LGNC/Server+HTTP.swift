@@ -1,3 +1,4 @@
+import Foundation
 import Entita
 import LGNCore
 import LGNP
@@ -14,6 +15,11 @@ public extension Service {
     ) throws -> AnyServer {
         try self.validate(transport: .HTTP)
         try self.checkGuarantees()
+
+        let GETSafeURLs = self
+            .contractMap
+            .filter { _, contract in contract.isGETSafe }
+            .map { URI, _ in URI.lowercased() }
 
         return LGNC.HTTP.Server(
             address: try self.unwrapAddress(from: target),
@@ -38,13 +44,29 @@ public extension Service {
             context.logger.debug("Serving request at HTTP URI '\(request.URI)'")
             do {
                 let payload: Entita.Dict
-                switch request.contentType {
-                case .JSON: payload = try request.body.unpackFromJSON()
-                case .MsgPack: payload = try request.body.unpackFromMsgPack()
-                default: throw LGNC.E.clientError("Only JSON and MsgPack are allowed", 400)
+                let URI: String
+
+                if request.method == .GET {
+                    let components = request.URI.split(separator: "?", maxSplits: 1)
+                    URI = String(components[0])
+                    guard GETSafeURLs.contains(URI.lowercased()) else {
+                        return request.eventLoop.makeSucceededFuture((
+                            body: LGNCore.getBytes("This contract cannot be invoked with GET"),
+                            headers: []
+                        ))
+                    }
+                    payload = self.parseQueryParams(components.last ?? "")
+                } else {
+                    URI = request.URI
+                    switch request.contentType {
+                    case .JSON: payload = try request.body.unpackFromJSON()
+                    case .MsgPack: payload = try request.body.unpackFromMsgPack()
+                    default: throw LGNC.E.clientError("Only JSON and MsgPack are allowed", 400)
+                    }
                 }
+
                 return self.executeContract(
-                    URI: request.URI,
+                    URI: URI,
                     dict: payload,
                     context: context
                 ).map {
@@ -92,5 +114,48 @@ public extension Service {
         } catch {
             return eventLoopGroup.next().makeFailedFuture(error)
         }
+    }
+}
+
+fileprivate extension Service {
+    static func parseQueryParams(_ input: Substring) -> [String: Any] {
+        let input = input.removingPercentEncoding!
+        var result: [String: Any] = [:]
+
+        for component in input.split(separator: "&") {
+            let kv = component.split(separator: "=", maxSplits: 1)
+            guard kv.count == 2 else {
+                continue
+            }
+
+            let value: Any
+            let rawValue = String(kv[1])
+            if rawValue.isBool {
+                value = rawValue.bool
+            }
+            else if rawValue.isNumeric {
+                value = Int(rawValue)!
+            }
+            else {
+                value = rawValue
+            }
+            result[String(kv[0])] = value
+        }
+
+        return result
+    }
+}
+
+fileprivate extension String {
+    var isNumeric: Bool {
+        CharacterSet(charactersIn: self).isSubset(of: CharacterSet.decimalDigits)
+    }
+
+    var isBool: Bool {
+        self.count == 1 && CharacterSet(charactersIn: self).isSubset(of: CharacterSet(charactersIn: "01"))
+    }
+
+    var bool: Bool {
+        self == "1" ? true : false
     }
 }

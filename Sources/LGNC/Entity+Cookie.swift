@@ -10,14 +10,14 @@ public extension LGNC.Entity {
 internal extension Array where Element == String {
     func parseCookies() -> [String: String] {
         .init(
-            uniqueKeysWithValues: self
-                .compactMap { cookie in
-                    let parts = cookie.split(separator: "=", maxSplits: 1)
-                    guard parts.count == 2 else {
-                        return nil
-                    }
-                    return (String(parts[0]), cookie)
+            self.compactMap { cookie in
+                let parts = cookie.split(separator: "=", maxSplits: 1)
+                guard parts.count == 2 else {
+                    return nil
                 }
+                return (String(LGNC.HTTP.COOKIE_META_KEY_PREFIX + parts[0]), cookie)
+            },
+            uniquingKeysWith: { $1 }
         )
     }
 }
@@ -168,30 +168,30 @@ extension LGNC.Entity.Cookie: ContractEntity {
     }
 
     public func getCookieString() throws -> String {
-        guard let value = self.value.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) else {
-            LGNC.logger.error("Could not urlencode value for cookie \(self)")
-            throw LGNC.ContractError.InternalError
-        }
+//        guard let value = self.value.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) else {
+//            LGNC.logger.error("Could not urlencode value for cookie \(self)")
+//            throw LGNC.ContractError.InternalError
+//        }
 
-        var result: [String] = ["\(self.name)=\(value)"]
+        var result: [String] = ["\(self.name)=\(self.value)"]
 
         if let expires = self.expires {
-            result.append("expires=\(LGNC.cookieDateFormatter.string(from: expires))")
+            result.append("Expires=\(LGNC.cookieDateFormatter.string(from: expires))")
         }
         if let maxAge = self.maxAge {
             result.append("Max-Age=\(maxAge)")
         }
         if !self.path.isEmpty {
-            result.append("path=\(self.path)")
+            result.append("Path=\(self.path)")
         }
         if let domain = self.domain {
-            result.append("domain=\(domain)")
+            result.append("Domain=\(domain)")
         }
         if self.secure {
-            result.append("secure")
+            result.append("Secure")
         }
         if self.httpOnly {
-            result.append("httponly")
+            result.append("HttpOnly")
         }
 
         return result.joined(separator: "; ")

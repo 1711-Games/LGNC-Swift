@@ -172,9 +172,7 @@ internal extension LGNC.HTTP {
 
         private let resolver: Resolver
 
-        public init(
-            resolver: @escaping Resolver
-        ) {
+        public init(resolver: @escaping Resolver) {
             self.resolver = resolver
         }
 
@@ -313,10 +311,7 @@ internal extension LGNC.HTTP {
 
                 self.buffer.clear()
 
-                guard infoSavedRequestHead!.method == .POST else {
-                    self.sendBadRequest(message: "400 Bad Request (POST method only)", to: context)
-                    return
-                }
+                let URI = String(infoSavedRequestHead!.uri.dropFirst())
 
                 guard
                     let contentTypeString = self.infoSavedRequestHead!.headers["Content-Type"].first,
@@ -326,23 +321,26 @@ internal extension LGNC.HTTP {
                     return
                 }
 
-                let uri = String(infoSavedRequestHead!.uri.dropFirst())
+                let method = self.infoSavedRequestHead!.method
+
                 let payloadBytes: Bytes
                 if var buffer = self.bodyBuffer, let bytes = buffer.readBytes(length: buffer.readableBytes) {
                     payloadBytes = bytes
+                } else if method == .GET {
+                    payloadBytes = []
                 } else {
-                    self.sendBadRequest(to: context)
+                    self.sendBadRequest(message: "400 Bad Request (no body)", to: context)
                     return
                 }
 
                 let request = Request(
-                    URI: uri,
+                    URI: URI,
                     headers: infoSavedRequestHead!.headers,
                     remoteAddr: self.infoSavedRequestHead!.headers["X-Real-IP"].first ?? context.channel.remoteAddrString,
                     body: payloadBytes,
                     uuid: uuid,
                     contentType: contentType,
-                    method: infoSavedRequestHead!.method,
+                    method: method,
                     meta: self.infoSavedRequestHead?.headers["Set-Cookie"].parseCookies() ?? [:],
                     eventLoop: context.eventLoop
                 )

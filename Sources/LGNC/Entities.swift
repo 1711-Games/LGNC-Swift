@@ -64,13 +64,14 @@ public extension ContractEntity {
         from dictionary: Entita.Dict,
         context: LGNCore.Context
     ) throws -> LGNC.Entity.Cookie? {
-        let metaKey: String = LGNC.HTTP.COOKIE_META_KEY_PREFIX + dictKey
+        /// We should not perform "either dictionary or meta" check here,
+        /// because when contract responses with a cookie,
+        /// and it's ALSO transparently set to response meta, LGNC client,
+        /// who requested the contract, would fail, because cookie
+        /// is present both in response and meta, which, as you might imagine,
+        /// is completely normal.
 
-        if dictionary[dictKey] != nil && context.meta[metaKey] != nil {
-            throw LGNC.ContractError.AmbiguousInput("Cookie key '\(dictKey)' is present in both request and meta")
-        }
-
-        if let rawCookie = context.meta[metaKey] {
+        if let rawCookie = context.meta[LGNC.HTTP.COOKIE_META_KEY_PREFIX + dictKey] {
             return LGNC.Entity.Cookie(header: rawCookie, defaultDomain: "")
         }
 

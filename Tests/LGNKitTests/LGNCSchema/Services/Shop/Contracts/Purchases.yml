@@ -1,0 +1,10 @@
+Transports: [ HTTP ]
+IsGETSafe: True
+Request:
+  Fields:
+    token: Cookie
+    page: Int
+    ignoreFree: Bool
+Response:
+  Fields:
+    list: List[Good]
