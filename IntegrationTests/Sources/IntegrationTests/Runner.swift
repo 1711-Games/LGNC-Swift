@@ -1,5 +1,6 @@
 import Foundation
 import LGNCore
+import LGNC
 import Entita
 
 func executeTestCase(under url: URL) -> (String, Bool) {
@@ -28,12 +29,26 @@ func executeTestCase(under url: URL) -> (String, Bool) {
                     throw E.FileNotFound("Response file not found under \(url.absoluteString)")
                 }
 
-                let uri = try String(contentsOf: uriFile, encoding: .utf8)
+                let fullURI = try String(contentsOf: uriFile, encoding: .utf8)
                 guard
                     let request = try JSONSerialization.jsonObject(with: .init(contentsOf: requestFile)) as? Entita.Dict
                 else {
                     throw E.JSONDecodeError("Could not decode JSON from request file")
                 }
+                let fullURIComponents = fullURI.components(separatedBy: "://")
+                let transport: LGNCore.Transport
+                let uri: String
+                if fullURIComponents.count == 2 {
+                    guard let _transport = LGNCore.Transport(from: fullURIComponents[0]) else {
+                        throw E.JSONDecodeError("Invalid transport '\(fullURIComponents[0])' in URI '\(fullURI)'")
+                    }
+                    transport = _transport
+                    uri = fullURIComponents[1]
+                } else {
+                    transport = .HTTP
+                    uri = fullURI
+                }
+
                 guard let expectedResponse = try JSONSerialization
                     .jsonObject(with: .init(contentsOf: responseFile)) as? Entita.Dict
                 else {
@@ -43,6 +58,17 @@ func executeTestCase(under url: URL) -> (String, Bool) {
                     withJSONObject: expectedResponse,
                     options: [.sortedKeys, .prettyPrinted]
                 ).string
+
+                var requestMeta: LGNC.Entity.Meta = [:]
+                let metaFile = url.appendingPathComponent("Meta.json")
+                if manager.isReadableFile(atPath: metaFile.path) {
+                    guard let _meta = try JSONSerialization
+                        .jsonObject(with: .init(contentsOf: metaFile)) as? LGNC.Entity.Meta
+                    else {
+                        throw E.JSONDecodeError("Found Meta.json file, but could not decode JSON from it")
+                    }
+                    requestMeta = _meta
+                }
 
                 let eventLoop = EmbeddedEventLoop()
                 let response = S.executeContract(
@@ -55,7 +81,8 @@ func executeTestCase(under url: URL) -> (String, Bool) {
                         locale: .enUS,
                         uuid: UUID(),
                         isSecure: false,
-                        transport: .LGNS,
+                        transport: transport,
+                        meta: requestMeta,
                         eventLoop: eventLoop
                     )
                 )

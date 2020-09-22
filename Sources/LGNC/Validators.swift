@@ -276,6 +276,7 @@ public extension Validation {
             }
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = format
+            dateFormatter.locale = Locale(identifier: "en_US_POSIX")
             guard let _ = dateFormatter.date(from: value) else {
                 return Error(message: self.message._t(locale))
             }

@@ -2,8 +2,8 @@ import LGNC
 import LGNCore
 
 func setupContract() {
-    C.guarantee { (request: C.Request, _: LGNCore.Context) -> C.Response in
-        C.Response(
+    C1.guarantee { (request: C1.Request, _: LGNCore.Context) -> C1.Response in
+        C1.Response(
             ok: [String?]([
                 "stringField               : \(request.stringField)",
                 "intField                  : \(request.intField)",
@@ -29,8 +29,8 @@ func setupContract() {
         )
     }
 
-    C.Request.validateStringFieldWithValidations { input, eventLoop in
-        let result: C.Request.CallbackValidatorStringFieldWithValidationsAllowedValues?
+    C1.Request.validateStringFieldWithValidations { input, eventLoop in
+        let result: C1.Request.CallbackValidatorStringFieldWithValidationsAllowedValues?
 
         switch input {
         case "first error":         result = .FirstCallbackError
@@ -42,7 +42,7 @@ func setupContract() {
         return eventLoop.makeSucceededFuture(result)
     }
 
-    C.Request.validateDateField { input, eventLoop in
+    C1.Request.validateDateField { input, eventLoop in
         let result: (String, Int)?
 
         switch input {
@@ -52,5 +52,21 @@ func setupContract() {
         }
 
         return eventLoop.makeSucceededFuture(result)
+    }
+
+    C2.guarantee { (request, context) throws -> C2.Response in
+        C2.Response(
+            pronto: [
+                "stringField   : \(request.stringField)",
+                "cookie        : \(request.cookie.value)",
+                request.optionalCookie.map {
+                "optionalCookie: \($0.value)"
+                }
+            ].compactMap {$0},
+            responseCookie: LGNC.Entity.Cookie(
+                name: "got key \(request.cookie.name)",
+                value: "got value \(request.cookie.value)"
+            )
+        )
     }
 }

@@ -75,6 +75,7 @@ final class LGNCoreTests: XCTestCase {
             uuid: UUID(),
             isSecure: true,
             transport: .HTTP,
+            meta: [:],
             eventLoop: eventLoop
         )
 

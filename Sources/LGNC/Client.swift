@@ -104,7 +104,7 @@ extension HTTPClient: LGNCClient {
                     throw LGNC.Client.E.EmptyResponse
                 }
 
-                let isSecure = response.host.starts(with: "https://")
+                let isSecure = false // response.host.starts(with: "https://")
 
                 return (
                     response: bytes,
@@ -128,6 +128,7 @@ extension HTTPClient: LGNCClient {
                         }(),
                         isSecure: isSecure,
                         transport: .HTTP,
+                        meta: response.headers["Set-Cookie"].parseCookies(),
                         eventLoop: context.eventLoop
                     )
                 )
@@ -157,6 +158,7 @@ public extension LGNC.Client {
             uuid: maybeContext?.uuid ?? UUID(),
             isSecure: transport == .LGNS,
             transport: transport,
+            meta: maybeContext?.meta ?? [:],
             eventLoop: eventLoop
         )
     }

@@ -46,6 +46,7 @@ public extension LGNC {
     enum ContractError: ClientError {
         case URINotFound(String)
         case ExtraFieldsInRequest([String])
+        case AmbiguousInput(String)
         case TransportNotAllowed(LGNCore.Transport)
         case GeneralError(String, Int)
         case RemoteContractExecutionFailed
@@ -71,6 +72,7 @@ public extension LGNC {
                     message: "Input contains unexpected items: \(fields.map { "'\($0)'" }.joined(separator: ", "))",
                     code: 422
                 )
+            case let .AmbiguousInput(string): return (message: string, code: 300)
             case let .TransportNotAllowed(transport):
                 return (message: "Transport '\(transport.rawValue)' not allowed", code: 405)
             case .InternalError, .RemoteContractExecutionFailed:

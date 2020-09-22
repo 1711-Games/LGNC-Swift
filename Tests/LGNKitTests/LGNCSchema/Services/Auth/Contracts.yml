@@ -2,7 +2,7 @@ Authenticate:
   Transports: [ LGNS, HTTP ]
   Request:
     Fields:
-      token: String
+      token: Cookie
   Response:
     Fields:
       IDUser:

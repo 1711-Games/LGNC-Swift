@@ -11,7 +11,7 @@ typealias Good = Services.Shared.Good
 
 extension A.Login.Response: Equatable {
     public static func == (lhs: Services.Auth.Contracts.Login.Response, rhs: Services.Auth.Contracts.Login.Response) -> Bool {
-        lhs.token == rhs.token && lhs.userID == rhs.userID
+        lhs.token.value == rhs.token.value && lhs.userID == rhs.userID
     }
 }
 
@@ -35,11 +35,13 @@ extension S.Goods.Response: Equatable {
 
 final class LGNCTests: XCTestCase {
     static let eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+    static let validToken = "authorized :ok:"
+    static let cookieDate: Date = Date(timeIntervalSince1970: 605_404_800)
 
-    var queue1: DispatchQueue = DispatchQueue(label: "LGNCTests.1", qos: .userInteractive, attributes: .concurrent)
-    var queue2: DispatchQueue = DispatchQueue(label: "LGNCTests.2", qos: .userInteractive, attributes: .concurrent)
-    var queue3: DispatchQueue = DispatchQueue(label: "LGNCTests.3", qos: .userInteractive, attributes: .concurrent)
-    var queue4: DispatchQueue = DispatchQueue(label: "LGNCTests.4", qos: .userInteractive, attributes: .concurrent)
+    static let queue1: DispatchQueue = DispatchQueue(label: "LGNCTests.1", qos: .userInteractive, attributes: .concurrent)
+    static let queue2: DispatchQueue = DispatchQueue(label: "LGNCTests.2", qos: .userInteractive, attributes: .concurrent)
+    static let queue3: DispatchQueue = DispatchQueue(label: "LGNCTests.3", qos: .userInteractive, attributes: .concurrent)
+    static let queue4: DispatchQueue = DispatchQueue(label: "LGNCTests.4", qos: .userInteractive, attributes: .concurrent)
     var eventLoop: EventLoop {
         Self.eventLoopGroup.next()
     }
@@ -47,9 +49,7 @@ final class LGNCTests: XCTestCase {
     override static func setUp() {
         LoggingSystem.bootstrap(LGNCore.Logger.init)
         LGNCore.Logger.logLevel = .trace
-    }
 
-    override func setUp() {
         A.Signup.Request.validateEmail { (email, eventLoop) -> EventLoopFuture<A.Signup.Request.CallbackValidatorEmailAllowedValues?> in
             eventLoop.makeSucceededFuture(
                 email == "foo@bar.com"
@@ -76,13 +76,26 @@ final class LGNCTests: XCTestCase {
                     code: 403
                 )
             }
-            return A.Login.Response(token: "kjsdfjkshdf", userID: 1337)
+            let age = 86400 * 365 // a year
+            return A.Login.Response(
+                userID: 1337,
+                token: LGNC.Entity.Cookie(
+                    name: "token",
+                    value: Self.validToken,
+                    path: "/",
+                    domain: ".1711.games",
+                    expires: Self.cookieDate.addingTimeInterval(TimeInterval(age)),
+                    maxAge: age,
+                    httpOnly: true,
+                    secure: true
+                )
+            )
         }
 
         A.Authenticate.guarantee { (request, context) -> (response: A.Authenticate.Response, meta: Meta) in
             (
                 response: A.Authenticate.Response(
-                    IDUser: request.token == "kjsdfjkshdf"
+                    IDUser: request.token.value == Self.validToken
                         ? 1337
                         : nil
                 ),
@@ -105,6 +118,73 @@ final class LGNCTests: XCTestCase {
                 ]
             ))
         }
+
+        let cryptor = try! LGNP.Cryptor(key: [1,2,3,4,5,6,7,8,1,2,3,4,5,6,7,8])
+        let controlBitmask: LGNP.Message.ControlBitmask = [.contentTypeMsgPack]
+
+        let promiseStartAuthLGNS: PromiseVoid = Self.eventLoopGroup.next().makePromise()
+        let promiseStartShopLGNS: PromiseVoid = Self.eventLoopGroup.next().makePromise()
+        let promiseStartAuthHTTP: PromiseVoid = Self.eventLoopGroup.next().makePromise()
+        let promiseStartShopHTTP: PromiseVoid = Self.eventLoopGroup.next().makePromise()
+
+        self.queue1.async {
+            do {
+                let server = try LGNC.startServerLGNS(
+                    service: Services.Auth.self,
+                    cryptor: cryptor,
+                    eventLoopGroup: Self.eventLoopGroup,
+                    requiredBitmask: controlBitmask
+                ).wait()
+                promiseStartAuthLGNS.succeed(())
+                try server.waitForStop()
+            } catch {
+                promiseStartAuthLGNS.fail(error)
+            }
+        }
+        self.queue2.async {
+            do {
+                let server = try Services.Shop.startServerLGNS(
+                    cryptor: cryptor,
+                    eventLoopGroup: Self.eventLoopGroup,
+                    requiredBitmask: controlBitmask
+                ).wait()
+                promiseStartShopLGNS.succeed(())
+                try server.waitForStop()
+            } catch {
+                promiseStartShopLGNS.fail(error)
+            }
+        }
+
+        self.queue3.async {
+            do {
+                let server = try LGNC.startServerHTTP(
+                    service: Services.Auth.self,
+                    at: .ip(host: "127.0.0.1", port: 27022),
+                    eventLoopGroup: Self.eventLoopGroup
+                ).wait()
+                promiseStartAuthHTTP.succeed(())
+                try server.waitForStop()
+            } catch {
+                promiseStartAuthHTTP.fail(error)
+            }
+        }
+        self.queue4.async {
+            do {
+                let server = try Services.Shop.startServerHTTP(
+                    at: .ip(host: "127.0.0.1", port: 27023),
+                    eventLoopGroup: Self.eventLoopGroup
+                ).wait()
+                promiseStartShopHTTP.succeed(())
+                try server.waitForStop()
+            } catch {
+                promiseStartShopHTTP.fail(error)
+            }
+        }
+
+        XCTAssertNoThrow(try promiseStartAuthLGNS.futureResult.wait())
+        XCTAssertNoThrow(try promiseStartShopLGNS.futureResult.wait())
+        XCTAssertNoThrow(try promiseStartAuthHTTP.futureResult.wait())
+        XCTAssertNoThrow(try promiseStartShopHTTP.futureResult.wait())
     }
 
     public func _test(using client: LGNCClient, addHTTP: Bool = false, portAuth: Int = 27020, portShop: Int = 27021) {
@@ -137,13 +217,13 @@ final class LGNCTests: XCTestCase {
                 ),
                 using: client
             ).wait(),
-            A.Login.Response(token: "kjsdfjkshdf", userID: 1337)
+            A.Login.Response(userID: 1337, token: .init(name: "token", value: Self.validToken))
         )
 
         XCTAssertEqual(
             try A.Authenticate.execute(
                 at: addressAuth,
-                with: A.Authenticate.Request(token: "kjsdfjkshdf"),
+                with: A.Authenticate.Request(token: .init(name: "token", value: Self.validToken)),
                 using: client
             ).wait(),
             A.Authenticate.Response(IDUser: 1337)
@@ -152,7 +232,7 @@ final class LGNCTests: XCTestCase {
         XCTAssertEqual(
             try A.Authenticate.execute(
                 at: addressAuth,
-                with: A.Authenticate.Request(token: "invalid"),
+                with: A.Authenticate.Request(token: .init(name: "token", value: "invalid")),
                 using: client
             ).wait(),
             A.Authenticate.Response(IDUser: nil)
@@ -275,70 +355,6 @@ final class LGNCTests: XCTestCase {
         let cryptor = try LGNP.Cryptor(key: [1,2,3,4,5,6,7,8,1,2,3,4,5,6,7,8])
         let controlBitmask: LGNP.Message.ControlBitmask = [.contentTypeMsgPack]
 
-        let promiseStartAuthLGNS: PromiseVoid = self.eventLoop.makePromise()
-        let promiseStartShopLGNS: PromiseVoid = self.eventLoop.makePromise()
-        let promiseStartAuthHTTP: PromiseVoid = self.eventLoop.makePromise()
-        let promiseStartShopHTTP: PromiseVoid = self.eventLoop.makePromise()
-
-        self.queue1.async {
-            do {
-                let server = try LGNC.startServerLGNS(
-                    service: Services.Auth.self,
-                    cryptor: cryptor,
-                    eventLoopGroup: Self.eventLoopGroup,
-                    requiredBitmask: controlBitmask
-                ).wait()
-                promiseStartAuthLGNS.succeed(())
-                try server.waitForStop()
-            } catch {
-                promiseStartAuthLGNS.fail(error)
-            }
-        }
-        self.queue2.async {
-            do {
-                let server = try Services.Shop.startServerLGNS(
-                    cryptor: cryptor,
-                    eventLoopGroup: Self.eventLoopGroup,
-                    requiredBitmask: controlBitmask
-                ).wait()
-                promiseStartShopLGNS.succeed(())
-                try server.waitForStop()
-            } catch {
-                promiseStartShopLGNS.fail(error)
-            }
-        }
-
-        self.queue3.async {
-            do {
-                let server = try LGNC.startServerHTTP(
-                    service: Services.Auth.self,
-                    at: .ip(host: "127.0.0.1", port: 27022),
-                    eventLoopGroup: Self.eventLoopGroup
-                ).wait()
-                promiseStartAuthHTTP.succeed(())
-                try server.waitForStop()
-            } catch {
-                promiseStartAuthHTTP.fail(error)
-            }
-        }
-        self.queue4.async {
-            do {
-                let server = try Services.Shop.startServerHTTP(
-                    at: .ip(host: "127.0.0.1", port: 27023),
-                    eventLoopGroup: Self.eventLoopGroup
-                ).wait()
-                promiseStartShopHTTP.succeed(())
-                try server.waitForStop()
-            } catch {
-                promiseStartShopHTTP.fail(error)
-            }
-        }
-
-        XCTAssertNoThrow(try promiseStartAuthLGNS.futureResult.wait())
-        XCTAssertNoThrow(try promiseStartShopLGNS.futureResult.wait())
-        XCTAssertNoThrow(try promiseStartAuthHTTP.futureResult.wait())
-        XCTAssertNoThrow(try promiseStartShopHTTP.futureResult.wait())
-
         let client = LGNC.Client.Dynamic(
             eventLoopGroup: Self.eventLoopGroup,
             clientLGNS: LGNS.Client(
@@ -354,8 +370,61 @@ final class LGNCTests: XCTestCase {
         try client.disconnect().wait()
     }
 
+    func testCookies() throws {
+        let cryptor = try LGNP.Cryptor(key: [1,2,3,4,5,6,7,8,1,2,3,4,5,6,7,8])
+        let controlBitmask: LGNP.Message.ControlBitmask = [.contentTypeMsgPack]
+
+        let addressAuthLGNS = LGNCore.Address.ip(host: "127.0.0.1", port: 27020)
+        let addressAuthHTTP = LGNCore.Address.ip(host: "http://127.0.0.1", port: 27022)
+
+        let clientHTTP = HTTPClient(eventLoopGroupProvider: .shared(Self.eventLoopGroup))
+        defer { try! clientHTTP.syncShutdown() }
+
+        let clientLGNS = LGNS.Client(
+            cryptor: cryptor,
+            controlBitmask: controlBitmask,
+            eventLoopGroup: Self.eventLoopGroup
+        )
+        defer { try! clientLGNS.disconnect().wait() }
+
+        let request = A.Login.Request(
+            email: "bar@baz.com",
+            password: "123456"
+        )
+
+        let age = 86400 * 365
+        let expectedCookie = LGNC.Entity.Cookie(
+            name: "token",
+            value: Self.validToken,
+            path: "/",
+            domain: ".1711.games",
+            expires: Self.cookieDate.addingTimeInterval(TimeInterval(age)),
+            maxAge: age,
+            httpOnly: true,
+            secure: true
+        )
+        let loginResultHTTP = try A.Login.executeReturningMeta(
+            at: addressAuthHTTP,
+            with: request,
+            using: clientHTTP
+        ).wait()
+        XCTAssertEqual(expectedCookie, loginResultHTTP.response.token)
+        XCTAssertEqual(
+            try expectedCookie.getCookieString(),
+            loginResultHTTP.meta[LGNC.HTTP.COOKIE_META_KEY_PREFIX + "token"]
+        )
+
+        let loginResultLGNS = try A.Login.execute(
+            at: addressAuthLGNS,
+            with: request,
+            using: clientLGNS
+        ).wait()
+        XCTAssertEqual(expectedCookie, loginResultLGNS.token)
+    }
+
     static var allTests = [
         ("testWithLoopbackClient", testWithLoopbackClient),
         ("testWithDynamicClient", testWithDynamicClient),
+        ("testCookies", testCookies),
     ]
 }
