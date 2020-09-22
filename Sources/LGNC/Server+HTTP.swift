@@ -132,11 +132,9 @@ fileprivate extension Service {
             let rawValue = String(kv[1])
             if rawValue.isBool {
                 value = rawValue.bool
-            }
-            else if rawValue.isNumeric {
-                value = Int(rawValue)!
-            }
-            else {
+            } else if let int = Int(rawValue) {
+                value = int
+            } else {
                 value = rawValue
             }
             result[String(kv[0])] = value
@@ -147,10 +145,6 @@ fileprivate extension Service {
 }
 
 fileprivate extension String {
-    var isNumeric: Bool {
-        CharacterSet(charactersIn: self).isSubset(of: CharacterSet.decimalDigits)
-    }
-
     var isBool: Bool {
         self.count == 1 && CharacterSet(charactersIn: self).isSubset(of: CharacterSet(charactersIn: "01"))
     }
