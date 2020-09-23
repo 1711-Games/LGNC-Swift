@@ -123,7 +123,7 @@ final class LGNCTests: XCTestCase {
         let cryptor = try! LGNP.Cryptor(key: [1,2,3,4,5,6,7,8,1,2,3,4,5,6,7,8])
         let controlBitmask: LGNP.Message.ControlBitmask = [.contentTypeMsgPack]
 
-        S.Purchases.guarantee { (request, context) -> EventLoopFuture<S.Purchases.Response> in
+        S.Purchases.guarantee { (request, context) -> EventLoopFuture<(response: S.Purchases.Response, meta: Meta)> in
             let clientLGNS = LGNS.Client(
                 cryptor: cryptor,
                 controlBitmask: controlBitmask,
@@ -141,8 +141,16 @@ final class LGNCTests: XCTestCase {
                     guard authResponse.IDUser != nil else {
                         throw LGNC.ContractError.GeneralError("Not authenticated", 401)
                     }
-                    return S.Purchases.Response(
-                        list: [Good(ID: 2, name: "baz", price: 32.2)]
+                    return S.Purchases.withHeaders(
+                        response: S.Purchases.Response(
+                            list: [Good(ID: 2, name: "baz", price: 32.2)]
+                        ),
+                        meta: [
+                            LGNC.HTTP.HEADER_PREFIX + "Gerreg": "Tlaalt",
+                        ],
+                        headers: [
+                            ("Lul", "Kek"),
+                        ]
                     )
                 }
         }
@@ -434,10 +442,6 @@ final class LGNCTests: XCTestCase {
             using: clientHTTP
         ).wait()
         XCTAssertEqual(expectedCookie, loginResultHTTP.response.token)
-        XCTAssertEqual(
-            try expectedCookie.getCookieString(),
-            loginResultHTTP.meta[LGNC.HTTP.COOKIE_META_KEY_PREFIX + "token"]
-        )
 
         let loginResultLGNS = try A.Login.execute(
             at: addressAuthLGNS,
@@ -470,6 +474,9 @@ final class LGNCTests: XCTestCase {
         XCTAssertNotNil(maybeBytes)
         let json = try maybeBytes!.unpackFromJSON()
         XCTAssertTrue(json["success"] as? Bool == true, maybeBytes!._string)
+
+        XCTAssertTrue(result.headers.contains(where: { k, v in k == "Lul" && v == "Kek" }))
+        XCTAssertTrue(result.headers.contains(where: { k, v in k == "Gerreg" && v == "Tlaalt" }))
     }
 
     static var allTests = [

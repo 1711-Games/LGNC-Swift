@@ -72,15 +72,34 @@ public extension Service {
                 ).map {
                     let body: Bytes
                     var headers: [(name: String, value: String)] = [
-                        ("Content-Language", context.locale.rawValue)
+                        ("Content-Language", context.locale.rawValue),
+                        ("LGNC-UUID", request.uuid.string),
+                        ("Content-Type", request.contentType.header),
                     ]
 
+                    var removeHeadersFromMeta = false
                     headers.append(
                         contentsOf: $0
                             .meta
-                            .filter { k, _ in k.starts(with: LGNC.HTTP.COOKIE_META_KEY_PREFIX) }
-                            .map { _, v in ("Set-Cookie", v) }
+                            .filter { k, _ in k.starts(with: LGNC.HTTP.HEADER_PREFIX) }
+                            .map { k, value in
+                                if removeHeadersFromMeta == false {
+                                    removeHeadersFromMeta = true
+                                }
+
+                                let key: String
+                                if k.starts(with: LGNC.HTTP.COOKIE_META_KEY_PREFIX) {
+                                    key = "Set-Cookie"
+                                } else {
+                                    key = k.replacingOccurrences(of: LGNC.HTTP.HEADER_PREFIX, with: "")
+                                }
+                                return (key, value)
+                            }
                     )
+
+                    if removeHeadersFromMeta {
+                        $0.meta = $0.meta.filter { k, _ in !k.starts(with: LGNC.HTTP.HEADER_PREFIX) }
+                    }
 
                     do {
                         body = try $0.getDictionary().pack(to: request.contentType)
@@ -144,15 +163,5 @@ fileprivate extension Service {
         }
 
         return result
-    }
-}
-
-fileprivate extension String {
-    var isBool: Bool {
-        self.count == 1 && CharacterSet(charactersIn: self).isSubset(of: CharacterSet(charactersIn: "01"))
-    }
-
-    var bool: Bool {
-        self == "1" ? true : false
     }
 }
