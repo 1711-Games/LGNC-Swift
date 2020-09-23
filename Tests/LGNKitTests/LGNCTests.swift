@@ -455,7 +455,7 @@ final class LGNCTests: XCTestCase {
 
         let result = try client.execute(
             request: HTTPClient.Request(
-                url: "\(addressShop)/Purchases?page=1711&ignoreFree=1",
+                url: "\(addressShop)/Purchases?page=1711&ignoreFree=true",
                 method: .GET,
                 headers: HTTPHeaders([
                     ("Content-Type", "Application/JSON"),
