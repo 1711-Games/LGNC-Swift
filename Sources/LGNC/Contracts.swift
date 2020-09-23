@@ -13,6 +13,9 @@ public protocol AnyContract {
     /// URI of contract, must be unique for service
     static var URI: String { get }
 
+    /// Indicates whether contract can be invoked with HTTP GET method (and respective GET params)
+    static var isGETSafe: Bool { get }
+
     /// Allowed transports for contract, must not be empty
     static var transports: [LGNCore.Transport] { get }
 
@@ -39,6 +42,8 @@ public protocol AnyContract {
 }
 
 public extension AnyContract {
+    static var isGETSafe: Bool { false }
+
     static var preferredTransport: LGNCore.Transport {
         guard self.transports.count > 0 else {
             LGNC.logger.error("Empty transports in contract \(Self.self), returning .LGNS")

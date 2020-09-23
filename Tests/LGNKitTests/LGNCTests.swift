@@ -2,6 +2,7 @@ import XCTest
 import LGNCore
 import LGNS
 import AsyncHTTPClient
+import NIOHTTP1
 @testable import LGNC
 
 typealias A = Services.Auth.Contracts
@@ -121,6 +122,30 @@ final class LGNCTests: XCTestCase {
 
         let cryptor = try! LGNP.Cryptor(key: [1,2,3,4,5,6,7,8,1,2,3,4,5,6,7,8])
         let controlBitmask: LGNP.Message.ControlBitmask = [.contentTypeMsgPack]
+
+        S.Purchases.guarantee { (request, context) -> EventLoopFuture<S.Purchases.Response> in
+            let clientLGNS = LGNS.Client(
+                cryptor: cryptor,
+                controlBitmask: controlBitmask,
+                eventLoopGroup: Self.eventLoopGroup
+            )
+
+            return A.Authenticate
+                .execute(
+                    at: LGNCore.Address.ip(host: "127.0.0.1", port: 27020),
+                    with: .init(token: request.token),
+                    using: clientLGNS
+                )
+                .flatMap { authResponse in clientLGNS.disconnect().map { authResponse } }
+                .flatMapThrowing { authResponse in
+                    guard authResponse.IDUser != nil else {
+                        throw LGNC.ContractError.GeneralError("Not authenticated", 401)
+                    }
+                    return S.Purchases.Response(
+                        list: [Good(ID: 2, name: "baz", price: 32.2)]
+                    )
+                }
+        }
 
         let promiseStartAuthLGNS: PromiseVoid = Self.eventLoopGroup.next().makePromise()
         let promiseStartShopLGNS: PromiseVoid = Self.eventLoopGroup.next().makePromise()
@@ -422,9 +447,35 @@ final class LGNCTests: XCTestCase {
         XCTAssertEqual(expectedCookie, loginResultLGNS.token)
     }
 
+    func testGETSafe() throws {
+        let client = HTTPClient(eventLoopGroupProvider: .shared(Self.eventLoopGroup))
+        defer { try! client.syncShutdown() }
+
+        let addressShop = LGNCore.Address.ip(host: "http://127.0.0.1", port: 27023)
+
+        let result = try client.execute(
+            request: HTTPClient.Request(
+                url: "\(addressShop)/Purchases?page=1711&ignoreFree=1",
+                method: .GET,
+                headers: HTTPHeaders([
+                    ("Content-Type", "Application/JSON"),
+                    ("Set-Cookie", "token=\(Self.validToken); HttpOnly; Path=/"),
+                ])
+            )
+        ).wait()
+        XCTAssertNotNil(result.body)
+        var body = result.body!
+        XCTAssertGreaterThan(body.readableBytes, 0)
+        let maybeBytes = body.readBytes(length: body.readableBytes)
+        XCTAssertNotNil(maybeBytes)
+        let json = try maybeBytes!.unpackFromJSON()
+        XCTAssertTrue(json["success"] as? Bool == true, maybeBytes!._string)
+    }
+
     static var allTests = [
         ("testWithLoopbackClient", testWithLoopbackClient),
         ("testWithDynamicClient", testWithDynamicClient),
         ("testCookies", testCookies),
+        ("testGETSafe", testGETSafe),
     ]
 }
