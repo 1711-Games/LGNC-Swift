@@ -3,7 +3,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "LGNKit",
+    name: "LGNC-Swift",
     platforms: [.macOS(.v10_15)],
     products: [
         .library(name: "LGNCore", targets: ["LGNCore"]),
@@ -82,7 +82,7 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "LGNKitTests",
+            name: "LGNCSwiftTests",
             dependencies: [
                 "LGNCore",
                 "LGNP",

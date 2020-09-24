@@ -1,7 +1,7 @@
 import XCTest
 
-import LGNKitTests
+import LGNCSwiftTests
 
 var tests = [XCTestCaseEntry]()
-tests += LGNKitTests.allTests()
+tests += LGNCSwiftTests.allTests()
 XCTMain(tests)

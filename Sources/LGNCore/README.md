@@ -1,7 +1,7 @@
 # LGNCore
 
 ## About
-This is a core module containing all shared tools required by all other LGNKit modules.
+This is a core module containing all shared tools required by all other LGNC-Swift modules.
 
 In particular, it has following useful tools:
 * [`LGNCore.Config`](#lgncoreconfig-usage), a simple class for managing application config (by default loads `$ENV`).

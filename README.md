@@ -1,5 +1,5 @@
-# LGNKit
+# LGNC-Swift
 
-![LGNKit Logo](./logo.png)
+![LGNC-Swift Logo](./logo.png)
 
 A description of this package.
