@@ -77,14 +77,14 @@ public extension Service {
                         ("Content-Type", request.contentType.header),
                     ]
 
-                    var removeHeadersFromMeta = false
+                    var metaContainsHeaders = false
                     headers.append(
                         contentsOf: $0
                             .meta
                             .filter { k, _ in k.starts(with: LGNC.HTTP.HEADER_PREFIX) }
                             .map { k, value in
-                                if removeHeadersFromMeta == false {
-                                    removeHeadersFromMeta = true
+                                if metaContainsHeaders == false {
+                                    metaContainsHeaders = true
                                 }
 
                                 let key: String
@@ -97,7 +97,7 @@ public extension Service {
                             }
                     )
 
-                    if removeHeadersFromMeta {
+                    if metaContainsHeaders {
                         $0.meta = $0.meta.filter { k, _ in !k.starts(with: LGNC.HTTP.HEADER_PREFIX) }
                     }
 
