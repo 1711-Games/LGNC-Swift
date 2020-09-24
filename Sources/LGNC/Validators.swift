@@ -2,8 +2,10 @@ import Foundation
 import LGNCore
 import LGNS
 
+public typealias ErrorTuple = (code: Int, message: String)
+
 public protocol ValidatorErrorRepresentable: ClientError {
-    func getErrorTuple() -> (message: String, code: Int)
+    func getErrorTuple() -> ErrorTuple
 }
 
 public protocol CallbackWithAllowedValuesRepresentable {
@@ -16,13 +18,13 @@ public protocol ValidatorError: ValidatorErrorRepresentable {
 }
 
 public extension ValidatorError {
-    func getErrorTuple() -> (message: String, code: Int) {
-        (message: message, code: code)
+    func getErrorTuple() -> ErrorTuple {
+        (code: code, message: message)
     }
 }
 
-public struct Validation {
-    public struct Error {}
+public enum Validation {
+    public enum Error {}
 }
 
 internal extension String {
@@ -285,7 +287,8 @@ public extension Validation {
     }
 
     struct Callback<Value>: Validator {
-        public typealias Callback = (Value, EventLoop) -> EventLoopFuture<(message: String, code: Int)?>
+        public typealias Callback = (Value, EventLoop) -> EventLoopFuture<[ErrorTuple]?>
+        public typealias CallbackWithSingleError = (Value, EventLoop) -> EventLoopFuture<ErrorTuple?>
 
         public struct Error: ValidatorError {
             public let code: Int
@@ -298,16 +301,22 @@ public extension Validation {
             self.callback = callback
         }
 
+        public init(callback: @escaping CallbackWithSingleError) {
+            self.init { (value, eventLoop) -> EventLoopFuture<[ErrorTuple]?> in
+                callback(value, eventLoop).map { $0.map { [$0] } }
+            }
+        }
+
         public func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {
             // not relevant here
-            return nil
+            nil
         }
 
         public func validate(
             _ input: Any,
             _ locale: LGNCore.i18n.Locale,
             on eventLoop: EventLoop
-        ) -> EventLoopFuture<ValidatorError?> {
+        ) -> EventLoopFuture<Swift.Error?> {
             guard let value = input as? Value else {
                 return eventLoop.makeSucceededFuture(Validation.Error.InvalidType(locale))
             }
@@ -315,10 +324,12 @@ public extension Validation {
                 value,
                 eventLoop
             ).map {
-                guard let errorTuple = $0 else {
+                guard let errors = $0 else {
                     return nil
                 }
-                return Error(code: errorTuple.code, message: errorTuple.message._t(locale))
+                return LGNC.E.MultipleFieldDecodeError(
+                    errors.map { code, message in Error(code: code, message: message._t(locale)) }
+                )
             }
         }
     }
@@ -340,7 +351,8 @@ public extension Validation {
         }
 
         public func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {
-            return nil
+            // not relevant here
+            nil
         }
 
         public func validate(
@@ -362,5 +374,34 @@ public extension Validation {
                 return Error(code: errorTuple.code, message: errorTuple.message._t(locale))
             }
         }
+    }
+
+    static func cumulative(
+        _ validationFutures: [EventLoopFuture<Void>],
+        on eventLoop: EventLoop
+    ) -> EventLoopFuture<Void> {
+        EventLoopFuture<Void>
+            .whenAllComplete(validationFutures, on: eventLoop)
+            .flatMapThrowing { (results: [Result<Void, Swift.Error>]) throws -> Void in
+                var errors: [ValidatorError] = []
+
+                for result in results {
+                    switch result {
+                    case .success: continue
+                    case let .failure(error):
+                        if let error = error as? ValidatorError {
+                            errors.append(error)
+                        } else if case let LGNC.E.MultipleFieldDecodeError(multipleErrors) = error {
+                            errors.append(contentsOf: multipleErrors)
+                        } else {
+                            throw error
+                        }
+                    }
+                }
+
+                if errors.count > 0 {
+                    throw LGNC.E.MultipleFieldDecodeError(errors)
+                }
+            }
     }
 }

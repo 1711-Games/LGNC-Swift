@@ -18,31 +18,34 @@ public extension ContractEntity {
     static func reduce(
         validators: [String: EventLoopFuture<Void>],
         context: LGNCore.Context
-    ) -> EventLoopFuture<[String: ValidatorError]> {
+    ) -> EventLoopFuture<[String: [ValidatorError]]> {
         EventLoopFuture.reduce(
             into: [:],
-            validators.map { (key: String, future: EventLoopFuture<Void>) -> EventLoopFuture<(String, ValidatorError?)> in
+            validators.map { (key: String, future: EventLoopFuture<Void>) in
                 future
                     .map { nil }
-                    .flatMapErrorThrowing { (error: Error) -> ValidatorError? in
+                    .flatMapErrorThrowing { (error: Error) -> [ValidatorError]? in
                         if error is Validation.Error.SkipMissingOptionalValueValidators {
                             return nil
                         }
                         if error is Entita.E {
-                            return Validation.Error.MissingValue(context.locale)
+                            return [Validation.Error.MissingValue(context.locale)]
                         }
-                        if !(error is ValidatorError) {
-                            context.logger.error("Unknown error while parsing contract entity: \(error)")
-                            return Validation.Error.UnknownError(context.locale)
+                        if case let LGNC.E.MultipleFieldDecodeError(errors) = error {
+                            return errors
                         }
-                        return (error as! ValidatorError)
+                        if let error = error as? ValidatorError {
+                            return [error]
+                        }
+                        context.logger.error("Unknown error while parsing contract entity: \(error)")
+                        return [Validation.Error.UnknownError(context.locale)]
                     }
                     .map { maybeError in (key, maybeError) }
             },
             on: context.eventLoop,
-            { carry, resultTuple in
-                if let error = resultTuple.1 {
-                    carry[resultTuple.0] = error
+            { (carry: inout [String: [ValidatorError]], resultTuple: (String, [ValidatorError]?)) in
+                if let errors = resultTuple.1 {
+                    carry[resultTuple.0] = errors
                 }
             }
         )

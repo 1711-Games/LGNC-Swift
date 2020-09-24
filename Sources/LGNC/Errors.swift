@@ -2,7 +2,7 @@ import Foundation
 import LGNCore
 
 public protocol ClientError: Error {
-    func getErrorTuple() -> (message: String, code: Int)
+    func getErrorTuple() -> ErrorTuple
 }
 
 public extension Dictionary where Key == String, Value == [ClientError] {
@@ -25,6 +25,7 @@ public extension Dictionary where Key == String, Value == [ClientError] {
 public extension LGNC {
     enum E: Error {
         case DecodeError([String: [ValidatorError]])
+        case MultipleFieldDecodeError([ValidatorError])
         case UnpackError(String)
         case ControllerError(String)
         case ServiceError(String)
@@ -63,23 +64,28 @@ public extension LGNC {
             return result
         }
 
-        public func getErrorTuple() -> (message: String, code: Int) {
+        public func getErrorTuple() -> ErrorTuple {
+            let result: ErrorTuple
+
             switch self {
             case let .URINotFound(URI):
-                return (message: "URI '\(URI)' not found", code: 404)
+                result = (code: 404, message: "URI '\(URI)' not found")
             case let .ExtraFieldsInRequest(fields):
-                return (
-                    message: "Input contains unexpected items: \(fields.map { "'\($0)'" }.joined(separator: ", "))",
-                    code: 422
+                result = (
+                    code: 422,
+                    message: "Input contains unexpected items: \(fields.map { "'\($0)'" }.joined(separator: ", "))"
                 )
-            case let .AmbiguousInput(string): return (message: string, code: 300)
+            case let .AmbiguousInput(string):
+                result = (code: 300, message: string)
             case let .TransportNotAllowed(transport):
-                return (message: "Transport '\(transport.rawValue)' not allowed", code: 405)
+                result = (code: 405, message: "Transport '\(transport.rawValue)' not allowed")
             case .InternalError, .RemoteContractExecutionFailed:
-                return (message: "Internal server error", code: 500)
+                result = (code: 500, message: "Internal server error")
             case let .GeneralError(message, code):
-                return (message: message, code: code)
+                result = (code: code, message: message)
             }
+
+            return result
         }
     }
 }

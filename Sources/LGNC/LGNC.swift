@@ -250,7 +250,7 @@ public extension LGNC.Entity {
                 .reduce(validators: validatorFutures, context: context)
                 .flatMap {
                     guard $0.count == 0 else {
-                        return eventLoop.makeFailedFuture(LGNC.E.DecodeError($0.mapValues { [$0] }))
+                        return eventLoop.makeFailedFuture(LGNC.E.DecodeError($0))
                     }
 
                     let future: EventLoopFuture<T?>
@@ -373,7 +373,7 @@ public extension LGNC.Entity {
             self.code = code
         }
 
-        public convenience init(from tuple: (message: String, code: Int)) {
+        public convenience init(from tuple: ErrorTuple) {
             self.init(message: tuple.message, code: tuple.code)
         }
 
@@ -381,8 +381,8 @@ public extension LGNC.Entity {
             self.init(from: error.getErrorTuple())
         }
 
-        public func getErrorTuple() -> (message: String, code: Int) {
-            return (message: message, code: code)
+        public func getErrorTuple() -> ErrorTuple {
+            return (code: code, message: message)
         }
 
         public static func initWithValidation(
