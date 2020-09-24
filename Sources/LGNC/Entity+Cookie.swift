@@ -168,11 +168,6 @@ extension LGNC.Entity.Cookie: ContractEntity {
     }
 
     public func getCookieString() throws -> String {
-//        guard let value = self.value.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) else {
-//            LGNC.logger.error("Could not urlencode value for cookie \(self)")
-//            throw LGNC.ContractError.InternalError
-//        }
-
         var result: [String] = ["\(self.name)=\(self.value)"]
 
         if let expires = self.expires {

@@ -11,7 +11,8 @@ public extension LGNC {
     enum HTTP {
         public typealias Resolver = (Request) -> EventLoopFuture<(body: Bytes, headers: [(name: String, value: String)])>
 
-        public static let COOKIE_META_KEY_PREFIX = "Set-Cookie: " // todo proper headers setting
+        public static let HEADER_PREFIX = "HEADER__"
+        public static let COOKIE_META_KEY_PREFIX = HEADER_PREFIX + "Set-Cookie: "
     }
 }
 
@@ -351,16 +352,12 @@ internal extension LGNC.HTTP {
                     )
                 }
                 var headers = [
-                    "LGNC-UUID": self.uuid.string,
-                    "Server": "LGNC \(LGNC.VERSION)",
+                    ("Server", "LGNC \(LGNC.VERSION)"),
                 ]
                 future.whenSuccess { (body, additionalHeaders) in
                     self.buffer.writeBytes(body)
-                    headers["Content-Type"] = request.contentType.header
 
-                    for (name, value) in additionalHeaders {
-                        headers[name] = value
-                    }
+                    headers.append(contentsOf: additionalHeaders)
 
                     self.finishRequest(
                         context: context,
@@ -383,12 +380,12 @@ internal extension LGNC.HTTP {
         private func finishRequest(
             context: ChannelHandlerContext,
             status: HTTPResponseStatus,
-            additionalHeaders: [String: String] = [:]
+            additionalHeaders: [(String, String)] = []
         ) {
             var headers = HTTPHeaders()
             headers.add(name: "Content-Length", value: "\(buffer.readableBytes)")
             additionalHeaders.forEach {
-                headers.add(name: $0.key, value: $0.value)
+                headers.add(name: $0, value: $1)
             }
             context.write(wrapOutboundOut(.head(httpResponseHead(request: infoSavedRequestHead!, status: status, headers: headers))), promise: nil)
             context.write(wrapOutboundOut(.body(.byteBuffer(buffer))), promise: nil)

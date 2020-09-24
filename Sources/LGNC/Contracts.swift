@@ -125,6 +125,13 @@ public protocol Contract: AnyContract {
         using client: LGNCClient,
         context maybeContext: LGNCore.Context?
     ) -> EventLoopFuture<Self.Response>
+
+    /// Used for returning response with a list of HTTP headers
+    static func withHeaders(
+        response: Self.Response,
+        meta: LGNC.Entity.Meta,
+        headers: [(String, String)]
+    ) -> (response: Self.Response, meta: LGNC.Entity.Meta)
 }
 
 public enum ContractVisibility {
@@ -317,6 +324,20 @@ public extension Contract {
         self
             .executeReturningMeta(at: address, with: request, using: client, context: maybeContext)
             .map { response, _ in response }
+    }
+
+    static func withHeaders(
+        response: Self.Response,
+        meta _meta: LGNC.Entity.Meta = [:],
+        headers: [(String, String)]
+    ) -> (response: Self.Response, meta: LGNC.Entity.Meta) {
+        var meta = _meta
+
+        headers.forEach { k, v in
+            meta[LGNC.HTTP.HEADER_PREFIX + k] = v
+        }
+
+        return (response: response, meta: meta)
     }
 }
 
