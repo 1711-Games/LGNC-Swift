@@ -120,6 +120,10 @@ final class LGNCTests: XCTestCase {
             ))
         }
 
+        S.DummyContract.guarantee { (request, context) -> LGNC.Entity.Empty in
+            .init()
+        }
+
         let cryptor = try! LGNP.Cryptor(key: [1,2,3,4,5,6,7,8,1,2,3,4,5,6,7,8])
         let controlBitmask: LGNP.Message.ControlBitmask = [.contentTypeMsgPack]
 

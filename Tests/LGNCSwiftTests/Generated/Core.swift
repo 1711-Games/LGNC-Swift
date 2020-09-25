@@ -86,7 +86,7 @@ public extension Services.Shared {
                 .reduce(validators: validatorFutures, context: context)
                 .flatMapThrowing {
                     guard $0.count == 0 else {
-                        throw LGNC.E.DecodeError($0.mapValues { [$0] })
+                        throw LGNC.E.DecodeError($0)
                     }
 
                     return self.init(

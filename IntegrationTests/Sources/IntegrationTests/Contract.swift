@@ -42,12 +42,16 @@ func setupContract() {
         return eventLoop.makeSucceededFuture(result)
     }
 
-    C1.Request.validateDateField { input, eventLoop in
-        let result: (String, Int)?
+    C1.Request.validateDateField { (input, eventLoop) -> EventLoopFuture<[ErrorTuple]?> in
+        let result: [ErrorTuple]?
 
         switch input {
-        case "1989-09-03 16:37:00.1711+03:00": result = ("It's my birthday :D", 200)
-        case "2020-12-31 23:59:59.1711+03:00": result = ("It's New Year :D", 201)
+        case "1989-03-09 16:37:00.1711+03:00": result = [(200, "It's my birthday :D")]
+        case "2020-12-31 23:59:59.1711+03:00": result = [(201, "It's New Year :D")]
+        case "1989-03-09 17:11:00.1711+03:00": result = [
+            (202, "Still my birthday, lul"),
+            (203, "Send help"),
+        ]
         default: result = nil
         }
 

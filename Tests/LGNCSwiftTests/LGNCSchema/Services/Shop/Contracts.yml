@@ -1,0 +1,8 @@
+DummyContract:
+  Transports: [ LGNS ]
+  Request:
+    Fields:
+      someField:
+        Type: String
+        Validators: [ Callback ]
+  Response: Empty
