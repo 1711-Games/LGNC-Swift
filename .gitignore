@@ -6,3 +6,4 @@
 *.xcodeproj
 Package.resolved
 /IntegrationTests/Sources/IntegrationTests/Codegen/
+/Tests/LGNCSwiftTests/Codegen/
