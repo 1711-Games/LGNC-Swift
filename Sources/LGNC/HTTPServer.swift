@@ -312,17 +312,23 @@ internal extension LGNC.HTTP {
 
                 self.buffer.clear()
 
-                let URI = String(infoSavedRequestHead!.uri.dropFirst())
-
-                guard
-                    let contentTypeString = self.infoSavedRequestHead!.headers["Content-Type"].first,
-                    let contentType = LGNCore.ContentType.init(from: contentTypeString.lowercased())
-                else {
-                    self.sendBadRequest(message: "400 Bad Request (Content-Type header missing)", to: context)
-                    return
-                }
-
                 let method = self.infoSavedRequestHead!.method
+
+                let URI = String(infoSavedRequestHead!.uri.dropFirst())
+                let contentType: LGNCore.ContentType
+
+                if method == .GET {
+                    contentType = .JSON
+                } else {
+                    guard
+                        let contentTypeString = self.infoSavedRequestHead!.headers["Content-Type"].first,
+                        let _contentType = LGNCore.ContentType.init(from: contentTypeString.lowercased())
+                    else {
+                        self.sendBadRequest(message: "400 Bad Request (Content-Type header missing)", to: context)
+                        return
+                    }
+                    contentType = _contentType
+                }
 
                 let payloadBytes: Bytes
                 if var buffer = self.bodyBuffer, let bytes = buffer.readBytes(length: buffer.readableBytes) {
