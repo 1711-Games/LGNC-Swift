@@ -348,7 +348,7 @@ internal extension LGNC.HTTP {
                     uuid: uuid,
                     contentType: contentType,
                     method: method,
-                    meta: self.infoSavedRequestHead?.headers["Set-Cookie"].parseCookies() ?? [:],
+                    meta: self.infoSavedRequestHead?.headers["Cookie"].parseCookies() ?? [:],
                     eventLoop: context.eventLoop
                 )
                 let future = self.resolver(request)

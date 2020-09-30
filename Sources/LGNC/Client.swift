@@ -128,7 +128,7 @@ extension HTTPClient: LGNCClient {
                         }(),
                         isSecure: isSecure,
                         transport: .HTTP,
-                        meta: response.headers["Set-Cookie"].parseCookies(),
+                        meta: response.headers["Cookie"].parseCookies(),
                         eventLoop: context.eventLoop
                     )
                 )

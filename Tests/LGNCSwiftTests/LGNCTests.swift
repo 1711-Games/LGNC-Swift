@@ -466,7 +466,7 @@ final class LGNCTests: XCTestCase {
                 url: "\(addressShop)/Purchases?page=1711&ignoreFree=true",
                 method: .GET,
                 headers: HTTPHeaders([
-                    ("Set-Cookie", "token=\(Self.validToken); HttpOnly; Path=/"),
+                    ("Cookie", "token=\(Self.validToken); HttpOnly; Path=/; m-wf-loaded=q-icons-q_serif; _ga=GA1.2.942846199.1482123615"),
                 ])
             )
         ).wait()
