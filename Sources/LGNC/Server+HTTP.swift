@@ -46,6 +46,10 @@ public extension Service {
                 let payload: Entita.Dict
                 let URI: String
 
+                guard !request.URI.isEmpty else {
+                    throw LGNC.E.clientError("No URI", 400)
+                }
+
                 if request.method == .GET {
                     let components = request.URI.split(separator: "?", maxSplits: 1)
                     URI = String(components[0])
