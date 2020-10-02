@@ -28,9 +28,6 @@ internal extension Array where Element == String {
         return result
     }
 }
-        )
-    }
-}
 
 extension LGNC.Entity.Cookie: ContractEntity {
     public static func initWithValidation(
