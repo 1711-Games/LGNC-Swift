@@ -9,15 +9,25 @@ public extension LGNC.Entity {
 
 internal extension Array where Element == String {
     func parseCookies() -> [String: String] {
-        .init(
-            self.compactMap { cookie in
+        var result = [String: String]()
+
+        for cookieString in self {
+            for cookie in cookieString.split(separator: ";") {
                 let parts = cookie.split(separator: "=", maxSplits: 1)
-                guard parts.count == 2 else {
-                    return nil
-                }
-                return (String(LGNC.HTTP.COOKIE_META_KEY_PREFIX + parts[0]), cookie)
-            },
-            uniquingKeysWith: { $1 }
+                guard
+                    parts.count == 2,
+                    let name = parts[0].removingPercentEncoding?.trimmingCharacters(in: .whitespacesAndNewlines),
+                    !name.isEmpty,
+                    let value = parts[1].removingPercentEncoding?.trimmingCharacters(in: .whitespacesAndNewlines),
+                    !value.isEmpty
+                else { continue }
+                result[LGNC.HTTP.COOKIE_META_KEY_PREFIX + name] = value
+            }
+        }
+
+        return result
+    }
+}
         )
     }
 }
@@ -168,7 +178,14 @@ extension LGNC.Entity.Cookie: ContractEntity {
     }
 
     public func getCookieString() throws -> String {
-        var result: [String] = ["\(self.name)=\(self.value)"]
+        guard let name = self.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+            throw LGNC.E.serverError("Could not percent encode cookie name of cookie \(self)")
+        }
+        guard let value = self.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+            throw LGNC.E.serverError("Could not percent encode cookie value of cookie \(self)")
+        }
+
+        var result: [String] = ["\(name)=\(value)"]
 
         if let expires = self.expires {
             result.append("Expires=\(LGNC.cookieDateFormatter.string(from: expires))")

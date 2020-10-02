@@ -74,8 +74,8 @@ public extension ContractEntity {
         /// is present both in response and meta, which, as you might imagine,
         /// is completely normal.
 
-        if let rawCookie = context.meta[LGNC.HTTP.COOKIE_META_KEY_PREFIX + dictKey] {
-            return LGNC.Entity.Cookie(header: rawCookie, defaultDomain: "")
+        if let value = context.meta[LGNC.HTTP.COOKIE_META_KEY_PREFIX + dictKey] {
+            return LGNC.Entity.Cookie(name: dictKey, value: value)
         }
 
         if let rawCookie = dictionary[dictKey] as? Entita.Dict {
