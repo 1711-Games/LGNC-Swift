@@ -19,7 +19,7 @@ let package = Package(
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.2.1"),
 
         // used by LGNPContenter
-        .package(url: "https://github.com/kirilltitov/SwiftMsgPack.git", from: "2.0.1-rc1"),
+        .package(url: "https://github.com/kirilltitov/SwiftMsgPack.git", from: "2.0.1"),
 
         // used by LGNP
         .package(url: "https://github.com/apple/swift-crypto.git", from: "1.0.0"),
