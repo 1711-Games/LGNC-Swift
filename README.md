@@ -16,7 +16,7 @@ Say, you've cloned the LGNBuilder to `~/work/LGNBuilder`, have your schema in `~
 and your Swift service lies under `~/work/myproject/swiftservice`. In that case codegen command would look like this:
 ```bash
 ~/work/LGNBuilder/Scripts/generate \
-	--lang Swift \
+    --lang Swift \
     --input ~/work/myproject/schema \
     --output ~/work/myproject/swiftservice/Sources/Service/Generated
 ```
