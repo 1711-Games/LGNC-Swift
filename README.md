@@ -29,7 +29,8 @@ but it's not necessary.
 > it's more convenient to do codegen on macOS. It's not prohibited to commit generated code to your repository,
 > as long as you don't edit it. Still, integrating LGNC (and LGNBuilder) with your CI process is totally possible.
 
-After you've generated the code, you are left with following file structure like this (given that you:
+After you've generated the code, you are left with following file structure like this (given that you have two
+services):
 
 ```
 Sources/Service/Generated/Core.swift
