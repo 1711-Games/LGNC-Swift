@@ -27,27 +27,27 @@ public extension EventLoop {
 }
 
 public extension ClientBootstrap {
-    func connect(to address: LGNCore.Address, defaultPort: Int) -> EventLoopFuture<Channel> {
+    func connect(to address: LGNCore.Address, defaultPort: Int) async throws -> Channel {
         switch address {
         case let .ip(host, port):
-            return self.connect(host: host, port: port)
+            return try await self.connect(host: host, port: port)
         case .localhost:
-            return self.connect(host: "127.0.0.1", port: defaultPort)
+            return try await self.connect(host: "127.0.0.1", port: defaultPort)
         case let .unixDomainSocket(path):
-            return self.connect(unixDomainSocketPath: path)
+            return try await self.connect(unixDomainSocketPath: path)
         }
     }
 }
 
 public extension ServerBootstrap {
-    func bind(to address: LGNCore.Address, defaultPort: Int) -> EventLoopFuture<Channel> {
+    func bind(to address: LGNCore.Address, defaultPort: Int) async throws -> Channel {
         switch address {
         case let .ip(host, port):
-            return self.bind(host: host, port: port)
+            return try await self.bind(host: host, port: port)
         case .localhost:
-            return self.bind(host: "127.0.0.1", port: defaultPort)
+            return try await self.bind(host: "127.0.0.1", port: defaultPort)
         case let .unixDomainSocket(path):
-            return self.bind(unixDomainSocketPath: path)
+            return try await self.bind(unixDomainSocketPath: path)
         }
     }
 }

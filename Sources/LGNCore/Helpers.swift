@@ -1,4 +1,8 @@
 import Foundation
+import Logging
+
+extension UUID: UnsafeSendable {}
+extension Logger: UnsafeSendable {}
 
 // autoreleasepool is objc-exclusive thing
 #if !os(macOS)
@@ -44,5 +48,33 @@ public extension UUID {
 public extension Date {
     var timeIntervalSince: TimeInterval {
         return -timeIntervalSinceNow
+    }
+}
+
+public extension Sequence {
+    @inlinable
+    func map<T>(_ transform: (Element) async throws -> T) async rethrows -> [T] {
+        let initialCapacity = self.underestimatedCount
+        var result = ContiguousArray<T>()
+        result.reserveCapacity(initialCapacity)
+
+        var iterator = self.makeIterator()
+
+        // Add elements up to the initial capacity without checking for regrowth.
+        for _ in 0..<initialCapacity {
+            result.append(try await transform(iterator.next()!))
+        }
+        // Add remaining elements, if any.
+        while let element = iterator.next() {
+            result.append(try await transform(element))
+        }
+        return Array(result)
+    }
+
+    @inlinable
+    func compactMap<T>(_ transform: (Element) async throws -> T?) async rethrows -> [T] {
+        try await self
+            .map(transform)
+            .compactMap { $0 }
     }
 }

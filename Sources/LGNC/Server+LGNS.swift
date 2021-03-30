@@ -5,6 +5,26 @@ import LGNS
 import NIO
 
 public extension Service {
+    static func validateContract(requiredBitmask: LGNP.Message.ControlBitmask) throws {
+        try self.validate(transport: .LGNS)
+        try self.validate(controlBitmask: requiredBitmask)
+        try self.checkGuarantees()
+    }
+
+    static func getLGNSResolver(request: LGNP.Message) async throws -> LGNP.Message? {
+        let context = Task.local(\.context)
+
+        context.logger.debug("Serving request at LGNS URI '\(request.URI)'")
+
+        let result = try await self.executeContract(URI: request.URI, dict: try request.unpackPayload())
+        do {
+            return request.copied(payload: try result.getDictionary().pack(to: request.contentType))
+        } catch {
+            context.logger.error("Could not pack entity to \(request.contentType): \(error)")
+            return request.copied(payload: LGNP.ERROR_RESPONSE)
+        }
+    }
+
     static func getServerLGNS(
         at target: LGNCore.Address? = nil,
         cryptor: LGNP.Cryptor,
@@ -13,9 +33,7 @@ public extension Service {
         readTimeout: TimeAmount = .seconds(1),
         writeTimeout: TimeAmount = .seconds(1)
     ) throws -> AnyServer {
-        try self.validate(transport: .LGNS)
-        try self.validate(controlBitmask: requiredBitmask)
-        try self.checkGuarantees()
+        try self.validateContract(requiredBitmask: requiredBitmask)
 
         return LGNS.Server(
             address: try self.unwrapAddress(from: target),
@@ -23,28 +41,9 @@ public extension Service {
             requiredBitmask: requiredBitmask,
             eventLoopGroup: eventLoopGroup,
             readTimeout: readTimeout,
-            writeTimeout: writeTimeout
-        ) { request, context in
-            context.logger.debug("Serving request at LGNS URI '\(request.URI)'")
-            do {
-                return self.executeContract(
-                    URI: request.URI,
-                    dict: try request.unpackPayload(),
-                    context: context
-                ).map {
-                    do {
-                        return request.copied(
-                            payload: try $0.getDictionary().pack(to: request.contentType)
-                        )
-                    } catch {
-                        context.logger.error("Could not pack entity to \(request.contentType): \(error)")
-                        return request.copied(payload: LGNP.ERROR_RESPONSE)
-                    }
-                }
-            } catch {
-                return context.eventLoop.makeFailedFuture(error)
-            }
-        }
+            writeTimeout: writeTimeout,
+            resolver: self.getLGNSResolver(request:)
+        )
     }
 
     static func startServerLGNS(
@@ -54,19 +53,16 @@ public extension Service {
         requiredBitmask: LGNP.Message.ControlBitmask = .defaultValues,
         readTimeout: TimeAmount = .seconds(1),
         writeTimeout: TimeAmount = .seconds(1)
-    ) -> EventLoopFuture<AnyServer> {
-        do {
-            let server: AnyServer = try self.getServerLGNS(
-                at: target,
-                cryptor: cryptor,
-                eventLoopGroup: eventLoopGroup,
-                requiredBitmask: requiredBitmask,
-                readTimeout: readTimeout,
-                writeTimeout: writeTimeout
-            )
-            return server.bind().map { server }
-        } catch {
-            return eventLoopGroup.next().makeFailedFuture(error)
-        }
+    ) async throws -> AnyServer {
+        let server: AnyServer = try self.getServerLGNS(
+            at: target,
+            cryptor: cryptor,
+            eventLoopGroup: eventLoopGroup,
+            requiredBitmask: requiredBitmask,
+            readTimeout: readTimeout,
+            writeTimeout: writeTimeout
+        )
+        try await server.bind()
+        return server
     }
 }

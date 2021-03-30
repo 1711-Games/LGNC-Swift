@@ -9,7 +9,7 @@ import AsyncHTTPClient
 
 public extension LGNC {
     enum HTTP {
-        public typealias Resolver = (Request) -> EventLoopFuture<(body: Bytes, headers: [(name: String, value: String)])>
+        public typealias Resolver = (Request) async throws -> (body: Bytes, headers: [(name: String, value: String)])
 
         public static let HEADER_PREFIX = "HEADER__"
         public static let COOKIE_META_KEY_PREFIX = HEADER_PREFIX + "Set-Cookie: "
@@ -103,7 +103,6 @@ public extension LGNC.HTTP {
         deinit {
             if self.isRunning {
                 Self.logger.warning("HTTP Server has not been shutdown manually")
-                try! self.shutdown().wait()
             }
         }
     }
@@ -219,9 +218,9 @@ internal extension LGNC.HTTP {
                 keepAlive = request.isKeepAlive
 
                 if [.POST, .GET].contains(request.method) {
-                    handler = defaultHandler
+                    self.handler = defaultHandler
                 } else {
-                    handler = { context, req in
+                    self.handler = { context, req in
                         self.handleJustWrite(
                             context: context,
                             request: req,
@@ -230,7 +229,7 @@ internal extension LGNC.HTTP {
                         )
                     }
                 }
-                handler!(context, reqPart)
+                self.handler!(context, reqPart)
             case .body:
                 break
             case .end:
@@ -248,7 +247,7 @@ internal extension LGNC.HTTP {
             if !keepAlive {
                 promise!.futureResult.whenComplete { _ in context.close(promise: nil) }
             }
-            handler = nil
+            self.handler = nil
 
             context.writeAndFlush(wrapOutboundOut(.end(trailers)), promise: promise)
         }
@@ -286,7 +285,7 @@ internal extension LGNC.HTTP {
         private func sendBadRequest(message: String = "400 Bad Request", to context: ChannelHandlerContext) {
             self.logger.debug("Bad request: \(message)")
             buffer.writeString(message)
-            finishRequest(context: context, status: .badRequest)
+            _ = finishRequest(context: context, status: .badRequest)
         }
 
         private func defaultHandler(_ context: ChannelHandlerContext, _ request: HTTPServerRequestPart) {
@@ -351,33 +350,46 @@ internal extension LGNC.HTTP {
                     meta: self.infoSavedRequestHead?.headers["Cookie"].parseCookies() ?? [:],
                     eventLoop: context.eventLoop
                 )
-                let future = self.resolver(request)
-                future.whenComplete { _ in
+
+                Task.runDetached {
+                    var headers = [
+                        ("Server", "LGNC \(LGNC.VERSION)"),
+                    ]
+
+                    let finishPromise: EventLoopPromise<Void>
+
+                    do {
+                        let (body, additionalHeaders) = try await self.resolver(request)
+
+                        self.buffer.writeBytes(body)
+
+                        headers.append(contentsOf: additionalHeaders)
+
+                        finishPromise = self.finishRequest(
+                            context: context,
+                            status: .ok,
+                            additionalHeaders: headers
+                        )
+                    } catch {
+                        self.logger.error("There was an error while processing request '\(request.URI)': \(error)")
+                        self.buffer.writeString("500 Internal Server Error")
+                        finishPromise = self.finishRequest(
+                            context: context,
+                            status: .internalServerError,
+                            additionalHeaders: headers
+                        )
+                    }
+
+                    do {
+                        try await finishPromise.futureResult.get()
+                    } catch {
+                        self.logger.critical(
+                            "Something wrong happened during finishing request \(request.uuid) \(error)"
+                        )
+                    }
+
                     self.logger.debug(
                         "HTTP request '\(request.URI)' execution took \(self.profiler.end().rounded(toPlaces: 5)) s"
-                    )
-                }
-                var headers = [
-                    ("Server", "LGNC \(LGNC.VERSION)"),
-                ]
-                future.whenSuccess { (body, additionalHeaders) in
-                    self.buffer.writeBytes(body)
-
-                    headers.append(contentsOf: additionalHeaders)
-
-                    self.finishRequest(
-                        context: context,
-                        status: .ok,
-                        additionalHeaders: headers
-                    )
-                }
-                future.whenFailure { error in
-                    self.logger.error("There was an error while processing request '\(request.URI)': \(error)")
-                    self.buffer.writeString("500 Internal Server Error")
-                    self.finishRequest(
-                        context: context,
-                        status: .internalServerError,
-                        additionalHeaders: headers
                     )
                 }
             }
@@ -387,15 +399,20 @@ internal extension LGNC.HTTP {
             context: ChannelHandlerContext,
             status: HTTPResponseStatus,
             additionalHeaders: [(String, String)] = []
-        ) {
+        ) -> EventLoopPromise<Void> {
             var headers = HTTPHeaders()
             headers.add(name: "Content-Length", value: "\(buffer.readableBytes)")
             additionalHeaders.forEach {
                 headers.add(name: $0, value: $1)
             }
-            context.write(wrapOutboundOut(.head(httpResponseHead(request: infoSavedRequestHead!, status: status, headers: headers))), promise: nil)
-            context.write(wrapOutboundOut(.body(.byteBuffer(buffer))), promise: nil)
-            completeResponse(context, trailers: nil, promise: nil)
+
+            let promise = context.eventLoop.makePromise(of: Void.self)
+
+            context.write(wrapOutboundOut(.head(httpResponseHead(request: infoSavedRequestHead!, status: status, headers: headers))), promise: promise)
+            context.write(wrapOutboundOut(.body(.byteBuffer(buffer))), promise: promise)
+            completeResponse(context, trailers: nil, promise: promise)
+
+            return promise
         }
     }
 }

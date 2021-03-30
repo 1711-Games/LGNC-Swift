@@ -42,7 +42,7 @@ public extension Service {
                 eventLoop: request.eventLoop
             )
             context.logger.debug("Serving request at HTTP URI '\(request.URI)'")
-            do {
+            return try await Task.withLocal(\.context, boundTo: context) {
                 let payload: Entita.Dict
                 let URI: String
 
@@ -54,10 +54,10 @@ public extension Service {
                     let components = request.URI.split(separator: "?", maxSplits: 1)
                     URI = String(components[0])
                     guard GETSafeURLs.contains(URI.lowercased()) else {
-                        return request.eventLoop.makeSucceededFuture((
+                        return (
                             body: LGNCore.getBytes("This contract cannot be invoked with GET"),
                             headers: []
-                        ))
+                        )
                     }
                     payload = self.parseQueryParams(components.last ?? "")
                 } else {
@@ -69,53 +69,47 @@ public extension Service {
                     }
                 }
 
-                return self.executeContract(
-                    URI: URI,
-                    dict: payload,
-                    context: context
-                ).map {
-                    let body: Bytes
-                    var headers: [(name: String, value: String)] = [
-                        ("Content-Language", context.locale.rawValue),
-                        ("LGNC-UUID", request.uuid.string),
-                        ("Content-Type", request.contentType.header),
-                    ]
+                let result = try await self.executeContract(URI: URI, dict: payload)
 
-                    var metaContainsHeaders = false
-                    headers.append(
-                        contentsOf: $0
-                            .meta
-                            .filter { k, _ in k.starts(with: LGNC.HTTP.HEADER_PREFIX) }
-                            .map { k, value in
-                                if metaContainsHeaders == false {
-                                    metaContainsHeaders = true
-                                }
+                let body: Bytes
+                var headers: [(name: String, value: String)] = [
+                    ("Content-Language", context.locale.rawValue),
+                    ("LGNC-UUID", request.uuid.string),
+                    ("Content-Type", request.contentType.header),
+                ]
 
-                                let key: String
-                                if k.starts(with: LGNC.HTTP.COOKIE_META_KEY_PREFIX) {
-                                    key = "Set-Cookie"
-                                } else {
-                                    key = k.replacingOccurrences(of: LGNC.HTTP.HEADER_PREFIX, with: "")
-                                }
-                                return (key, value)
+                var metaContainsHeaders = false
+                headers.append(
+                    contentsOf: result
+                        .meta
+                        .filter { k, _ in k.starts(with: LGNC.HTTP.HEADER_PREFIX) }
+                        .map { k, value in
+                            if metaContainsHeaders == false {
+                                metaContainsHeaders = true
                             }
-                    )
 
-                    if metaContainsHeaders {
-                        $0.meta = $0.meta.filter { k, _ in !k.starts(with: LGNC.HTTP.HEADER_PREFIX) }
-                    }
+                            let key: String
+                            if k.starts(with: LGNC.HTTP.COOKIE_META_KEY_PREFIX) {
+                                key = "Set-Cookie"
+                            } else {
+                                key = k.replacingOccurrences(of: LGNC.HTTP.HEADER_PREFIX, with: "")
+                            }
+                            return (key, value)
+                        }
+                )
 
-                    do {
-                        body = try $0.getDictionary().pack(to: request.contentType)
-                    } catch {
-                        context.logger.critical("Could not pack entity to \(request.contentType): \(error)")
-                        body = LGNCore.getBytes("500 Internal Server Error")
-                    }
-
-                    return (body: body, headers: headers)
+                if metaContainsHeaders {
+                    result.meta = result.meta.filter { k, _ in !k.starts(with: LGNC.HTTP.HEADER_PREFIX) }
                 }
-            } catch {
-                return request.eventLoop.makeFailedFuture(error)
+
+                do {
+                    body = try result.getDictionary().pack(to: request.contentType)
+                } catch {
+                    context.logger.critical("Could not pack entity to \(request.contentType): \(error)")
+                    body = LGNCore.getBytes("500 Internal Server Error")
+                }
+
+                return (body: body, headers: headers)
             }
         }
     }
@@ -125,18 +119,15 @@ public extension Service {
         eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
         readTimeout: TimeAmount = .minutes(1),
         writeTimeout: TimeAmount = .minutes(1)
-    ) -> EventLoopFuture<AnyServer> {
-        do {
-            let server: AnyServer = try self.getServerHTTP(
-                at: target,
-                eventLoopGroup: eventLoopGroup,
-                readTimeout: readTimeout,
-                writeTimeout: writeTimeout
-            )
-            return server.bind().map { server }
-        } catch {
-            return eventLoopGroup.next().makeFailedFuture(error)
-        }
+    ) async throws -> AnyServer {
+        let server: AnyServer = try self.getServerHTTP(
+            at: target,
+            eventLoopGroup: eventLoopGroup,
+            readTimeout: readTimeout,
+            writeTimeout: writeTimeout
+        )
+        try await server.bind()
+        return server
     }
 }
 

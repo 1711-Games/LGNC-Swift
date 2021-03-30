@@ -1,7 +1,7 @@
 import Foundation
 import LGNCore
 
-public protocol ClientError: Error {
+public protocol ClientError: Swift.Error {
     func getErrorTuple() -> ErrorTuple
 }
 

@@ -28,9 +28,8 @@ public protocol Service {
     /// Executes a contract at given URI with given raw dictionary and context
     static func executeContract(
         URI: String,
-        dict: Entita.Dict,
-        context: LGNCore.Context
-    ) -> EventLoopFuture<LGNC.Entity.Result>
+        dict: Entita.Dict
+    ) async throws -> LGNC.Entity.Result
 
     /// Starts a LGNS server at given target. Returns a future with a server, which must be waited for until claiming the server as operational.
     static func startServerLGNS(
@@ -40,7 +39,7 @@ public protocol Service {
         requiredBitmask: LGNP.Message.ControlBitmask,
         readTimeout: TimeAmount,
         writeTimeout: TimeAmount
-    ) -> EventLoopFuture<AnyServer>
+    ) async throws -> AnyServer
 
     /// Starts a HTTP server at given target. Returns a future with a server, which must be waited for until claiming the server as operational.
     static func startServerHTTP(
@@ -48,7 +47,7 @@ public protocol Service {
         eventLoopGroup: EventLoopGroup,
         readTimeout: TimeAmount,
         writeTimeout: TimeAmount
-    ) -> EventLoopFuture<AnyServer>
+    ) async throws -> AnyServer
 }
 
 public extension Service {
@@ -66,14 +65,10 @@ public extension Service {
             .count == 0
     }
 
-    static func executeContract(
-        URI: String,
-        dict: Entita.Dict,
-        context: LGNCore.Context
-    ) -> EventLoopFuture<LGNC.Entity.Result> {
-        let result: EventLoopFuture<LGNC.Entity.Result>
-
+    static func executeContract(URI: String, dict: Entita.Dict) async throws -> LGNC.Entity.Result {
+        let context = Task.local(\.context)
         let profiler = LGNCore.Profiler.begin()
+        let result: LGNC.Entity.Result
 
         do {
             guard let contractInfo = self.contractMap[URI] else {
@@ -82,57 +77,45 @@ public extension Service {
             guard LGNC.ALLOW_ALL_TRANSPORTS == true || contractInfo.transports.contains(context.transport) else {
                 throw LGNC.ContractError.TransportNotAllowed(context.transport)
             }
-            result = contractInfo
-                .invoke(with: dict, context: context)
-                .map { response, meta in LGNC.Entity.Result(from: response, meta: meta) }
-                .recover { error in
-                    let _result: LGNC.Entity.Result
 
-                    do {
-                        switch error {
-                        case let LGNC.E.UnpackError(error):
-                            context.logger.error("\(error)")
-                            throw LGNC.E.clientError("Invalid request")
-                        case let LGNC.E.MultipleError(errors):
-                            throw LGNC.E.MultipleError(errors) // rethrow
-                        case let LGNC.E.DecodeError(errors):
-                            throw LGNC.E.MultipleError(errors)
-                        case let error as ClientError:
-                            throw LGNC.E.MultipleError([LGNC.GLOBAL_ERROR_KEY: [error]])
-                        default:
-                            context.logger.error("Uncaught error: \(error)")
-                            throw LGNC.E.MultipleError([LGNC.GLOBAL_ERROR_KEY: [LGNC.ContractError.InternalError]])
-                        }
-                    } catch let LGNC.E.MultipleError(errors) {
-                        _result = LGNC.Entity.Result(from: errors)
-                    } catch {
-                        context.logger.critical("Extremely unexpected error: \(error)")
-                        _result = LGNC.Entity.Result.internalError
+            do {
+                result = LGNC.Entity.Result(from: try await contractInfo.invoke(with: dict))
+            } catch {
+                do {
+                    switch error {
+                    case let LGNC.E.UnpackError(error):
+                        context.logger.error("\(error)")
+                        throw LGNC.E.clientError("Invalid request")
+                    case let LGNC.E.MultipleError(errors):
+                        throw LGNC.E.MultipleError(errors) // rethrow
+                    case let LGNC.E.DecodeError(errors):
+                        throw LGNC.E.MultipleError(errors)
+                    case let error as ClientError:
+                        throw LGNC.E.MultipleError([LGNC.GLOBAL_ERROR_KEY: [error]])
+                    default:
+                        context.logger.error("Uncaught error: \(error)")
+                        throw LGNC.E.MultipleError([LGNC.GLOBAL_ERROR_KEY: [LGNC.ContractError.InternalError]])
                     }
-
-                    return _result
+                } catch let LGNC.E.MultipleError(errors) {
+                    result = .init(from: errors)
+                } catch {
+                    context.logger.critical("Extremely unexpected error: \(error)")
+                    result = .internalError
                 }
+            }
         } catch let error as LGNC.ContractError {
-            result = context.eventLoop.makeSucceededFuture(
-                context.isSecure || error.isPublicError
-                    ? LGNC.Entity.Result(from: [LGNC.GLOBAL_ERROR_KEY: [error]])
-                    : LGNC.Entity.Result.internalError
-            )
+            result = context.isSecure || error.isPublicError
+                ? .init(from: [LGNC.GLOBAL_ERROR_KEY: [error]])
+                : .internalError
             context.logger.error("Contract error: \(error)")
-        } catch let error {
+        } catch {
             context.logger.critical("Quite uncaught error: \(error)")
-            result = context.eventLoop.makeSucceededFuture(LGNC.Entity.Result.internalError)
+            result = .internalError
         }
 
-        result.whenComplete { result in
-            let clientAddr = context.clientAddr
-            let transport = context.transport.rawValue
-            let executionTime = profiler.end().rounded(toPlaces: 4)
-
-            context.logger.info(
-                "[\(clientAddr)] [\(transport)] [\(URI)] \(executionTime)s"
-            )
-        }
+        context.logger.info(
+            "[\(context.clientAddr)] [\(context.transport.rawValue)] [\(URI)] \(profiler.end().rounded(toPlaces: 4))s"
+        )
 
         return result
     }

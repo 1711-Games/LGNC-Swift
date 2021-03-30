@@ -1,9 +1,31 @@
 import Foundation
 import NIO
 import Logging
+import _Concurrency
+
+public extension TaskLocalValues {
+    struct ContextKey: TaskLocalKey {
+        public static var defaultValue: LGNCore.Context {
+            LGNCore.Context(
+                remoteAddr: "",
+                clientAddr: "",
+                clientID: nil,
+                userAgent: "",
+                locale: .enUS,
+                uuid: UUID(),
+                isSecure: false,
+                transport: .HTTP,
+                meta: [:],
+                eventLoop: EmbeddedEventLoop()
+            )
+        }
+    }
+
+    var context: ContextKey { .init() }
+}
 
 public extension LGNCore {
-    enum Transport: String {
+    enum Transport: String, Sendable {
         case LGNS, HTTP
         // case LGNSS, HTTPS // once, maybe
 
@@ -17,7 +39,7 @@ public extension LGNCore {
     }
 
     /// Request or response context
-    struct Context {
+    struct Context: UnsafeSendable {
         /// Network address from which this request physically came from.
         /// It might not be actual client address, but rather last proxy server address.
         public let remoteAddr: String
@@ -48,10 +70,10 @@ public extension LGNCore {
         public let meta: [String: String]
 
         /// Event loop on which this request is being processed
-        public var eventLoop: EventLoop
+        public let eventLoop: EventLoop
 
         /// Logger
-        public var logger: Logging.Logger
+        public private(set) var logger: Logging.Logger
 
         public init(
             remoteAddr: String,

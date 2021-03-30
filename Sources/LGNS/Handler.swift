@@ -1,6 +1,7 @@
 import LGNCore
 import LGNP
 import NIO
+import _Concurrency
 
 internal extension LGNS {
     class BaseHandler: ChannelInboundHandler {
@@ -75,10 +76,6 @@ internal extension LGNS {
 
         public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
             self.logger.debug("Channel read (\(context.remoteAddress?.description ?? "unknown addr"))")
-            var profiler: LGNCore.Profiler?
-            if Self.profile == true {
-                profiler = LGNCore.Profiler.begin()
-            }
 
             let message = self.unwrapInboundIn(data)
             let remoteAddr = context.channel.remoteAddrString
@@ -121,7 +118,7 @@ internal extension LGNS {
                 eventLoop: context.eventLoop
             )
 
-            if profiler != nil {
+            if Self.profile {
                 requestContext.logger.debug(
                     """
                     About to serve request at URI '\(message.URI)' \
@@ -131,37 +128,42 @@ internal extension LGNS {
                 )
             }
 
-            let resultFuture = self.resolver(message, requestContext)
+            Task.runDetached {
+                await Task.withLocal(\.context, boundTo: requestContext) {
+                    var profiler: LGNCore.Profiler?
+                    if Self.profile == true {
+                        profiler = LGNCore.Profiler.begin()
+                    }
 
-            self.cleanup()
+                    do {
+                        let result = try await self.resolver(message)
 
-            if let profiler = profiler {
-                resultFuture.whenComplete { _ in
-                    requestContext.logger.debug("""
+                        guard let message = result else {
+                            requestContext.logger.debug("No LGNP message returned from resolver, do nothing")
+                            return
+                        }
+
+                        requestContext.logger.debug("Writing LGNP message to channel")
+                        try await context.writeAndFlush(self.wrapInboundOut(message)).get()
+
+                        if !message.controlBitmask.contains(.keepAlive) {
+                            requestContext.logger.debug("Closing the channel as keepAlive is 'false'")
+                            try await context.close().get()
+                        }
+                    } catch {
+                        requestContext.logger.debug("Writing error to channel")
+                        self.errorCaught(context: context, error: error)
+                    }
+
+                    self.cleanup()
+
+                    if let profiler = profiler {
+                        requestContext.logger.debug("""
                         LGNS \(type(of: self)) request '\(message.URI)' execution \
                         took \(profiler.end().rounded(toPlaces: 5)) s
                         """
-                    )
-                }
-            }
-
-            resultFuture.whenFailure {
-                requestContext.logger.debug("Writing error to channel")
-                self.errorCaught(context: context, error: $0)
-            }
-
-            resultFuture.whenSuccess {
-                guard let message = $0 else {
-                    requestContext.logger.debug("No LGNP message returned from resolver, do nothing")
-                    return
-                }
-
-                requestContext.logger.debug("Writing LGNP message to channel")
-                context.writeAndFlush(self.wrapInboundOut(message), promise: nil)
-
-                if !message.controlBitmask.contains(.keepAlive) {
-                    requestContext.logger.debug("Closing the channel as keepAlive is 'false'")
-                    context.close(promise: nil)
+                        )
+                    }
                 }
             }
         }

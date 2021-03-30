@@ -15,6 +15,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.19.0"),
+
         .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.2.1"),
 
@@ -72,15 +73,10 @@ let package = Package(
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
                 .product(name: "AsyncHTTPClient", package: "async-http-client"),
-            ]
+            ],
+            swiftSettings: [.unsafeFlags(["-Xfrontend", "-enable-experimental-concurrency"])]
         ),
-        .target(
-            name: "Entita",
-            dependencies: [
-                "LGNCore",
-                .product(name: "NIO", package: "swift-nio"),
-            ]
-        ),
+        .target(name: "Entita", dependencies: []),
         .testTarget(
             name: "LGNCSwiftTests",
             dependencies: [

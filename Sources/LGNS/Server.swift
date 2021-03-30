@@ -6,7 +6,7 @@ public typealias Time = TimeAmount
 public typealias ControlBitmask = LGNP.Message.ControlBitmask
 
 public extension LGNS {
-    typealias Resolver = (LGNP.Message, LGNCore.Context) -> EventLoopFuture<LGNP.Message?>
+    typealias Resolver = (LGNP.Message) async throws -> LGNP.Message?
 
     static let DEFAULT_PORT = 1711
 
@@ -66,7 +66,7 @@ public extension LGNS {
         deinit {
             if self.isRunning {
                 Self.logger.warning("LGNS Server has not been shutdown manually")
-                try! self.shutdown().wait()
+                // try! await self.shutdown()
             }
         }
     }

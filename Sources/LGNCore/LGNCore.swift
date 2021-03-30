@@ -1,6 +1,4 @@
-import Foundation
-import Logging
-import NIO
+import Foundation.NSProcessInfo
 
 public enum LGNCore {
     public enum E: Error {
@@ -61,7 +59,7 @@ public extension LGNCore {
 }
 
 public extension LGNCore {
-    enum ContentType: String, CaseIterable {
+    enum ContentType: String, CaseIterable, Sendable {
         case MsgPack, JSON, XML, PlainText
     }
 }

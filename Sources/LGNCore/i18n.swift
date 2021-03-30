@@ -188,7 +188,7 @@ public extension LGNCore.i18n {
     }
 
     /// A locale.
-    enum Locale: String {
+    enum Locale: String, Sendable {
         case afZA = "af-ZA"
         case amET = "am-ET"
         case arAE = "ar-AE"

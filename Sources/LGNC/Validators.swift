@@ -2,6 +2,10 @@ import Foundation
 import LGNCore
 import LGNS
 
+import _Concurrency
+
+public typealias ValidationClosure = () async throws -> Void
+
 public typealias ErrorTuple = (code: Int, message: String)
 
 public protocol ValidatorErrorRepresentable: ClientError {
@@ -28,7 +32,11 @@ public enum Validation {
 }
 
 internal extension String {
-    @usableFromInline func _t(_ locale: LGNCore.i18n.Locale, _ interpolations: [String: Any] = [:]) -> String {
+    @usableFromInline
+    func _t(
+        _ interpolations: [String: Any] = [:],
+        _ locale: LGNCore.i18n.Locale = Task.local(\.context).locale
+    ) -> String {
         LGNCore.i18n.tr(self, locale, interpolations)
     }
 }
@@ -38,8 +46,8 @@ public extension Validation.Error {
         public let code: Int = 400
         public let message: String
 
-        public init(message: String = "Unknown error", _ locale: LGNCore.i18n.Locale) {
-            self.message = message._t(locale)
+        public init(message: String = "Unknown error") {
+            self.message = message._t()
         }
     }
 
@@ -47,8 +55,8 @@ public extension Validation.Error {
         public let code: Int = 412
         public let message: String
 
-        public init(message: String = "Type mismatch", _ locale: LGNCore.i18n.Locale) {
-            self.message = message._t(locale)
+        public init(message: String = "Type mismatch") {
+            self.message = message._t()
         }
     }
 
@@ -63,30 +71,16 @@ public extension Validation.Error {
         public let code: Int
         public let message: String
 
-        public init(_ locale: LGNCore.i18n.Locale, message: String = "Value missing", code: Int = 412) {
-            self.message = message._t(locale)
+        public init(message: String = "Value missing", code: Int = 412) {
+            self.message = message._t()
             self.code = code
         }
     }
 }
 
 public protocol Validator {
-    func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError?
-    func validate(
-        _ input: Any,
-        _ locale: LGNCore.i18n.Locale,
-        on eventLoop: EventLoop
-    ) -> EventLoopFuture<ValidatorError?>
-}
-
-public extension Validator {
-    func validate(
-        _ input: Any,
-        _ locale: LGNCore.i18n.Locale,
-        on eventLoop: EventLoop
-    ) -> EventLoopFuture<ValidatorError?> {
-        return eventLoop.makeSucceededFuture(self.validate(input, locale))
-    }
+    /// This function VERY SHOULD throw `ValidatorError`
+    func validate(_ input: Any) async throws
 }
 
 public extension Validation {
@@ -104,14 +98,13 @@ public extension Validation {
             self.message = message
         }
 
-        public func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {
+        public func validate(_ input: Any) async throws {
             guard let value = input as? String else {
-                return Validation.Error.InvalidType(locale)
+                throw Validation.Error.InvalidType()
             }
             guard value.range(of: pattern, options: .regularExpression) != nil else {
-                return Error(message: self.message._t(locale))
+                throw Error(message: self.message._t())
             }
-            return nil
         }
     }
 
@@ -127,14 +120,13 @@ public extension Validation {
             self.message = message
         }
 
-        public func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {
+        public func validate(_ input: Any) async throws {
             guard let value = input as? String else {
-                return Validation.Error.InvalidType(locale)
+                throw Validation.Error.InvalidType()
             }
             guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                return Error(message: self.message._t(locale))
+                throw Error(message: self.message._t())
             }
-            return nil
         }
     }
 
@@ -150,14 +142,13 @@ public extension Validation {
             self.message = message
         }
 
-        public func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {
+        public func validate(_ input: Any) async throws {
             guard let value = input as? String else {
-                return Validation.Error.InvalidType(locale)
+                throw Validation.Error.InvalidType()
             }
             guard let _ = Foundation.UUID(uuidString: value) else {
-                return Error(message: self.message._t(locale))
+                throw Error(message: self.message._t())
             }
-            return nil
         }
     }
 
@@ -175,14 +166,13 @@ public extension Validation {
             self.message = message
         }
 
-        public func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {
+        public func validate(_ input: Any) async throws {
             guard let value = input as? T else {
-                return Validation.Error.InvalidType(locale)
+                throw Validation.Error.InvalidType()
             }
             guard allowedValues.contains(value) else {
-                return Error(message: self.message._t(locale))
+                throw Error(message: self.message._t())
             }
-            return nil
         }
     }
 
@@ -201,14 +191,13 @@ public extension Validation {
                 self.message = message
             }
 
-            public func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {
+            public func validate(_ input: Any) async throws {
                 guard let value = input as? String else {
-                    return Validation.Error.InvalidType(locale)
+                    throw Validation.Error.InvalidType()
                 }
                 guard value.count >= length else {
-                    return Length.Error(message: self.message._t(locale, ["Length": self.length]))
+                    throw Length.Error(message: self.message._t(["Length": self.length]))
                 }
-                return nil
             }
         }
 
@@ -221,14 +210,13 @@ public extension Validation {
                 self.message = message
             }
 
-            public func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {
+            public func validate(_ input: Any) async throws {
                 guard let value = input as? String else {
-                    return Validation.Error.InvalidType(locale)
+                    throw Validation.Error.InvalidType()
                 }
                 guard value.count <= length else {
-                    return Length.Error(message: self.message._t(locale, ["Length": self.length]))
+                    throw Length.Error(message: self.message._t(["Length": self.length]))
                 }
-                return nil
             }
         }
     }
@@ -247,14 +235,13 @@ public extension Validation {
             self.message = message
         }
 
-        public func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {
+        public func validate(_ input: Any) async throws {
             guard let left = input as? String else {
-                return Validation.Error.InvalidType(locale)
+                throw Validation.Error.InvalidType()
             }
             guard left == right else {
-                return Error(message: self.message._t(locale))
+                throw Error(message: self.message._t())
             }
-            return nil
         }
     }
 
@@ -272,23 +259,22 @@ public extension Validation {
             self.message = message ?? "Invalid date format (valid format: \(format))"
         }
 
-        public func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {
+        public func validate(_ input: Any) async throws {
             guard let value = input as? String else {
-                return Validation.Error.InvalidType(locale)
+                throw Validation.Error.InvalidType()
             }
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = format
             dateFormatter.locale = Locale(identifier: "en_US_POSIX")
             guard let _ = dateFormatter.date(from: value) else {
-                return Error(message: self.message._t(locale))
+                throw Error(message: self.message._t())
             }
-            return nil
         }
     }
 
     struct Callback<Value>: Validator {
-        public typealias Callback = (Value, EventLoop) -> EventLoopFuture<[ErrorTuple]?>
-        public typealias CallbackWithSingleError = (Value, EventLoop) -> EventLoopFuture<ErrorTuple?>
+        public typealias Callback = (Value) async -> [ErrorTuple]?
+        public typealias CallbackWithSingleError = (Value) async -> ErrorTuple?
 
         public struct Error: ValidatorError {
             public let code: Int
@@ -302,46 +288,35 @@ public extension Validation {
         }
 
         public init(callback: @escaping CallbackWithSingleError) {
-            self.init { (value, eventLoop) -> EventLoopFuture<[ErrorTuple]?> in
-                callback(value, eventLoop).map { $0.map { [$0] } }
-            }
-        }
-
-        public func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {
-            // not relevant here
-            nil
-        }
-
-        public func validate(
-            _ input: Any,
-            _ locale: LGNCore.i18n.Locale,
-            on eventLoop: EventLoop
-        ) -> EventLoopFuture<Swift.Error?> {
-            guard let value = input as? Value else {
-                return eventLoop.makeSucceededFuture(Validation.Error.InvalidType(locale))
-            }
-            return self.callback(
-                value,
-                eventLoop
-            ).map {
-                guard let errors = $0 else {
-                    return nil
+            self.init { (value) -> [ErrorTuple]? in
+                if let result = await callback(value) {
+                    return [result]
                 }
-                return LGNC.E.MultipleFieldDecodeError(
-                    errors.map { code, message in Error(code: code, message: message._t(locale)) }
-                )
+                return nil
             }
+        }
+
+        public func validate(_ input: Any) async throws {
+            guard let value = input as? Value else {
+                throw Validation.Error.InvalidType()
+            }
+            guard let errors = await self.callback(value) else {
+                return
+            }
+            throw LGNC.E.MultipleFieldDecodeError(
+                errors.map { code, message in Error(code: code, message: message._t()) }
+            )
         }
     }
 
     struct CallbackWithAllowedValues<
         AllowedValues: CallbackWithAllowedValuesRepresentable & ValidatorErrorRepresentable
     >: Validator {
-        public typealias Callback = (AllowedValues.InputValue, EventLoop) -> EventLoopFuture<AllowedValues?>
+        public typealias Callback = (AllowedValues.InputValue) async -> AllowedValues?
 
         public struct Error: ValidatorError {
-            public let code: Int
             public let message: String
+            public let code: Int
         }
 
         public let callback: Callback
@@ -350,58 +325,37 @@ public extension Validation {
             self.callback = callback
         }
 
-        public func validate(_ input: Any, _ locale: LGNCore.i18n.Locale) -> ValidatorError? {
-            // not relevant here
-            nil
-        }
-
-        public func validate(
-            _ input: Any,
-            _ locale: LGNCore.i18n.Locale,
-            on eventLoop: EventLoop
-        ) -> EventLoopFuture<ValidatorError?> {
+        public func validate(_ input: Any) async throws {
             guard let value = input as? AllowedValues.InputValue else {
-                return eventLoop.makeSucceededFuture(Validation.Error.InvalidType(locale))
+                throw Validation.Error.InvalidType()
             }
-            return self.callback(
-                value,
-                eventLoop
-            ).map {
-                guard let error = $0 else {
-                    return nil
-                }
-                let errorTuple = error.getErrorTuple()
-                return Error(code: errorTuple.code, message: errorTuple.message._t(locale))
+            guard let error = await self.callback(value) else {
+                return
             }
+            let errorTuple = error.getErrorTuple()
+            throw Error(message: errorTuple.message._t(), code: errorTuple.code)
         }
     }
 
-    static func cumulative(
-        _ validationFutures: [EventLoopFuture<Void>],
-        on eventLoop: EventLoop
-    ) -> EventLoopFuture<Void> {
-        EventLoopFuture<Void>
-            .whenAllComplete(validationFutures, on: eventLoop)
-            .flatMapThrowing { (results: [Result<Void, Swift.Error>]) throws -> Void in
-                var errors: [ValidatorError] = []
+    static func cumulative(_ validationClosures: [ValidationClosure]) async throws {
+        var errors: [ValidatorError] = []
 
-                for result in results {
-                    switch result {
-                    case .success: continue
-                    case let .failure(error):
-                        if let error = error as? ValidatorError {
-                            errors.append(error)
-                        } else if case let LGNC.E.MultipleFieldDecodeError(multipleErrors) = error {
-                            errors.append(contentsOf: multipleErrors)
-                        } else {
-                            throw error
-                        }
-                    }
-                }
-
-                if errors.count > 0 {
-                    throw LGNC.E.MultipleFieldDecodeError(errors)
+        for closure in validationClosures {
+            do {
+                try await closure()
+            } catch {
+                if let error = error as? ValidatorError {
+                    errors.append(error)
+                } else if case let LGNC.E.MultipleFieldDecodeError(multipleErrors) = error {
+                    errors.append(contentsOf: multipleErrors)
+                } else {
+                    throw error
                 }
             }
+        }
+
+        if errors.count > 0 {
+            throw LGNC.E.MultipleFieldDecodeError(errors)
+        }
     }
 }
