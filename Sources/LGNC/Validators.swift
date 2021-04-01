@@ -273,8 +273,8 @@ public extension Validation {
     }
 
     struct Callback<Value>: Validator {
-        public typealias Callback = (Value) async -> [ErrorTuple]?
-        public typealias CallbackWithSingleError = (Value) async -> ErrorTuple?
+        public typealias Callback = (Value) async throws -> [ErrorTuple]?
+        public typealias CallbackWithSingleError = (Value) async throws -> ErrorTuple?
 
         public struct Error: ValidatorError {
             public let code: Int
@@ -289,7 +289,7 @@ public extension Validation {
 
         public init(callback: @escaping CallbackWithSingleError) {
             self.init { (value) -> [ErrorTuple]? in
-                if let result = await callback(value) {
+                if let result = try await callback(value) {
                     return [result]
                 }
                 return nil
@@ -300,7 +300,7 @@ public extension Validation {
             guard let value = input as? Value else {
                 throw Validation.Error.InvalidType()
             }
-            guard let errors = await self.callback(value) else {
+            guard let errors = try await self.callback(value) else {
                 return
             }
             throw LGNC.E.MultipleFieldDecodeError(
@@ -312,7 +312,7 @@ public extension Validation {
     struct CallbackWithAllowedValues<
         AllowedValues: CallbackWithAllowedValuesRepresentable & ValidatorErrorRepresentable
     >: Validator {
-        public typealias Callback = (AllowedValues.InputValue) async -> AllowedValues?
+        public typealias Callback = (AllowedValues.InputValue) async throws -> AllowedValues?
 
         public struct Error: ValidatorError {
             public let message: String
@@ -329,7 +329,7 @@ public extension Validation {
             guard let value = input as? AllowedValues.InputValue else {
                 throw Validation.Error.InvalidType()
             }
-            guard let error = await self.callback(value) else {
+            guard let error = try await self.callback(value) else {
                 return
             }
             let errorTuple = error.getErrorTuple()
