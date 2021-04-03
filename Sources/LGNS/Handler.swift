@@ -46,30 +46,31 @@ internal extension LGNS {
             print("FLUSHING ERROR TO CLIENT")
             print("\(#file):\(#line)")
             print(error)
-            let promise: PromiseVoid = context.eventLoop.makePromise()
-            promise.futureResult.whenComplete { _ in context.close(promise: nil) }
-            context.writeAndFlush(
-                wrapOutboundOut(
-                    LGNP.Message(
-                        URI: "",
-                        payload: LGNCore.getBytes("\(error.tuple.code) \(error.tuple.message)"),
-                        controlBitmask: .containsError
+            context.eventLoop.makeSucceededFuture()
+                .flatMap { () -> EventLoopFuture<Void> in
+                    context.writeAndFlush(
+                        self.wrapOutboundOut(
+                            LGNP.Message(
+                                URI: "",
+                                payload: LGNCore.getBytes("\(error.tuple.code) \(error.tuple.message)"),
+                                controlBitmask: .containsError
+                            )
+                        )
                     )
-                ),
-                promise: promise
-            )
-            // context.fireErrorCaught(error)
+                }
+                .flatMap { () -> EventLoopFuture<Void> in context.close() }
+                .whenComplete { _ in }
         }
 
         func channelActive(context: ChannelHandlerContext) {
             self.isOpen = true
-            self.logger.debug("Became active (\(context.remoteAddress?.description ?? "unknown addr"))")
+            self.logger.trace("Became active (\(context.remoteAddress?.description ?? "unknown addr"))")
             context.fireChannelActive()
         }
 
         public func channelInactive(context: ChannelHandlerContext) {
             self.isOpen = false
-            self.logger.debug("Became inactive")
+            self.logger.trace("Became inactive")
             self.promise?.fail(LGNS.E.ConnectionClosed)
             context.fireChannelInactive()
         }
@@ -128,43 +129,59 @@ internal extension LGNS {
                 )
             }
 
+            let promise = context.eventLoop.makePromise(of: LGNP.Message?.self)
+
+            var profiler: LGNCore.Profiler?
+            if Self.profile == true {
+                profiler = LGNCore.Profiler.begin()
+            }
+
             Task.runDetached {
                 await Task.withLocal(\.context, boundTo: requestContext) {
-                    var profiler: LGNCore.Profiler?
-                    if Self.profile == true {
-                        profiler = LGNCore.Profiler.begin()
-                    }
-
                     do {
-                        let result = try await self.resolver(message)
-
-                        guard let message = result else {
-                            requestContext.logger.debug("No LGNP message returned from resolver, do nothing")
-                            return
-                        }
-
-                        requestContext.logger.debug("Writing LGNP message to channel")
-                        try await context.writeAndFlush(self.wrapInboundOut(message)).get()
-
-                        if !message.controlBitmask.contains(.keepAlive) {
-                            requestContext.logger.debug("Closing the channel as keepAlive is 'false'")
-                            try await context.close().get()
-                        }
+                        promise.succeed(try await self.resolver(message))
                     } catch {
-                        requestContext.logger.debug("Writing error to channel")
-                        self.errorCaught(context: context, error: error)
-                    }
-
-                    self.cleanup()
-
-                    if let profiler = profiler {
-                        requestContext.logger.debug("""
-                        LGNS \(type(of: self)) request '\(message.URI)' execution \
-                        took \(profiler.end().rounded(toPlaces: 5)) s
-                        """
-                        )
+                        promise.fail(error)
                     }
                 }
+            }
+
+            promise.futureResult.whenSuccess { result in
+                guard let message = result else {
+                    requestContext.logger.debug("No LGNP message returned from resolver, do nothing")
+                    return
+                }
+
+                requestContext.logger.debug("Writing LGNP message to channel")
+
+                context
+                    .eventLoop.makeSucceededFuture()
+                    .flatMap { () -> EventLoopFuture<Void> in context.writeAndFlush(self.wrapInboundOut(message)) }
+                    .flatMap { () -> EventLoopFuture<Void> in
+                        if !message.controlBitmask.contains(.keepAlive) {
+                            requestContext.logger.debug("Closing the channel as keepAlive is 'false'")
+                            return context.close()
+                        }
+                        return context.eventLoop.makeSucceededFuture()
+                    }
+                    .whenComplete { _ in }
+            }
+
+            promise.futureResult.whenFailure { error in
+                requestContext.logger.debug("Writing error to channel: \(error)")
+                self.errorCaught(context: context, error: error)
+            }
+
+            promise.futureResult.whenComplete { _ in
+                if let profiler = profiler {
+                    requestContext.logger.debug("""
+                    LGNS \(type(of: self)) request '\(message.URI)' execution \
+                    took \(profiler.end().rounded(toPlaces: 5)) s
+                    """
+                    )
+                }
+
+                self.cleanup()
             }
         }
 
