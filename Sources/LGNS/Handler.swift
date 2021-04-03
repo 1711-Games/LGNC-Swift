@@ -35,11 +35,11 @@ internal extension LGNS {
             self.resolver = resolver
 
             self.logger[metadataKey: "ID"] = "\(ObjectIdentifier(self).hashValue)"
-            self.logger.debug("Handler initialized from \(file):\(line)")
+            self.logger.trace("Handler initialized from \(file):\(line)")
         }
 
         deinit {
-            self.logger.debug("Handler deinitialized")
+            self.logger.trace("Handler deinitialized")
         }
 
         internal func sendError(to context: ChannelHandlerContext, error: ErrorTupleConvertible) {
