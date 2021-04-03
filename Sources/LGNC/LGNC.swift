@@ -6,7 +6,7 @@ import LGNS
 import NIO
 
 public enum LGNC {
-    public static let VERSION = "0.9.8"
+    public static let VERSION = "0.9.9.9"
 
     public static let ID_KEY = "a"
     public static let GLOBAL_ERROR_KEY = "_"
