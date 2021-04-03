@@ -1,4 +1,4 @@
-import Foundation.NSProcessInfo
+import Foundation
 
 public enum LGNCore {
     public enum E: Error {
