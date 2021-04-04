@@ -196,7 +196,7 @@ public extension LGNC.Client {
         }
 
         public func disconnect() async throws {
-            try await self.clientLGNS.disconnect()
+            self.clientLGNS.disconnect()
         }
 
         public func send<C: Contract>(
