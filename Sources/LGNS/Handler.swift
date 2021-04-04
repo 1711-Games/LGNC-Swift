@@ -58,7 +58,7 @@ internal extension LGNS {
                         )
                     )
                 }
-                .flatMap { () -> EventLoopFuture<Void> in context.close() }
+                .map { () -> Void in context.close(promise: nil) }
                 .whenComplete { _ in }
         }
 
@@ -157,12 +157,10 @@ internal extension LGNS {
                 context
                     .eventLoop.makeSucceededFuture()
                     .flatMap { () -> EventLoopFuture<Void> in context.writeAndFlush(self.wrapInboundOut(message)) }
-                    .flatMap { () -> EventLoopFuture<Void> in
+                    .map { () -> Void in
                         if !message.controlBitmask.contains(.keepAlive) {
-                            requestContext.logger.debug("Closing the channel as keepAlive is 'false'")
-                            return context.close()
+                            self.close(context: context)
                         }
-                        return context.eventLoop.makeSucceededFuture()
                     }
                     .whenComplete { _ in }
             }
@@ -203,15 +201,24 @@ internal extension LGNS {
         fileprivate func cleanup() {
             self.promise = nil
         }
+
+        fileprivate func close(context: ChannelHandlerContext) {
+            // noop
+        }
     }
 
     final class ServerHandler: BaseHandler {
         override class var profile: Bool {
-            return true
+            true
         }
 
         fileprivate override func handleError(context: ChannelHandlerContext, error: ErrorTupleConvertible) {
             self.sendError(to: context, error: error)
+        }
+
+        fileprivate override func close(context: ChannelHandlerContext) {
+            Task.local(\.context).logger.debug("Closing the channel")
+            context.close(promise: nil)
         }
     }
 

@@ -56,16 +56,15 @@ public extension LGNS {
             }
 
             if self.channel?.isActive == false && reconnectIfNeeded == true {
-                try await self.disconnect()
+                self.disconnect()
             }
 
             let connectProfiler = LGNCore.Profiler.begin()
 
             let clientHandler = LGNS.ClientHandler(promise: self.responsePromise, logger: Self.logger) { message in
-                self.responsePromise?.succeed((message, Task.local(\.context)))
-                if !message.controlBitmask.contains(.keepAlive), let channel = self.channel {
-                    try await channel.close()
-                }
+                let context = Task.local(\.context)
+                context.logger.debug("Got LGNS response")
+                self.responsePromise?.succeed((message, context))
                 return nil
             }
 
@@ -112,17 +111,13 @@ public extension LGNS {
         }
 
         /// Disconnects from a remote LGNS server
-        public func disconnect() async throws {
+        public func disconnect() {
             guard let channel = self.channel, channel.isActive, self.clientHandler?.isOpen == true else {
                 self.disconnectRoutine()
                 return
             }
 
-            do {
-                try await channel.close()
-            } catch ChannelError.alreadyClosed {
-                Self.logger.debug("Caught NIO error 'ChannelError.alreadyClosed', but it's ok")
-            }
+            channel.close(promise: nil)
 
             self.disconnectRoutine()
         }
@@ -149,7 +144,7 @@ public extension LGNS {
             let result = try await responsePromise.futureResult.get()
 
             if result.0.controlBitmask.contains(.keepAlive) {
-                try await self.disconnect()
+                self.disconnect()
             }
 
             return await Task.withLocal(\.context, boundTo: result.1) {
@@ -169,7 +164,7 @@ public extension LGNS {
 
             let result = try await cloned.request(at: address, with: message, on: eventLoop)
 
-            try await cloned.disconnect()
+            cloned.disconnect()
 
             return result
         }
