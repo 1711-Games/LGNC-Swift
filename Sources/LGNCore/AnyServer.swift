@@ -36,14 +36,15 @@ public extension AnyServer {
     fileprivate var name: String { "\(type(of: self))" }
 
     func bind() async throws {
-        Self.logger.info("LGNS Server: Trying to bind at \(self.address)")
+        Self.logger.info("Trying to bind at \(self.address)")
 
         do {
             self.channel = try await self.bootstrap.bind(to: self.address, defaultPort: Self.defaultPort)
             self.isRunning = true
-            Self.logger.info("LGNS Server: Succesfully started on \(self.address)")
+            Self.logger.info("Succesfully started on \(self.address)")
         } catch {
-            Self.logger.info("LGNS Server: Could not start on \(self.address): \(error)")
+            Self.logger.info("Could not start on \(self.address): \(error)")
+            throw error
         }
     }
 
@@ -57,15 +58,19 @@ public extension AnyServer {
     }
 
     func shutdown() async throws {
-        Self.logger.info("LGNS Server: Shutting down")
+        guard self.channel != nil else {
+            return
+        }
+
+        Self.logger.info("Shutting down")
 
         do {
             try await self.channel.close()
             self.isRunning = false
             self.channel = nil
-            Self.logger.info("LGNS Server: Goodbye")
+            Self.logger.info("Goodbye")
         } catch {
-            Self.logger.info("LGNS Server: Could not shutdown: \(error)")
+            Self.logger.info("Could not shutdown: \(error)")
         }
     }
 }

@@ -30,8 +30,8 @@ public extension Service {
         cryptor: LGNP.Cryptor,
         eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
         requiredBitmask: LGNP.Message.ControlBitmask = .defaultValues,
-        readTimeout: TimeAmount = .seconds(1),
-        writeTimeout: TimeAmount = .seconds(1)
+        readTimeout: TimeAmount = .minutes(1),
+        writeTimeout: TimeAmount = .minutes(1)
     ) throws -> AnyServer {
         try self.validateContract(requiredBitmask: requiredBitmask)
 

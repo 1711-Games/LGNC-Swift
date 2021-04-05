@@ -63,7 +63,7 @@ public extension LGNS {
 
             let clientHandler = LGNS.ClientHandler(promise: self.responsePromise, logger: Self.logger) { message in
                 let context = Task.local(\.context)
-                context.logger.debug("Got LGNS response")
+                context.logger.debug("Got LGNS response: \(message._payloadAsString)")
                 self.responsePromise?.succeed((message, context))
                 return nil
             }
@@ -117,9 +117,15 @@ public extension LGNS {
                 return
             }
 
-            channel.close(promise: nil)
-
-            self.disconnectRoutine()
+            channel
+                .close()
+                .flatMapErrorThrowing { error in
+                    switch error {
+                    case ChannelError.alreadyClosed: return
+                    default: throw error
+                    }
+                }
+                .whenComplete { _ in self.disconnectRoutine() }
         }
 
         /// Sends a message to a remote LGNS server at given address.

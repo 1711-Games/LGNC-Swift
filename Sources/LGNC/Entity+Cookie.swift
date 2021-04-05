@@ -21,7 +21,7 @@ internal extension Array where Element == String {
                     let value = parts[1].removingPercentEncoding?.trimmingCharacters(in: .whitespacesAndNewlines),
                     !value.isEmpty
                 else { continue }
-                result[LGNC.HTTP.COOKIE_META_KEY_PREFIX + name] = value
+                result[LGNC.HTTP.COOKIE_META_KEY_PREFIX + name] = "\(name)=\(value)"
             }
         }
 

@@ -148,6 +148,8 @@ internal extension LGNC.HTTP {
 
             let request = self.unwrapInboundIn(data)
 
+            self.logger.debug("About to serve \(request.head.method) \(request.head.uri)")
+
             guard [.POST, .GET].contains(request.head.method) else {
                 return self.sendResponse(context: context, status: .notImplemented, body: "501 Not Implemented")
             }
@@ -180,6 +182,10 @@ internal extension LGNC.HTTP {
                 return
             }
 
+            let meta = request.head.headers["Cookie"].parseCookies()
+
+            logger.debug("Request is \(contentType). Payload: \(contentType == .JSON ? payloadBytes._string : "\(payloadBytes.count) bytes"), meta: \(meta)")
+
             let resolverRequest = Request(
                 URI: URI,
                 headers: request.head.headers,
@@ -188,7 +194,7 @@ internal extension LGNC.HTTP {
                 uuid: self.requestID,
                 contentType: contentType,
                 method: method,
-                meta: request.head.headers["Cookie"].parseCookies(),
+                meta: meta,
                 eventLoop: context.eventLoop
             )
 

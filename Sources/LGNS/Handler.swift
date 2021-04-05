@@ -5,14 +5,21 @@ import _Concurrency
 
 internal extension LGNS {
     class BaseHandler: ChannelInboundHandler {
+        enum State {
+            case WaitingForInbound
+            case InboundReceived
+        }
+
         public typealias InboundIn = LGNP.Message
         public typealias InboundOut = LGNP.Message
         public typealias OutboundOut = LGNP.Message
 
-        fileprivate var handlerType: StaticString = ""
+        fileprivate var state: State = .WaitingForInbound
 
         private static let META_SECTION_BYTES: Bytes = [0, 255]
         private static let EOL: Byte = 10
+
+        open private(set) var kind: String = "Base"
 
         private let resolver: LGNS.Resolver
         public var promise: EventLoopPromise<(LGNP.Message, LGNCore.Context)>?
@@ -71,12 +78,24 @@ internal extension LGNS {
         public func channelInactive(context: ChannelHandlerContext) {
             self.isOpen = false
             self.logger.trace("Became inactive")
-            self.promise?.fail(LGNS.E.ConnectionClosed)
+            if self.state == .WaitingForInbound {
+                self.promise?.fail(LGNS.E.ConnectionClosed)
+            }
             context.fireChannelInactive()
         }
 
         public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
-            self.logger.debug("Channel read (\(context.remoteAddress?.description ?? "unknown addr"))")
+            var logger = Task.local(\.context).logger
+            logger[metadataKey: "LGNS.Handler"] = "\(self.kind)"
+
+            logger.debug("Channel read (\(context.remoteAddress?.description ?? "unknown addr"))")
+
+            guard self.state == .WaitingForInbound else {
+                logger.error("Invalid handler state: expected \(State.WaitingForInbound), actual: \(state)")
+                return
+            }
+
+            self.state = .InboundReceived
 
             let message = self.unwrapInboundIn(data)
             let remoteAddr = context.channel.remoteAddrString
@@ -120,7 +139,7 @@ internal extension LGNS {
             )
 
             if Self.profile {
-                requestContext.logger.debug(
+                logger.debug(
                     """
                     About to serve request at URI '\(message.URI)' \
                     from remoteAddr \(remoteAddr) (clientAddr \(clientAddr)) by \
@@ -148,31 +167,31 @@ internal extension LGNS {
 
             promise.futureResult.whenSuccess { result in
                 guard let message = result else {
-                    requestContext.logger.debug("No LGNP message returned from resolver, do nothing")
+                    logger.debug("No LGNP message returned from resolver, do nothing")
                     return
                 }
 
-                requestContext.logger.debug("Writing LGNP message to channel")
+                logger.debug("Writing LGNP message to channel")
 
                 context
                     .eventLoop.makeSucceededFuture()
                     .flatMap { () -> EventLoopFuture<Void> in context.writeAndFlush(self.wrapInboundOut(message)) }
-                    .map { () -> Void in
-                        if !message.controlBitmask.contains(.keepAlive) {
-                            self.close(context: context)
-                        }
+                    .flatMap { () -> EventLoopFuture<Void> in
+                        message.controlBitmask.contains(.keepAlive)
+                            ? context.eventLoop.makeSucceededFuture()
+                            : self.close(context: context)
                     }
                     .whenComplete { _ in }
             }
 
             promise.futureResult.whenFailure { error in
-                requestContext.logger.debug("Writing error to channel: \(error)")
+                logger.debug("Writing error to channel: \(error)")
                 self.errorCaught(context: context, error: error)
             }
 
             promise.futureResult.whenComplete { _ in
                 if let profiler = profiler {
-                    requestContext.logger.debug("""
+                    logger.debug("""
                     LGNS \(type(of: self)) request '\(message.URI)' execution \
                     took \(profiler.end().rounded(toPlaces: 5)) s
                     """
@@ -200,14 +219,26 @@ internal extension LGNS {
 
         fileprivate func cleanup() {
             self.promise = nil
+            self.state = .WaitingForInbound
         }
 
-        fileprivate func close(context: ChannelHandlerContext) {
-            // noop
+        fileprivate func close(context: ChannelHandlerContext) -> EventLoopFuture<Void> {
+            Task.local(\.context).logger.debug("Closing the channel")
+
+            return context.close().flatMapErrorThrowing { error in
+                switch error {
+                case ChannelError.alreadyClosed: return
+                default: throw error
+                }
+            }
         }
     }
 
     final class ServerHandler: BaseHandler {
+        override var kind: String {
+            "Server"
+        }
+
         override class var profile: Bool {
             true
         }
@@ -215,17 +246,18 @@ internal extension LGNS {
         fileprivate override func handleError(context: ChannelHandlerContext, error: ErrorTupleConvertible) {
             self.sendError(to: context, error: error)
         }
-
-        fileprivate override func close(context: ChannelHandlerContext) {
-            Task.local(\.context).logger.debug("Closing the channel")
-            context.close(promise: nil)
-        }
     }
 
     class ClientHandler: BaseHandler {
+        override var kind: String {
+            "Client"
+        }
+
         fileprivate override func handleError(context: ChannelHandlerContext, error: ErrorTupleConvertible) {
             context.fireErrorCaught(error)
-            self.promise?.fail(error)
+            if self.state == .WaitingForInbound {
+                self.promise?.fail(error)
+            }
         }
     }
 }
