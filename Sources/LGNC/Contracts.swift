@@ -236,10 +236,12 @@ public extension Contract {
                 meta: result.meta
             )
         } catch let error as NIOConnectionError {
-            context.logger.error("""
+            context.logger.error(
+                """
                 Could not execute contract '\(self)' on service '\(self.ParentService.self)' \
                 @ \(address): \(error)
-            """)
+                """
+            )
             resultLog(LGNC.ContractError.RemoteContractExecutionFailed)
             throw LGNC.ContractError.RemoteContractExecutionFailed
         } catch {
