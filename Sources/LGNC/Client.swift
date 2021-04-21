@@ -212,6 +212,7 @@ public extension LGNC.Client {
             switch transport {
             case .LGNS: client = self.clientLGNS
             case .HTTP: client = self.clientHTTP
+            default: throw E.UnsupportedTransport(transport) // todo once
             }
 
             return try await client.send(

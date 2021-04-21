@@ -65,7 +65,7 @@ public extension LGNC.HTTP {
         private let readTimeout: TimeAmount
         private let writeTimeout: TimeAmount
 
-        public static var logger: Logger = Logger(label: "LGNC.HTTP")
+        public static let logger: Logger = Logger(label: "LGNC.HTTP")
         public static var defaultPort: Int = 8080
 
         public let address: LGNCore.Address
@@ -77,28 +77,43 @@ public extension LGNC.HTTP {
         public required init(
             address: LGNCore.Address,
             eventLoopGroup: EventLoopGroup,
+            service: Service.Type,
+            webSocketRouter: WebsocketRouter.Type? = nil,
             readTimeout: Time = .minutes(1),
             writeTimeout: Time = .minutes(1),
             resolver: @escaping Resolver
         ) {
             self.address = address
+            self.eventLoopGroup = eventLoopGroup
             self.readTimeout = readTimeout
             self.writeTimeout = writeTimeout
-            self.eventLoopGroup = eventLoopGroup
+
+            let httpHandlers: [ChannelHandler & RemovableChannelHandler] = [
+                NIOHTTPServerRequestAggregator(maxContentLength: 1_000_000),
+                LGNC.HTTP.Handler(resolver: resolver),
+            ]
 
             self.bootstrap = ServerBootstrap(group: self.eventLoopGroup)
                 .serverChannelOption(ChannelOptions.backlog, value: 256)
                 .serverChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
-
                 .childChannelInitializer { channel in
-                    channel.pipeline.configureHTTPServerPipeline(withErrorHandling: true).flatMap {
-                        channel.pipeline.addHandlers([
-                            NIOHTTPServerRequestAggregator(maxContentLength: 1_000_000),
-                            LGNC.HTTP.Handler(resolver: resolver),
-                        ])
+                    var upgrader: NIOHTTPServerUpgradeConfiguration? = nil
+                    if let webSocketRouterType = webSocketRouter {
+                        let webSocketRouter = webSocketRouterType.init(channel: channel, service: service)
+                        upgrader = (
+                            upgraders: [ webSocketRouter.upgrader ],
+                            completionHandler: { context in
+                                for handler in httpHandlers {
+                                    context.channel.pipeline.removeHandler(handler, promise: nil)
+                                }
+                            }
+                        )
                     }
-                }
 
+                    return channel.pipeline
+                        .configureHTTPServerPipeline(withServerUpgrade: upgrader, withErrorHandling: true)
+                        .flatMap { channel.pipeline.addHandlers(httpHandlers) }
+                }
                 .childChannelOption(ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
                 .childChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
                 .childChannelOption(ChannelOptions.maxMessagesPerRead, value: 64)
@@ -124,7 +139,7 @@ internal extension Array {
 }
 
 internal extension LGNC.HTTP {
-    final class Handler: ChannelInboundHandler {
+    final class Handler: ChannelInboundHandler, RemovableChannelHandler {
         typealias InboundIn = NIOHTTPServerRequestFull
         typealias OutboundOut = HTTPServerResponsePart
 
@@ -200,7 +215,7 @@ internal extension LGNC.HTTP {
 
             let resolverResultPromise = context.eventLoop.makePromise(of: ResolverResult.self)
 
-            Task.runDetached {
+            detach {
                 do {
                     resolverResultPromise.succeed(try await self.resolver(resolverRequest))
                 } catch {

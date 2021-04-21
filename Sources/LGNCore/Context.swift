@@ -26,16 +26,8 @@ public extension TaskLocalValues {
 
 public extension LGNCore {
     enum Transport: String, Sendable {
-        case LGNS, HTTP
+        case LGNS, HTTP, WebSocket
         // case LGNSS, HTTPS // once, maybe
-
-        public init?(from rawValue: String) {
-            guard let result = Self(rawValue: rawValue.uppercased()) else {
-                return nil
-            }
-
-            self = result
-        }
     }
 
     /// Request or response context

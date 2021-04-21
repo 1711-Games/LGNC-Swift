@@ -2,6 +2,11 @@
 
 import PackageDescription
 
+let swiftSettings: [SwiftSetting] = [
+    .unsafeFlags(["-Xfrontend", "-enable-experimental-concurrency"]),
+    .unsafeFlags(["-Xfrontend", "-disable-availability-checking"]),
+]
+
 let package = Package(
     name: "LGNC-Swift",
     platforms: [.macOS(.v10_15)],
@@ -14,7 +19,7 @@ let package = Package(
         .library(name: "Entita", targets: ["Entita"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-nio.git", from: "2.19.0"),
+        .package(url: "https://github.com/apple/swift-nio.git", .branch("main")/*from: "2.19.0"*/),
 
         .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.2.1"),
@@ -36,7 +41,8 @@ let package = Package(
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "LGNConfig", package: "lgn-config"),
-            ]
+            ],
+            swiftSettings: swiftSettings
         ),
         .target(
             name: "LGNP",
@@ -60,7 +66,8 @@ let package = Package(
                 "LGNCore",
                 "LGNP",
                 .product(name: "NIO", package: "swift-nio"),
-            ]
+            ],
+            swiftSettings: swiftSettings
         ),
         .target(
             name: "LGNC",
@@ -72,9 +79,10 @@ let package = Package(
                 "LGNPContenter",
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
+                .product(name: "NIOWebSocket", package: "swift-nio"),
                 .product(name: "AsyncHTTPClient", package: "async-http-client"),
             ],
-            swiftSettings: [.unsafeFlags(["-Xfrontend", "-enable-experimental-concurrency"])]
+            swiftSettings: swiftSettings
         ),
         .target(name: "Entita", dependencies: []),
         .testTarget(

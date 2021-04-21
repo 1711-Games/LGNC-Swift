@@ -7,7 +7,7 @@ public extension LGNC.Entity {
     typealias Cookie = HTTPClient.Cookie
 }
 
-internal extension Array where Element == String {
+public extension Array where Element == String {
     func parseCookies() -> [String: String] {
         var result = [String: String]()
 

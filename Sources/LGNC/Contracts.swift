@@ -40,6 +40,14 @@ public protocol AnyContract {
 }
 
 public extension AnyContract {
+    static var isWebSocketTransportAvailable: Bool {
+        self.transports.contains(.WebSocket)
+    }
+
+    static var isWebSocketOnly: Bool {
+        self.transports == [.WebSocket]
+    }
+
     static var isGETSafe: Bool { false }
 
     static var preferredTransport: LGNCore.Transport {

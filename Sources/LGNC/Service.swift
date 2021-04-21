@@ -3,7 +3,6 @@ import Foundation
 import LGNCore
 import LGNP
 import LGNS
-import NIO
 
 /// A type-erased service
 public protocol Service {
@@ -18,6 +17,8 @@ public protocol Service {
 
     /// A storage for custom KV info defined in LGNC schema
     static var info: [String: String] { get }
+
+    static var webSocketURI: String? { get }
 
     /// A storage for getting contracts guarantee statuses
     static var guaranteeStatuses: [String: Bool] { get set }
@@ -52,6 +53,20 @@ public protocol Service {
 
 public extension Service {
     static var info: [String: String] { [:] }
+
+    static var webSocketURI: String? { nil }
+
+    static var webSocketContracts: [AnyContract.Type] {
+        self.contractMap
+            .map { $0.value }
+            .filter { $0.isWebSocketTransportAvailable }
+    }
+
+    static var webSocketOnlyContracts: [AnyContract.Type] {
+        self.contractMap
+            .map { $0.value }
+            .filter { $0.transports == [.WebSocket] }
+    }
 
     static func checkContractsCallbacks() -> Bool {
         self.guaranteeStatuses

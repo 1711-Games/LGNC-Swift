@@ -10,6 +10,7 @@ public extension Service {
     static func getServerHTTP(
         at target: LGNCore.Address? = nil,
         eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
+        webSocketRouter: WebsocketRouter.Type? = nil,
         readTimeout: TimeAmount = .minutes(1),
         writeTimeout: TimeAmount = .minutes(1)
     ) throws -> AnyServer {
@@ -21,9 +22,16 @@ public extension Service {
             .filter { _, contract in contract.isGETSafe }
             .map { URI, _ in URI.lowercased() }
 
+        let webSocketOnlyContracts = self.webSocketOnlyContracts
+        if webSocketRouter == nil && webSocketOnlyContracts.count > 0 {
+            Task.local(\.context).logger.warning("Starting HTTP server without WebSocket upgrader while there are WebSocket-only contracts: \(webSocketOnlyContracts.map { $0.URI })")
+        }
+
         return LGNC.HTTP.Server(
             address: try self.unwrapAddress(from: target),
             eventLoopGroup: eventLoopGroup,
+            service: self,
+            webSocketRouter: webSocketRouter,
             readTimeout: readTimeout,
             writeTimeout: writeTimeout
         ) { (request: LGNC.HTTP.Request) in

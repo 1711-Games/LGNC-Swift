@@ -155,7 +155,7 @@ internal extension LGNS {
                 profiler = LGNCore.Profiler.begin()
             }
 
-            Task.runDetached {
+            detach {
                 await Task.withLocal(\.context, boundTo: requestContext) {
                     do {
                         promise.succeed(try await self.resolver(message))
