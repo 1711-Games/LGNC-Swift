@@ -17,6 +17,7 @@ public protocol WebsocketRouter: AnyObject {
 
     init(channel: Channel, service: Service.Type)
 
+    func channelInactive()
     func shouldUpgrade(head: HTTPRequestHead) async throws -> HTTPHeaders?
     func upgradePipelineHandler(head: HTTPRequestHead) async throws
     func route(request: LGNC.WebSocket.Request) async throws -> LGNC.WebSocket.Response?
@@ -120,6 +121,10 @@ public extension WebsocketRouter {
             )
         }
     }
+
+    func channelInactive() {
+        // noop
+    }
 }
 
 public extension LGNC {
@@ -167,6 +172,11 @@ extension LGNC.WebSocket {
 
         public func handlerAdded(context: ChannelHandlerContext) {
             self.sendPing(context: context)
+        }
+
+        func channelInactive(context: ChannelHandlerContext) {
+            self.router.channelInactive()
+            context.fireChannelInactive()
         }
 
         public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
@@ -294,7 +304,7 @@ extension LGNC.WebSocket {
                 .write(self.wrapOutboundOut(WebSocketFrame(fin: true, opcode: .connectionClose, data: data)))
                 .whenComplete { (_: Result<Void, Error>) in context.close(mode: .output, promise: nil) }
 
-            awaitingClose = true
+            self.awaitingClose = true
         }
     }
 }
