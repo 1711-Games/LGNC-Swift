@@ -96,9 +96,15 @@ public extension WebsocketRouter {
         clientRequestID: String,
         URI: String,
         dict: Entita.Dict
-    ) async throws -> LGNC.WebSocket.Response {
+    ) async throws -> LGNC.WebSocket.Response? {
         try await Task.withLocal(\.context, boundTo: self.baseContext) {
-            LGNC.WebSocket.Response(
+            let contractResponse = try await self.service.executeContract(URI: URI, dict: dict)
+
+            if contractResponse.result is LGNC.Entity.Empty {
+                return nil
+            }
+
+            return LGNC.WebSocket.Response(
                 clientRequestID: clientRequestID,
                 frame: WebSocketFrame(
                     fin: true,
@@ -106,9 +112,7 @@ public extension WebsocketRouter {
                     data: self.channel.allocator.buffer(
                         bytes: try [
                             "RequestID": clientRequestID,
-                            "Response": try await self.service
-                                .executeContract(URI: URI, dict: dict)
-                                .getDictionary()
+                            "Response": contractResponse.getDictionary()
                         ].pack(to: self.contentType)
                     )
                 ),
@@ -338,7 +342,7 @@ extension LGNC.WebSocket {
 
         open func route(request: Request) async throws -> Response? {
             var clientRequestID: String = "unknown"
-            let response: Response
+            let response: Response?
 
             do {
                 let input = try request.body.unpack(from: self.contentType)
