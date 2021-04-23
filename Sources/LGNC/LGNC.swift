@@ -429,4 +429,57 @@ public extension LGNC.Entity {
             return [:]
         }
     }
+
+    final class WebSocketEvent: ContractEntity {
+        public let kind: String
+        public let body: Entity
+
+        init(kind: String, body: Entity) {
+            self.kind = kind
+            self.body = body
+        }
+
+        public convenience init(from dictionary: Entita.Dict) throws {
+            self.init(
+                kind: try Result.extract(param: "kind", from: dictionary),
+                body: try Result.extract(param: "body", from: dictionary)
+            )
+        }
+
+        public func getDictionary() throws -> Entita.Dict {
+            [
+                self.getDictionaryKey("kind"): try self.encode(self.kind),
+                self.getDictionaryKey("body"): try self.encode(self.body),
+            ]
+        }
+
+        public static func initWithValidation(from dictionary: Entita.Dict) async throws -> Self {
+            var errors: [String: [ValidatorError]] = [
+                "kind": [],
+                "body": [],
+            ]
+
+            var _kind: String?
+            var _body: Entity?
+
+            do {
+                _kind = try Self.extract(param: "kind", from: dictionary)
+            } catch Entita.E.ExtractError {
+                errors["kind"]?.append(Validation.Error.MissingValue())
+            }
+
+            do {
+                _body = try Self.extract(param: "body", from: dictionary)
+            } catch Entita.E.ExtractError {
+                errors["body"]?.append(Validation.Error.MissingValue())
+            }
+
+            let filteredErrors = errors.filter({ _, value in value.count > 0 })
+            guard filteredErrors.count == 0 else {
+                throw LGNC.E.DecodeError(filteredErrors)
+            }
+
+            return self.init(kind: _kind!, body: _body!)
+        }
+    }
 }
