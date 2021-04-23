@@ -434,7 +434,7 @@ public extension LGNC.Entity {
         public let kind: String
         public let body: Entity
 
-        init(kind: String, body: Entity) {
+        public init(kind: String, body: Entity) {
             self.kind = kind
             self.body = body
         }
