@@ -327,7 +327,7 @@ extension LGNC.WebSocket {
     }
 
     open class SimpleRouter: WebsocketRouter {
-        public let channel: Channel
+        public unowned let channel: Channel
         public let service: Service.Type
         public var allowedURIs: [String]
         public var requestID: UUID = UUID()
