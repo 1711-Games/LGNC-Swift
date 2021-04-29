@@ -110,11 +110,10 @@ public extension WebsocketRouter {
                 frame: WebSocketFrame(
                     fin: true,
                     opcode: .text,
-                    data: self.channel.allocator.buffer(
-                        bytes: try [
-                            "RequestID": clientRequestID,
-                            "Response": contractResponse.getDictionary()
-                        ].pack(to: self.contentType)
+                    data: try self.channel.allocator.buffer(
+                        bytes: LGNC.WebSocket.Response.Box(RequestID: clientRequestID, Response: contractResponse)
+                            .getDictionary()
+                            .pack(to: self.contentType)
                     )
                 ),
                 close: false
@@ -124,24 +123,6 @@ public extension WebsocketRouter {
 
     func channelInactive() {
         // noop
-    }
-}
-
-public extension LGNC {
-    enum WebSocket {}
-}
-
-public extension LGNC.WebSocket {
-    enum E: Error {
-        case NoService
-        case DecodeError
-        case InvalidUpgradeURI
-    }
-
-    struct Request {
-        public let remoteAddr: String
-        public let body: Bytes
-        public let eventLoop: EventLoop
     }
 }
 
@@ -312,18 +293,6 @@ extension LGNC.WebSocket {
 extension LGNC.WebSocket {
     public static var errorFrame: WebSocketFrame {
         WebSocketFrame(fin: true, opcode: .text, data: .init(staticString: "internal server error"))
-    }
-
-    public struct Response {
-        let clientRequestID: String
-        let frame: WebSocketFrame
-        let close: Bool
-
-        public init(clientRequestID: String, frame: WebSocketFrame, close: Bool = false) {
-            self.clientRequestID = clientRequestID
-            self.frame = frame
-            self.close = close
-        }
     }
 
     open class SimpleRouter: WebsocketRouter {
