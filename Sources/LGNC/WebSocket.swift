@@ -5,6 +5,19 @@ import NIO
 import NIOWebSocket
 
 public extension LGNC.WebSocket {
+    static func getFrame(
+        from entity: DictionaryEncodable,
+        format: LGNCore.ContentType,
+        allocator: ByteBufferAllocator,
+        opcode: WebSocketOpcode = .text
+    ) throws -> WebSocketFrame {
+        WebSocketFrame(
+            fin: true,
+            opcode: opcode,
+            data: try allocator.buffer(bytes: entity.getDictionary().pack(to: format))
+        )
+    }
+
     enum E: Error {
         case NoService
         case DecodeError

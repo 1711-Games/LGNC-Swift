@@ -105,16 +105,12 @@ public extension WebsocketRouter {
                 return nil
             }
 
-            return LGNC.WebSocket.Response(
+            return try LGNC.WebSocket.Response(
                 clientRequestID: clientRequestID,
-                frame: WebSocketFrame(
-                    fin: true,
-                    opcode: .text,
-                    data: try self.channel.allocator.buffer(
-                        bytes: LGNC.WebSocket.Response.Box(RequestID: clientRequestID, Response: contractResponse)
-                            .getDictionary()
-                            .pack(to: self.contentType)
-                    )
+                frame: LGNC.WebSocket.getFrame(
+                    from: LGNC.WebSocket.Response.Box(RequestID: clientRequestID, Response: contractResponse),
+                    format: self.contentType,
+                    allocator: self.channel.allocator
                 ),
                 close: false
             )
