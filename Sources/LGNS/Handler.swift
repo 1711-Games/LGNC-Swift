@@ -85,7 +85,7 @@ internal extension LGNS {
         }
 
         public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
-            var logger = Task.local(\.context).logger
+            var logger = LGNCore.Context.current.logger
             logger[metadataKey: "LGNS.Handler"] = "\(self.kind)"
 
             logger.debug("Channel read (\(context.remoteAddress?.description ?? "unknown addr"))")
@@ -156,7 +156,7 @@ internal extension LGNS {
             }
 
             detach {
-                await Task.withLocal(\.context, boundTo: requestContext) {
+                await LGNCore.Context.$current.withValue(requestContext) {
                     do {
                         promise.succeed(try await self.resolver(message))
                     } catch {
@@ -223,7 +223,7 @@ internal extension LGNS {
         }
 
         fileprivate func close(context: ChannelHandlerContext) -> EventLoopFuture<Void> {
-            Task.local(\.context).logger.debug("Closing the channel")
+            LGNCore.Context.current.logger.debug("Closing the channel")
 
             return context.close().flatMapErrorThrowing { error in
                 switch error {

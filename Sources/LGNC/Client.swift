@@ -97,9 +97,8 @@ extension HTTPClient: LGNCClient {
             throw LGNC.Client.E.EmptyResponse
         }
 
-        return await _Concurrency.Task.withLocal(
-            \.context,
-            boundTo: LGNCore.Context(
+        return await LGNCore.Context.$current.withValue(
+            LGNCore.Context(
                 remoteAddr: "127.0.0.1",
                 clientAddr: "127.0.0.1",
                 userAgent: "AsyncHTTPClient",

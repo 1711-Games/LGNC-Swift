@@ -24,7 +24,7 @@ public extension Service {
 
         let webSocketOnlyContracts = self.webSocketOnlyContracts
         if webSocketRouter == nil && webSocketOnlyContracts.count > 0 {
-            Task.local(\.context).logger.warning("Starting HTTP server without WebSocket upgrader while there are WebSocket-only contracts: \(webSocketOnlyContracts.map { $0.URI })")
+            LGNCore.Context.current.logger.warning("Starting HTTP server without WebSocket upgrader while there are WebSocket-only contracts: \(webSocketOnlyContracts.map { $0.URI })")
         }
 
         return LGNC.HTTP.Server(
@@ -50,7 +50,7 @@ public extension Service {
                 eventLoop: request.eventLoop
             )
             context.logger.debug("Serving request at HTTP URI '\(request.URI)'")
-            return try await Task.withLocal(\.context, boundTo: context) {
+            return try await LGNCore.Context.$current.withValue(context) {
                 let payload: Entita.Dict
                 let URI: String
 

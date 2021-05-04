@@ -12,7 +12,7 @@ public extension Service {
     }
 
     static func getLGNSResolver(request: LGNP.Message) async throws -> LGNP.Message? {
-        let context = Task.local(\.context)
+        let context = LGNCore.Context.current
 
         context.logger.debug("Serving request at LGNS URI '\(request.URI)'")
 

@@ -98,7 +98,7 @@ public extension WebsocketRouter {
         URI: String,
         dict: Entita.Dict
     ) async throws -> LGNC.WebSocket.Response? {
-        try await Task.withLocal(\.context, boundTo: self.baseContext) {
+        try await LGNCore.Context.$current.withValue(self.baseContext) {
             let contractResponse = try await self.service.executeContract(URI: URI, dict: dict)
 
             if contractResponse.result is LGNC.Entity.Empty {
@@ -159,7 +159,7 @@ extension LGNC.WebSocket {
         public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
             let frame = self.unwrapInboundIn(data)
 
-            let logger = Task.local(\.context).logger
+            let logger = LGNCore.Context.current.logger
 
             let payload: Bytes
 

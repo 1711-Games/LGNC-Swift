@@ -62,7 +62,7 @@ public extension LGNS {
             let connectProfiler = LGNCore.Profiler.begin()
 
             let clientHandler = LGNS.ClientHandler(promise: self.responsePromise, logger: Self.logger) { message in
-                let context = Task.local(\.context)
+                let context = LGNCore.Context.current
                 context.logger.debug("Got LGNS response: \(message._payloadAsString)")
                 self.responsePromise?.succeed((message, context))
                 return nil
@@ -153,9 +153,7 @@ public extension LGNS {
                 self.disconnect()
             }
 
-            return await Task.withLocal(\.context, boundTo: result.1) {
-                result.0
-            }
+            return result.0
         }
 
         /// Sends a single message to a remote LGNS server at given address.

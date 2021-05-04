@@ -1,28 +1,6 @@
 import Foundation
 import NIO
 import Logging
-import _Concurrency
-
-public extension TaskLocalValues {
-    struct ContextKey: TaskLocalKey {
-        public static var defaultValue: LGNCore.Context {
-            LGNCore.Context(
-                remoteAddr: "",
-                clientAddr: "",
-                clientID: nil,
-                userAgent: "",
-                locale: .enUS,
-                uuid: UUID(),
-                isSecure: false,
-                transport: .HTTP,
-                meta: [:],
-                eventLoop: EmbeddedEventLoop()
-            )
-        }
-    }
-
-    var context: ContextKey { .init() }
-}
 
 public extension LGNCore {
     enum Transport: String, Sendable {
@@ -120,4 +98,20 @@ public extension LGNCore {
             )
         }
     }
+}
+
+public extension LGNCore.Context {
+    @TaskLocal
+    static var current = LGNCore.Context(
+        remoteAddr: "",
+        clientAddr: "",
+        clientID: nil,
+        userAgent: "",
+        locale: .enUS,
+        uuid: UUID(),
+        isSecure: false,
+        transport: .HTTP,
+        meta: [:],
+        eventLoop: EmbeddedEventLoop()
+    )
 }

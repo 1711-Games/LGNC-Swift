@@ -35,7 +35,7 @@ public protocol AnyContract {
     /// A computed property returning `true` if contract is guaranteed
     static var isGuaranteed: Bool { get }
 
-    /// An internal method for invoking contract with given raw dict (context is available via `Task.local(\.context)`), not to be used directly
+    /// An internal method for invoking contract with given raw dict (context is available via `LGNCore.Context.current`), not to be used directly
     static func invoke(with dict: Entita.Dict) async throws -> CanonicalContractResponse
 }
 
@@ -158,7 +158,7 @@ public extension Contract {
         let (response, _meta) = try await guaranteeBody(try await Request.initWithValidation(from: dict) as Entity)
         var meta = _meta
 
-        if Task.local(\.context).transport == .HTTP && Response.hasCookieFields {
+        if LGNCore.Context.current.transport == .HTTP && Response.hasCookieFields {
             for (name, cookie) in Mirror(reflecting: response)
                 .children
                 .compactMap({ (mirror: Mirror.Child) -> (String, LGNC.Entity.Cookie)? in

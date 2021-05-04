@@ -35,7 +35,7 @@ internal extension String {
     @usableFromInline
     func _t(
         _ interpolations: [String: Any] = [:],
-        _ locale: LGNCore.i18n.Locale = Task.local(\.context).locale
+        _ locale: LGNCore.i18n.Locale = LGNCore.Context.current.locale
     ) -> String {
         LGNCore.i18n.tr(self, locale, interpolations)
     }

@@ -81,7 +81,7 @@ public extension Service {
     }
 
     static func executeContract(URI: String, dict: Entita.Dict) async throws -> LGNC.Entity.Result {
-        let context = Task.local(\.context)
+        let context = LGNCore.Context.current
         let profiler = LGNCore.Profiler.begin()
         let result: LGNC.Entity.Result
 

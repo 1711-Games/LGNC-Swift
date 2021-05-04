@@ -36,7 +36,7 @@ public extension ContractEntity {
                     if let error = error as? ValidatorError {
                         return [error]
                     }
-                    Task.local(\.context).logger.error("Unknown error while parsing contract entity: \(error)")
+                    LGNCore.Context.current.logger.error("Unknown error while parsing contract entity: \(error)")
                     return [Validation.Error.UnknownError()]
                 }
             }()
@@ -71,7 +71,7 @@ public extension ContractEntity {
         /// is present both in response and meta, which, as you might imagine,
         /// is completely normal.
 
-        if let value = Task.local(\.context).meta[LGNC.HTTP.COOKIE_META_KEY_PREFIX + dictKey] {
+        if let value = LGNCore.Context.current.meta[LGNC.HTTP.COOKIE_META_KEY_PREFIX + dictKey] {
             return LGNC.Entity.Cookie(header: value, defaultDomain: "nil")
         }
 
