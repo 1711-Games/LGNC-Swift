@@ -30,8 +30,8 @@ public extension Dictionary where Key == String {
             switch format {
             case .MsgPack: return try self.getMsgPack()
             case .JSON: return try Bytes(JSONSerialization.data(withJSONObject: self, options: .sortedKeys))
-            case .XML: throw LGNPContenter.E.ContentError("XML content type not implemented yet")
-            case .PlainText: throw LGNPContenter.E.ContentError("Dictionary cannot be plain text")
+            case .XML, .HTML: throw LGNPContenter.E.ContentError("XML/HTML content type not implemented yet")
+            case .Text: throw LGNPContenter.E.ContentError("Dictionary cannot be plain text")
             }
         }
     }
@@ -74,8 +74,8 @@ public extension LGNP.Message {
         switch contentType {
         case .MsgPack: return try self.payload.unpackFromMsgPack()
         case .JSON: return try self.payload.unpackFromJSON()
-        case .XML: throw LGNPContenter.E.ContentError("XML content type not implemented yet")
-        case .PlainText: throw LGNPContenter.E.ContentError("Plain text content type not supported")
+        case .XML, .HTML: throw LGNPContenter.E.ContentError("XML/HTML content type not implemented yet")
+        case .Text: throw LGNPContenter.E.ContentError("Plain text content type not supported")
         }
     }
 }

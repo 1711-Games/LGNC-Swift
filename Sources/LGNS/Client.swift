@@ -56,7 +56,7 @@ public extension LGNS {
             }
 
             if self.channel?.isActive == false && reconnectIfNeeded == true {
-                self.disconnect()
+                try await self.disconnect()
             }
 
             let connectProfiler = LGNCore.Profiler.begin()
@@ -111,21 +111,19 @@ public extension LGNS {
         }
 
         /// Disconnects from a remote LGNS server
-        public func disconnect() {
+        public func disconnect() async throws {
+            defer { self.disconnectRoutine() }
+
             guard let channel = self.channel, channel.isActive, self.clientHandler?.isOpen == true else {
-                self.disconnectRoutine()
                 return
             }
 
-            channel
-                .close()
-                .flatMapErrorThrowing { error in
-                    switch error {
-                    case ChannelError.alreadyClosed: return
-                    default: throw error
-                    }
-                }
-                .whenComplete { _ in self.disconnectRoutine() }
+            do {
+                try await channel.close()
+            } catch ChannelError.alreadyClosed {
+                // it's kinda fine
+                return
+            }
         }
 
         /// Sends a message to a remote LGNS server at given address.
@@ -136,10 +134,11 @@ public extension LGNS {
         public func request(
             at address: LGNCore.Address,
             with message: LGNP.Message,
-            on eventLoop: EventLoop? = nil
+            on eventLoop: EventLoop? = nil,
+            file: String = #file, line: Int = #line
         ) async throws -> LGNP.Message {
             if self.responsePromise != nil {
-                Self.logger.warning("Trying to do a request while there is an existing promise")
+                Self.logger.warning("Trying to do a request while there is an existing promise (@ \(file):\(line)")
             }
 
             let responsePromise: EventLoopPromise<Response> = (eventLoop ?? self.eventLoopGroup.next()).makePromise()
@@ -147,11 +146,13 @@ public extension LGNS {
 
             try await self.connect(at: address)
             try await self.channel?.writeAndFlush(message)
-            let result = try await responsePromise.futureResult.get()
+            let result = try await responsePromise.futureResult.value
 
-            if result.0.controlBitmask.contains(.keepAlive) {
-                self.disconnect()
+            if !result.0.controlBitmask.contains(.keepAlive) {
+                try await self.disconnect()
             }
+
+            self.responsePromise = nil
 
             return result.0
         }
@@ -168,7 +169,7 @@ public extension LGNS {
 
             let result = try await cloned.request(at: address, with: message, on: eventLoop)
 
-            cloned.disconnect()
+            try await cloned.disconnect()
 
             return result
         }

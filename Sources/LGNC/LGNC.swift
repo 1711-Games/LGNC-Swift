@@ -94,11 +94,11 @@ public enum LGNC {
         )
     }
 
-    public static func getCompiledMeta(
+    public static func getPackedMeta(
         from context: LGNCore.Context?,
         clientID: String? = nil
     ) -> Bytes? {
-        self.getCompiledMeta(
+        self.getPackedMeta(
             clientAddr: context?.clientAddr,
             clientID: clientID,
             userAgent: context?.userAgent,
@@ -106,7 +106,7 @@ public enum LGNC {
         )
     }
 
-    public static func getCompiledMeta(
+    public static func getPackedMeta(
         clientAddr: String? = nil,
         clientID: String? = nil,
         userAgent: String? = nil,
@@ -128,12 +128,7 @@ public enum LGNC {
         if meta.isEmpty {
             return nil
         }
-        var metaBytes = Bytes([0, 255])
-        for (k, v) in meta {
-            metaBytes.append(contentsOf: Bytes("\(k)\u{00}\(v)".replacingOccurrences(of: "\n", with: "").utf8))
-            metaBytes.append(10) // EOL
-        }
-        return metaBytes
+        return LGNC.packMeta(meta)
     }
 }
 
@@ -205,7 +200,7 @@ public extension LGNC.Entity {
             )
         }
 
-        public convenience init(from response: CanonicalContractResponse) {
+        public convenience init(from response: CanonicalStructuredContractResponse) {
             self.init(from: response.response, meta: response.meta, success: true)
         }
 

@@ -55,7 +55,7 @@ extension LGNS.Client: LGNCClient {
                 with: LGNP.Message(
                     URI: C.URI,
                     payload: payload,
-                    meta: LGNC.getCompiledMeta(from: requestContext, clientID: requestContext.clientID),
+                    meta: LGNC.getPackedMeta(from: requestContext, clientID: requestContext.clientID),
                     controlBitmask: self.controlBitmask,
                     uuid: requestContext.uuid
                 ),
@@ -83,7 +83,7 @@ extension HTTPClient: LGNCClient {
             url: address.description + "/" + C.URI,
             method: .POST,
             headers: HTTPHeaders([
-                ("Content-Type", contentType.header),
+                ("Content-Type", contentType.HTTPHeader),
                 ("Accept-Language", requestContext.locale.rawValue),
             ]),
             body: .data(.init(payload))
@@ -91,13 +91,13 @@ extension HTTPClient: LGNCClient {
 
         let response = try await self
             .execute(request: request, eventLoop: .delegateAndChannel(on: context.eventLoop))
-            .get()
+            .value
 
         guard var body = response.body, let bytes = body.readBytes(length: body.readableBytes) else {
             throw LGNC.Client.E.EmptyResponse
         }
 
-        return await LGNCore.Context.$current.withValue(
+        return LGNCore.Context.$current.withValue(
             LGNCore.Context(
                 remoteAddr: "127.0.0.1",
                 clientAddr: "127.0.0.1",
@@ -158,10 +158,21 @@ public extension LGNC.Client {
             at address: LGNCore.Address,
             context: LGNCore.Context
         ) async throws -> Bytes {
-            try await C.ParentService
-                .executeContract(URI: C.URI, dict: try payload.unpack(from: C.preferredContentType))
-                .getDictionary()
-                .pack(to: C.preferredContentType)
+            let result = try await C.ParentService.executeContract(
+                URI: C.URI,
+                dict: try payload.unpack(from: C.preferredContentType)
+            )
+
+            let body: Bytes
+
+            switch result.result {
+            case let .Structured(entity):
+                body = try entity.getDictionary().pack(to: C.preferredContentType)
+            case let .Binary(file, _):
+                body = file.body
+            }
+
+            return body
         }
     }
 }
@@ -195,7 +206,7 @@ public extension LGNC.Client {
         }
 
         public func disconnect() async throws {
-            self.clientLGNS.disconnect()
+            try await self.clientLGNS.disconnect()
         }
 
         public func send<C: Contract>(

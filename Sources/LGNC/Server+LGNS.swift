@@ -16,13 +16,23 @@ public extension Service {
 
         context.logger.debug("Serving request at LGNS URI '\(request.URI)'")
 
-        let result = try await self.executeContract(URI: request.URI, dict: try request.unpackPayload())
-        do {
-            return request.copied(payload: try result.getDictionary().pack(to: request.contentType))
-        } catch {
-            context.logger.error("Could not pack entity to \(request.contentType): \(error)")
-            return request.copied(payload: LGNP.ERROR_RESPONSE)
+        let response: ContractExecutionResult = try await self.executeContract(
+            URI: request.URI,
+            dict: try request.unpackPayload()
+        )
+
+        let resultEntity: Entity
+        switch response.result {
+        case let .Structured(entity):
+            resultEntity = entity
+        case let .Binary(entity, _):
+            resultEntity = entity
         }
+
+        return request.copied(
+            payload: try resultEntity.getDictionary().pack(to: request.contentType),
+            meta: LGNC.packMeta(response.meta)
+        )
     }
 
     static func getServerLGNS(

@@ -4,7 +4,7 @@ import NIO
 import _Concurrency
 
 internal extension LGNS {
-    class BaseHandler: ChannelInboundHandler {
+    class BaseHandler: ChannelInboundHandler, @unchecked Sendable {
         enum State {
             case WaitingForInbound
             case InboundReceived
@@ -53,7 +53,7 @@ internal extension LGNS {
             print("FLUSHING ERROR TO CLIENT")
             print("\(#file):\(#line)")
             print(error)
-            context.eventLoop.makeSucceededFuture()
+            context.eventLoop.makeSucceededFuture(())
                 .flatMap { () -> EventLoopFuture<Void> in
                     context.writeAndFlush(
                         self.wrapOutboundOut(
@@ -155,7 +155,7 @@ internal extension LGNS {
                 profiler = LGNCore.Profiler.begin()
             }
 
-            detach {
+            Task.detached {
                 await LGNCore.Context.$current.withValue(requestContext) {
                     do {
                         promise.succeed(try await self.resolver(message))
@@ -174,11 +174,11 @@ internal extension LGNS {
                 logger.debug("Writing LGNP message to channel")
 
                 context
-                    .eventLoop.makeSucceededFuture()
+                    .eventLoop.makeSucceededFuture(())
                     .flatMap { () -> EventLoopFuture<Void> in context.writeAndFlush(self.wrapInboundOut(message)) }
                     .flatMap { () -> EventLoopFuture<Void> in
                         message.controlBitmask.contains(.keepAlive)
-                            ? context.eventLoop.makeSucceededFuture()
+                            ? context.eventLoop.makeSucceededFuture(())
                             : self.close(context: context)
                     }
                     .whenComplete { _ in }

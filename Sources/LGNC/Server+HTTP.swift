@@ -6,6 +6,14 @@ import LGNPContenter
 import LGNS
 import NIO
 
+public struct Redirect: Error {
+    public let location: String
+
+    public init(location: String) {
+        self.location = location
+    }
+}
+
 public extension Service {
     static func getServerHTTP(
         at target: LGNCore.Address? = nil,
@@ -67,7 +75,14 @@ public extension Service {
                             headers: []
                         )
                     }
-                    payload = self.parseQueryParams(components.last ?? "")
+                    payload = HTTP.parseQueryParams(String(components.last ?? ""))
+                } else if request.isURLEncoded {
+                    URI = request.URI
+                    payload = HTTP.parseQueryParams(request.body._string)
+                } else if let boundary = request.headers.getMultipartBoundary() {
+                    context.logger.debug("Parsing multipart formdata")
+                    URI = request.URI
+                    payload = HTTP.parseMultipartFormdata(boundary: boundary, input: request.body)
                 } else {
                     URI = request.URI
                     switch request.contentType {
@@ -77,13 +92,12 @@ public extension Service {
                     }
                 }
 
-                let result = try await self.executeContract(URI: URI, dict: payload)
+                var result = try await self.executeContract(URI: URI, dict: payload)
 
-                let body: Bytes
                 var headers: [(name: String, value: String)] = [
                     ("Content-Language", context.locale.rawValue),
                     ("LGNC-UUID", request.uuid.string),
-                    ("Content-Type", request.contentType.header),
+                    ("Content-Type", request.contentType.HTTPHeader), // todo response content-type
                 ]
 
                 var metaContainsHeaders = false
@@ -110,12 +124,22 @@ public extension Service {
                     result.meta = result.meta.filter { k, _ in !k.starts(with: LGNC.HTTP.HEADER_PREFIX) }
                 }
 
-                do {
-                    body = try result.getDictionary().pack(to: request.contentType)
-                } catch {
-                    context.logger.critical("Could not pack entity to \(request.contentType): \(error)")
-                    body = LGNCore.getBytes("500 Internal Server Error")
+                let contentType: String
+                let body: Bytes
+
+                switch result.result {
+                case let .Structured(entity):
+                    contentType = request.contentType.HTTPHeader
+                    body = try entity.getDictionary().pack(to: request.contentType)
+                case let .Binary(file, maybeDisposition):
+                    if let disposition = maybeDisposition {
+                        headers.append(disposition.header(forFile: file))
+                    }
+                    contentType = file.contentType.header
+                    body = file.body
                 }
+
+                headers.append((name: "Content-Type", value: contentType))
 
                 return (body: body, headers: headers)
             }
@@ -136,35 +160,5 @@ public extension Service {
         )
         try await server.bind()
         return server
-    }
-}
-
-fileprivate extension Service {
-    static func parseQueryParams(_ input: Substring) -> [String: Any] {
-        guard let input = input.removingPercentEncoding else {
-            return [:]
-        }
-        var result: [String: Any] = [:]
-
-        for component in input.split(separator: "&") {
-            let kv = component.split(separator: "=", maxSplits: 1)
-            guard kv.count == 2 else {
-                continue
-            }
-
-            let key = String(kv[0])
-            let value: Any
-            let rawValue = String(kv[1])
-            if let bool = Bool(rawValue) {
-                value = bool
-            } else if let int = Int(rawValue) {
-                value = int
-            } else {
-                value = rawValue
-            }
-            result[key] = value
-        }
-
-        return result
     }
 }

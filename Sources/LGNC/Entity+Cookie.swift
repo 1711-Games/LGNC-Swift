@@ -205,7 +205,7 @@ extension LGNC.Entity.Cookie: Equatable {
     }
 }
 
-public extension LGNC.Entity.Meta {
+extension LGNC.Entity.Meta {
     static func initFrom(cookie: LGNC.Entity.Cookie) throws -> Self {
         var result = Self()
 

@@ -1,11 +1,6 @@
-// swift-tools-version:5.2
+// swift-tools-version:5.5
 
 import PackageDescription
-
-let swiftSettings: [SwiftSetting] = [
-    .unsafeFlags(["-Xfrontend", "-enable-experimental-concurrency"]),
-    .unsafeFlags(["-Xfrontend", "-disable-availability-checking"]),
-]
 
 let package = Package(
     name: "LGNC-Swift",
@@ -19,7 +14,7 @@ let package = Package(
         .library(name: "Entita", targets: ["Entita"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-nio.git", .branch("main")/*from: "2.19.0"*/),
+        .package(url: "https://github.com/apple/swift-nio.git", from: "2.33.0"),
 
         .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.2.1"),
@@ -42,7 +37,7 @@ let package = Package(
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "LGNConfig", package: "lgn-config"),
             ],
-            swiftSettings: swiftSettings
+            exclude: ["README.md"]
         ),
         .target(
             name: "LGNP",
@@ -50,7 +45,8 @@ let package = Package(
                 "LGNCore",
                 "Gzip",
                 .product(name: "Crypto", package: "swift-crypto"),
-            ]
+            ],
+            exclude: ["README.md", "logo.png"]
         ),
         .target(
             name: "LGNPContenter",
@@ -58,7 +54,8 @@ let package = Package(
                 "LGNCore",
                 "LGNP",
                 .product(name: "SwiftMsgPack", package: "SwiftMsgPack"),
-            ]
+            ],
+            exclude: ["README.md"]
         ),
         .target(
             name: "LGNS",
@@ -67,7 +64,7 @@ let package = Package(
                 "LGNP",
                 .product(name: "NIO", package: "swift-nio"),
             ],
-            swiftSettings: swiftSettings
+            exclude: ["README.md", "logo.png"]
         ),
         .target(
             name: "LGNC",
@@ -82,9 +79,9 @@ let package = Package(
                 .product(name: "NIOWebSocket", package: "swift-nio"),
                 .product(name: "AsyncHTTPClient", package: "async-http-client"),
             ],
-            swiftSettings: swiftSettings
+            exclude: ["README.md"]
         ),
-        .target(name: "Entita", dependencies: []),
+        .target(name: "Entita", dependencies: [], exclude: ["README.md"]),
         .testTarget(
             name: "LGNCSwiftTests",
             dependencies: [
@@ -94,7 +91,8 @@ let package = Package(
                 "LGNS",
                 "LGNC",
                 "Entita",
-            ]
+            ],
+            exclude: ["Schema"]
         ),
     ]
 )

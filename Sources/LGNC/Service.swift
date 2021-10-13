@@ -30,7 +30,7 @@ public protocol Service {
     static func executeContract(
         URI: String,
         dict: Entita.Dict
-    ) async throws -> LGNC.Entity.Result
+    ) async throws -> ContractExecutionResult
 
     /// Starts a LGNS server at given target. Returns a future with a server, which must be waited for until claiming the server as operational.
     static func startServerLGNS(
@@ -80,10 +80,13 @@ public extension Service {
             .count == 0
     }
 
-    static func executeContract(URI: String, dict: Entita.Dict) async throws -> LGNC.Entity.Result {
+    static func executeContract(
+        URI: String,
+        dict: Entita.Dict
+    ) async throws -> ContractExecutionResult {
         let context = LGNCore.Context.current
         let profiler = LGNCore.Profiler.begin()
-        let result: LGNC.Entity.Result
+        let result: ContractExecutionResult
 
         do {
             guard let contractInfo = self.contractMap[URI] else {
@@ -94,7 +97,13 @@ public extension Service {
             }
 
             do {
-                result = LGNC.Entity.Result(from: try await contractInfo.invoke(with: dict))
+                let rawResponse = try await contractInfo._invoke(with: dict)
+                switch rawResponse.result {
+                case let .Structured(entity):
+                    result = .init(result: .Structured(LGNC.Entity.Result(from: entity)), meta: rawResponse.meta)
+                case .Binary:
+                    result = rawResponse
+                }
             } catch {
                 do {
                     switch error {
@@ -112,20 +121,22 @@ public extension Service {
                         throw LGNC.E.MultipleError([LGNC.GLOBAL_ERROR_KEY: [LGNC.ContractError.InternalError]])
                     }
                 } catch let LGNC.E.MultipleError(errors) {
-                    result = .init(from: errors)
+                    result = .init(result: LGNC.Entity.Result(from: errors))
                 } catch {
                     context.logger.critical("Extremely unexpected error: \(error)")
-                    result = .internalError
+                    result = .init(result: LGNC.Entity.Result.internalError)
                 }
             }
         } catch let error as LGNC.ContractError {
-            result = context.isSecure || error.isPublicError
-                ? .init(from: [LGNC.GLOBAL_ERROR_KEY: [error]])
-                : .internalError
+            result = .init(
+                result: context.isSecure || error.isPublicError
+                    ? LGNC.Entity.Result(from: [LGNC.GLOBAL_ERROR_KEY: [error]])
+                    : LGNC.Entity.Result.internalError
+            )
             context.logger.error("Contract error: \(error)")
         } catch {
             context.logger.critical("Quite uncaught error: \(error)")
-            result = .internalError
+            result = .init(result: LGNC.Entity.Result.internalError)
         }
 
         context.logger.info(
@@ -138,7 +149,7 @@ public extension Service {
     internal static func checkGuarantees() throws {
         if LGNC.ALLOW_INCOMPLETE_GUARANTEE == false && Self.checkContractsCallbacks() == false {
             throw LGNC.E.serverError(
-                "Not all contracts are guaranteed (to disable set LGNC.ALLOW_PART_GUARANTEE to true)"
+                "Not all contracts are guaranteed (to disable set LGNC.ALLOW_INCOMPLETE_GUARANTEE to true)"
             )
         }
     }

@@ -6,7 +6,7 @@ import NIOHTTP1
 import NIOWebSocket
 import LGNPContenter
 
-public protocol WebsocketRouter: AnyObject {
+public protocol WebsocketRouter: AnyObject, Sendable {
     var upgrader: HTTPServerProtocolUpgrader { get }
     var service: Service.Type { get }
     var requestID: UUID { get set }
@@ -44,7 +44,7 @@ public extension WebsocketRouter {
                     eventLoop: channel.eventLoop
                 )
 
-                detach {
+                Task.detached {
                     do {
                         guard let webSocketURI = self.service.webSocketURI else {
                             self.logger.critical("Tried to upgrade HTTP to WebSocket while Service doesn't have a WebSocket URI")
@@ -75,7 +75,7 @@ public extension WebsocketRouter {
             upgradePipelineHandler: { (channel: Channel, head: HTTPRequestHead) -> EventLoopFuture<Void> in
                 let promise = channel.eventLoop.makePromise(of: Void.self)
 
-                detach {
+                Task.detached {
                     do {
                         promise.succeed(try await self.upgradePipelineHandler(head: head))
                     } catch {
@@ -90,7 +90,7 @@ public extension WebsocketRouter {
     }
 
     func upgradePipelineHandler(head: HTTPRequestHead) async throws {
-        try await self.channel.pipeline.addHandler(LGNC.WebSocket.Handler(router: self)).get()
+        try await self.channel.pipeline.addHandler(LGNC.WebSocket.Handler(router: self)).value
     }
 
     func executeContract(
@@ -99,21 +99,46 @@ public extension WebsocketRouter {
         dict: Entita.Dict
     ) async throws -> LGNC.WebSocket.Response? {
         try await LGNCore.Context.$current.withValue(self.baseContext) {
-            let contractResponse = try await self.service.executeContract(URI: URI, dict: dict)
+            let contractResponse = try await self.service.executeContract(
+                URI: URI,
+                dict: dict
+            )
 
-            if contractResponse.result is LGNC.Entity.Empty {
-                return nil
+            let result: WebSocketFrame?
+
+            switch contractResponse.result {
+            case let .Structured(entity):
+                // fast return on empty response
+                if let entity = entity as? LGNC.Entity.Result, entity.result is LGNC.Entity.Empty {
+                    result = nil
+                    break
+                }
+                result = try LGNC.WebSocket.getFrame(
+                    from: LGNC.WebSocket.Response.Box(
+                        RequestID: clientRequestID,
+                        Response: entity.getDictionary().pack(to: self.contentType)
+                    ),
+                    format: self.contentType,
+                    allocator: self.channel.allocator,
+                    opcode: self.contentType == .MsgPack ? .binary : .text
+                )
+            case let .Binary(file, _):
+                result = WebSocketFrame(
+                    fin: true,
+                    opcode: .binary,
+                    data: self.channel.allocator.buffer(
+                        bytes: LGNCore.getBytes(clientRequestID) + Bytes([10]) + file.body
+                    )
+                )
             }
 
-            return try LGNC.WebSocket.Response(
-                clientRequestID: clientRequestID,
-                frame: LGNC.WebSocket.getFrame(
-                    from: LGNC.WebSocket.Response.Box(RequestID: clientRequestID, Response: contractResponse),
-                    format: self.contentType,
-                    allocator: self.channel.allocator
-                ),
-                close: false
-            )
+            return result.map {
+                LGNC.WebSocket.Response(
+                    clientRequestID: clientRequestID,
+                    frame: $0,
+                    close: contractResponse.meta[LGNC.WebSocket.META_CLOSE_FLAG_KEY] == LGNC.WebSocket.META_CLOSE_FLAG
+                )
+            }
         }
     }
 
@@ -123,7 +148,7 @@ public extension WebsocketRouter {
 }
 
 extension LGNC.WebSocket {
-    class Handler: ChannelInboundHandler {
+    final class Handler: ChannelInboundHandler, @unchecked Sendable {
         typealias InboundIn = WebSocketFrame
         typealias OutboundOut = WebSocketFrame
 
@@ -192,7 +217,7 @@ extension LGNC.WebSocket {
                 eventLoop: context.eventLoop
             )
 
-            detach {
+            Task.detached {
                 do {
                     promise.succeed(try await self.router.route(request: request))
                 } catch {
@@ -291,7 +316,7 @@ extension LGNC.WebSocket {
         WebSocketFrame(fin: true, opcode: .text, data: .init(staticString: "internal server error"))
     }
 
-    open class SimpleRouter: WebsocketRouter {
+    open class SimpleRouter: WebsocketRouter, @unchecked Sendable {
         public unowned let channel: Channel
         public let service: Service.Type
         public var allowedURIs: [String]

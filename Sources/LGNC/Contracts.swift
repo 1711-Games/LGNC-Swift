@@ -3,13 +3,33 @@ import LGNCore
 import LGNS
 import NIO
 
+public struct ContractExecutionResult {
+    public enum Result {
+        case Structured(Entity)
+        case Binary(File, HTTP.ContentDisposition?)
+    }
+
+    public let result: Self.Result
+    public internal(set) var meta: Meta
+
+    public init(result: Self.Result, meta: Meta = [:]) {
+        self.result = result
+        self.meta = meta
+    }
+
+    public init(result: LGNC.Entity.Result, meta: Meta = [:]) {
+        self.init(result: .Structured(result), meta: meta)
+    }
+}
+
 public typealias Meta = LGNC.Entity.Meta
-public typealias CanonicalContractResponse = (response: Entity, meta: Meta)
+public typealias CanonicalCompositeRequest = Swift.Result<Entity, Error>
+public typealias CanonicalStructuredContractResponse = (response: Entity, meta: Meta)
 
 /// A type erased contract
 public protocol AnyContract {
     /// Canonical form of contract body (guarantee) type
-    typealias CanonicalGuaranteeBody = (Entity) async throws -> CanonicalContractResponse
+    typealias CanonicalGuaranteeBody = (CanonicalCompositeRequest) async throws -> ContractExecutionResult
 
     /// URI of contract, must be unique for service
     static var URI: String { get }
@@ -32,53 +52,14 @@ public protocol AnyContract {
     /// Contract guarantee closure body
     static var guaranteeBody: Optional<Self.CanonicalGuaranteeBody> { get set }
 
+    /// Indicates whether this contract returns response in structured form (i.e. an API contract in JSON/MsgPack format)
+    static var isResponseStructured: Bool { get }
+
     /// A computed property returning `true` if contract is guaranteed
     static var isGuaranteed: Bool { get }
 
     /// An internal method for invoking contract with given raw dict (context is available via `LGNCore.Context.current`), not to be used directly
-    static func invoke(with dict: Entita.Dict) async throws -> CanonicalContractResponse
-}
-
-public extension AnyContract {
-    static var isWebSocketTransportAvailable: Bool {
-        self.transports.contains(.WebSocket)
-    }
-
-    static var isWebSocketOnly: Bool {
-        self.transports == [.WebSocket]
-    }
-
-    static var isGETSafe: Bool { false }
-
-    static var preferredTransport: LGNCore.Transport {
-        guard self.transports.count > 0 else {
-            LGNC.logger.error("Empty transports in contract \(Self.self), returning .LGNS")
-            return .LGNS
-        }
-
-        if self.transports.contains(.LGNS) {
-            return .LGNS
-        }
-
-        return .HTTP
-    }
-
-    static var preferredContentType: LGNCore.ContentType {
-        guard self.transports.count > 0 else {
-            LGNC.logger.error("Empty content-types in contract \(Self.self), returning .JSON")
-            return .JSON
-        }
-
-        if Self.preferredTransport == .LGNS && self.contentTypes.contains(.MsgPack) {
-            return .MsgPack
-        }
-
-        return .JSON
-    }
-
-    static var isGuaranteed: Bool {
-        self.guaranteeBody != nil
-    }
+    static func _invoke(with dict: Entita.Dict) async throws -> ContractExecutionResult
 }
 
 /// A type erased yet more concrete contract than `AnyContract`, as it defines `Request`, `Response` and other dynamic stuff
@@ -98,11 +79,23 @@ public protocol Contract: AnyContract {
     /// Contract body (guarantee) type in which contract returns only Response
     typealias GuaranteeBody = (Request) async throws -> Response
 
+    typealias GuaranteeBodyFileCanonical = (Swift.Result<Request, Error>) async throws -> (response: File, disposition: HTTP.ContentDisposition?, meta: Meta)
+
+    typealias GuaranteeBodyFile = (Swift.Result<Request, Error>) async throws -> File
+
+    typealias GuaranteeBodyHTML = (Swift.Result<Request, Error>) async throws -> (response: String, headers: [String: String])
+
+    static func guaranteeFileCanonical(_ guaranteeBody: @escaping Self.GuaranteeBodyFileCanonical)
+
+    static func guaranteeFile(_ guaranteeBody: @escaping Self.GuaranteeBodyFile)
+
+    static func guaranteeHTML(_ guaranteeBody: @escaping Self.GuaranteeBodyHTML)
+
     /// Setter for contract body (guarantee)
     static func guarantee(_ guaranteeBody: @escaping Self.GuaranteeBody)
 
     /// Setter for contract body (guarantee)
-    static func guarantee(_ guaranteeBody: @escaping Self.GuaranteeBodyWithMeta)
+    static func guaranteeCanonical(_ guaranteeBody: @escaping Self.GuaranteeBodyWithMeta)
 
     /// Executes current contract on remote node at given address with given request
     static func executeReturningMeta(
@@ -136,30 +129,92 @@ public extension Contract {
     typealias InitValidationErrors = [String: [ValidatorError]]
 
     static func guarantee(_ guaranteeBody: @escaping Self.GuaranteeBody) {
-        self.guaranteeBody = { (request: Entity) async throws -> (response: Entity, meta: Meta) in
-            (response: try await guaranteeBody(request as! Request) as Entity, meta: [:])
+        self.guaranteeCanonical { (request: Request) async throws -> (response: Response, meta: Meta) in
+            try await (response: guaranteeBody(request), meta: [:])
         }
     }
 
-    static func guarantee(_ guaranteeBody: @escaping Self.GuaranteeBodyWithMeta) {
-        self.guaranteeBody = { (request: Entity) async throws -> (response: Entity, meta: Meta) in
-            let result = try await guaranteeBody(request as! Request)
-            return (response: result.response as Entity, meta: result.meta)
+    static func guaranteeCanonical(_ guaranteeBody: @escaping Self.GuaranteeBodyWithMeta) {
+        self.guaranteeBody = { (request: CanonicalCompositeRequest) async throws -> ContractExecutionResult in
+            switch request {
+            case .success(let rawRequest):
+                let (response, meta) = try await guaranteeBody(rawRequest as! Request)
+                return ContractExecutionResult(result: .Structured(response as Entity), meta: meta)
+            case .failure(let error):
+                LGNCore.Context.current.logger.critical(
+                    "Contract \(Self.self) with structured response got request in error state (this must not happen)",
+                    metadata: ["error": "\(error)"]
+                )
+                throw LGNC.ContractError.InternalError
+            }
         }
     }
 
-    static func invoke(with dict: Entita.Dict) async throws -> CanonicalContractResponse {
-        guard let guaranteeBody = self.guaranteeBody else {
-            throw LGNC.E.ControllerError(
-                "No guarantee closure for contract '\(self.URI)'"
+    static func guaranteeFileCanonical(_ guaranteeBody: @escaping Self.GuaranteeBodyFileCanonical) {
+        self.guaranteeBody = { (request: CanonicalCompositeRequest) async throws -> ContractExecutionResult in
+            let (file, disposition, meta) = try await guaranteeBody(request.map { $0 as! Request })
+            return ContractExecutionResult(result: .Binary(file, disposition), meta: meta)
+        }
+    }
+
+    static func guaranteeFile(_ guaranteeBody: @escaping Self.GuaranteeBodyFile) {
+        self.guaranteeFileCanonical { request in
+            (
+                response: try await guaranteeBody(request),
+                disposition: .Attachment,
+                meta: [:]
             )
         }
+    }
 
-        let (response, _meta) = try await guaranteeBody(try await Request.initWithValidation(from: dict) as Entity)
-        var meta = _meta
+    static func guaranteeHTML(_ guaranteeBody: @escaping Self.GuaranteeBodyHTML) {
+        self.guaranteeFileCanonical { request in
+            let html: String
+            let headers: [String: String]
 
-        if LGNCore.Context.current.transport == .HTTP && Response.hasCookieFields {
-            for (name, cookie) in Mirror(reflecting: response)
+            do {
+                let (_html, _headers) = try await guaranteeBody(request)
+                html = _html
+                headers = _headers
+            } catch let error as Redirect {
+                html = ""
+                headers = ["Location": error.location]
+            }
+
+            var meta = Meta()
+            headers.forEach { k, v in
+                meta[LGNC.HTTP.HEADER_PREFIX + k] = v
+            }
+
+            return (
+                response: File(contentType: .textHTML, body: Bytes(html.utf8)),
+                disposition: nil,
+                meta: meta
+            )
+        }
+    }
+
+    static func _invoke(with dict: Entita.Dict) async throws -> ContractExecutionResult {
+        guard let guaranteeBody = self.guaranteeBody else {
+            throw LGNC.E.ControllerError("No guarantee closure for contract '\(self.URI)'")
+        }
+
+        let request: CanonicalCompositeRequest
+        do {
+            request = try await .success(Request.initWithValidation(from: dict) as Entity)
+        } catch {
+            if self.isResponseStructured {
+                throw error
+            }
+            request = .failure(error)
+        }
+
+        var response = try await guaranteeBody(request)
+
+        if LGNCore.Context.current.transport == .HTTP && Response.hasCookieFields,
+           case .Structured(let responseEntity) = response.result
+        {
+            for (name, cookie) in Mirror(reflecting: responseEntity)
                 .children
                 .compactMap({ (mirror: Mirror.Child) -> (String, LGNC.Entity.Cookie)? in
                     guard let name = mirror.label, let value = mirror.value as? LGNC.Entity.Cookie else {
@@ -172,11 +227,11 @@ public extension Contract {
                 if cookie.name.isEmpty {
                     _cookie.name = name
                 }
-                try meta.appending(cookie: _cookie)
+                try response.meta.appending(cookie: _cookie)
             }
         }
 
-        return (response: response, meta: meta)
+        return response
     }
 
     static func executeReturningMeta(
@@ -285,6 +340,52 @@ public extension Contract {
         }
 
         return (response: response, meta: meta)
+    }
+}
+
+public extension AnyContract {
+    static var isResponseStructured: Bool {
+        true
+    }
+
+    static var isWebSocketTransportAvailable: Bool {
+        self.transports.contains(.WebSocket)
+    }
+
+    static var isWebSocketOnly: Bool {
+        self.transports == [.WebSocket]
+    }
+
+    static var isGETSafe: Bool { false }
+
+    static var preferredTransport: LGNCore.Transport {
+        guard self.transports.count > 0 else {
+            LGNC.logger.error("Empty transports in contract \(Self.self), returning .LGNS")
+            return .LGNS
+        }
+
+        if self.transports.contains(.LGNS) {
+            return .LGNS
+        }
+
+        return .HTTP
+    }
+
+    static var preferredContentType: LGNCore.ContentType {
+        guard self.transports.count > 0 else {
+            LGNC.logger.error("Empty content-types in contract \(Self.self), returning .JSON")
+            return .JSON
+        }
+
+        if Self.preferredTransport == .LGNS && self.contentTypes.contains(.MsgPack) {
+            return .MsgPack
+        }
+
+        return .JSON
+    }
+
+    static var isGuaranteed: Bool {
+        self.guaranteeBody != nil
     }
 }
 

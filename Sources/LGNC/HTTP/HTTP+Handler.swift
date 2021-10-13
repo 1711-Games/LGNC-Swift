@@ -1,145 +1,10 @@
 import Foundation
-import LGNCore
-import LGNP
-import LGNPContenter
-import LGNS
 import NIO
 import NIOHTTP1
-import AsyncHTTPClient
-
-public extension LGNC {
-    enum HTTP {
-        public typealias ResolverResult = (body: Bytes, headers: [(name: String, value: String)])
-        public typealias Resolver = (Request) async throws -> ResolverResult
-
-        public static let HEADER_PREFIX = "HEADER__"
-        public static let COOKIE_META_KEY_PREFIX = HEADER_PREFIX + "Set-Cookie: "
-    }
-}
-
-public extension LGNCore.ContentType {
-    init?(from HTTPHeader: String) {
-        let result: LGNCore.ContentType
-
-        switch HTTPHeader {
-        case "text/plain": result = .PlainText
-        case "application/xml": result = .XML
-        case "application/json": result = .JSON
-        case "application/msgpack": result = .MsgPack
-        default: return nil
-        }
-
-        self = result
-    }
-
-    var header: String {
-        let result: String
-
-        switch self {
-        case .PlainText: result = "text/plain"
-        case .XML: result = "application/xml"
-        case .JSON: result = "application/json"
-        case .MsgPack: result = "application/msgpack"
-        }
-
-        return result
-    }
-}
-
-public extension LGNC.HTTP {
-    struct Request {
-        public let URI: String
-        public let headers: HTTPHeaders
-        public let remoteAddr: String
-        public let body: Bytes
-        public let uuid: UUID
-        public let contentType: LGNCore.ContentType
-        public let method: HTTPMethod
-        public let meta: LGNC.Entity.Meta
-        public let eventLoop: EventLoop
-    }
-}
-
-public extension LGNC.HTTP {
-    class Server: AnyServer {
-        private let readTimeout: TimeAmount
-        private let writeTimeout: TimeAmount
-
-        public static let logger: Logger = Logger(label: "LGNC.HTTP")
-        public static var defaultPort: Int = 8080
-
-        public let address: LGNCore.Address
-        public let eventLoopGroup: EventLoopGroup
-        public var channel: Channel!
-        public var bootstrap: ServerBootstrap!
-        public var isRunning: Bool = false
-
-        public required init(
-            address: LGNCore.Address,
-            eventLoopGroup: EventLoopGroup,
-            service: Service.Type,
-            webSocketRouter: WebsocketRouter.Type? = nil,
-            readTimeout: Time = .minutes(1),
-            writeTimeout: Time = .minutes(1),
-            resolver: @escaping Resolver
-        ) {
-            self.address = address
-            self.eventLoopGroup = eventLoopGroup
-            self.readTimeout = readTimeout
-            self.writeTimeout = writeTimeout
-
-            let httpHandlers: [ChannelHandler & RemovableChannelHandler] = [
-                NIOHTTPServerRequestAggregator(maxContentLength: 1_000_000),
-                LGNC.HTTP.Handler(resolver: resolver),
-            ]
-
-            self.bootstrap = ServerBootstrap(group: self.eventLoopGroup)
-                .serverChannelOption(ChannelOptions.backlog, value: 256)
-                .serverChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
-                .childChannelInitializer { channel in
-                    var upgrader: NIOHTTPServerUpgradeConfiguration? = nil
-                    if let webSocketRouterType = webSocketRouter {
-                        let webSocketRouter = webSocketRouterType.init(channel: channel, service: service)
-                        upgrader = (
-                            upgraders: [ webSocketRouter.upgrader ],
-                            completionHandler: { context in
-                                for handler in httpHandlers {
-                                    context.channel.pipeline.removeHandler(handler, promise: nil)
-                                }
-                            }
-                        )
-                    }
-
-                    return channel.pipeline
-                        .configureHTTPServerPipeline(withServerUpgrade: upgrader, withErrorHandling: true)
-                        .flatMap { channel.pipeline.addHandlers(httpHandlers) }
-                }
-                .childChannelOption(ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
-                .childChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
-                .childChannelOption(ChannelOptions.maxMessagesPerRead, value: 64)
-                .childChannelOption(ChannelOptions.recvAllocator, value: AdaptiveRecvByteBufferAllocator())
-        }
-
-        deinit {
-            if self.isRunning {
-                Self.logger.warning("HTTP Server has not been shutdown manually")
-            }
-        }
-    }
-}
-
-internal extension Array {
-    func appending<S: Sequence>(contentsOf newElements: S) -> Self where S.Element == Self.Element {
-        var copy = self
-
-        copy.append(contentsOf: newElements)
-
-        return copy
-    }
-}
+import LGNCore
 
 internal extension LGNC.HTTP {
-    final class Handler: ChannelInboundHandler, RemovableChannelHandler {
+    final class Handler: ChannelInboundHandler, RemovableChannelHandler, @unchecked Sendable {
         typealias InboundIn = NIOHTTPServerRequestFull
         typealias OutboundOut = HTTPServerResponsePart
 
@@ -179,7 +44,7 @@ internal extension LGNC.HTTP {
             } else {
                 guard
                     let contentTypeString = request.head.headers["Content-Type"].first,
-                    let _contentType = LGNCore.ContentType.init(from: contentTypeString.lowercased())
+                    let _contentType = LGNCore.ContentType(fromHTTPHeader: contentTypeString)
                 else {
                     self.sendBadRequestResponse(context: context, message: "400 Bad Request (Content-Type header missing)")
                     return
@@ -215,7 +80,7 @@ internal extension LGNC.HTTP {
 
             let resolverResultPromise = context.eventLoop.makePromise(of: ResolverResult.self)
 
-            detach {
+            Task.detached {
                 do {
                     resolverResultPromise.succeed(try await self.resolver(resolverRequest))
                 } catch {
@@ -294,17 +159,17 @@ internal extension LGNC.HTTP {
             let body = self.wrapOutboundOut(.body(.byteBuffer(body)))
             let end = self.wrapOutboundOut(.end(nil))
 
-            context.eventLoop.makeSucceededFuture()
+            context.eventLoop.makeSucceededFuture(())
                 .flatMap { context.writeAndFlush(head) }
                 .flatMap { context.writeAndFlush(body) }
                 .flatMap { context.writeAndFlush(end) }
                 .flatMapError { error in
                     self.logger.error("Could not send response: \(error)")
-                    return context.eventLoop.makeSucceededFuture()
+                    return context.eventLoop.makeSucceededFuture(())
                 }
-                .flatMap { close ? context.close() : context.eventLoop.makeSucceededFuture() }
+                .flatMap { close ? context.close() : context.eventLoop.makeSucceededFuture(()) }
                 .whenComplete { _ in }
         }
-        
+
     }
 }

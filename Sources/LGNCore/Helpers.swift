@@ -1,8 +1,8 @@
 import Foundation
 import Logging
 
-extension UUID: UnsafeSendable {}
-extension Logger: UnsafeSendable {}
+extension UUID: @unchecked Sendable {}
+extension Logger: @unchecked Sendable {}
 
 // autoreleasepool is objc-exclusive thing
 #if !os(macOS)

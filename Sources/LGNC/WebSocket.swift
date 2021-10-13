@@ -5,6 +5,9 @@ import NIO
 import NIOWebSocket
 
 public extension LGNC.WebSocket {
+    static let META_CLOSE_FLAG_KEY = "__META_CLOSE_FLAG_KEY__"
+    static let META_CLOSE_FLAG = "yes"
+
     static func getFrame(
         from entity: DictionaryEncodable,
         format: LGNCore.ContentType,
@@ -24,7 +27,7 @@ public extension LGNC.WebSocket {
         case InvalidUpgradeURI
     }
 
-    struct Request {
+    struct Request: Sendable {
         public let remoteAddr: String
         public let body: Bytes
         public let eventLoop: EventLoop
@@ -33,17 +36,17 @@ public extension LGNC.WebSocket {
     struct Response {
         internal struct Box: DictionaryEncodable {
             let RequestID: String
-            let Response: Entita.Dict
+            let Response: Bytes
 
-            init(RequestID: String, Response: LGNC.Entity.Result) throws {
+            init(RequestID: String, Response: Bytes) throws {
                 self.RequestID = RequestID
-                self.Response = try Response.getDictionary()
+                self.Response = Response
             }
 
             func getDictionary() throws -> Entita.Dict {
                 [
                     "RequestID": try self.encode(self.RequestID),
-                    "Response": try self.encode(self.Response),
+                    "Response": self.Response,
                 ]
             }
         }

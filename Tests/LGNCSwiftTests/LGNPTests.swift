@@ -56,7 +56,7 @@ final class LGNPTests: XCTestCase {
 
         message.meta = nil
 
-        XCTAssertEqual(message.contentType, .PlainText)
+        XCTAssertEqual(message.contentType, .Text)
         XCTAssertEqual(message.containsError, false)
 
         message.controlBitmask.insert(.contentTypeJSON)
@@ -74,7 +74,7 @@ final class LGNPTests: XCTestCase {
         XCTAssertEqual(message.controlBitmask.hasSignature, true)
         message.controlBitmask = .defaultValues
         XCTAssertEqual(message.controlBitmask.hasSignature, false)
-        XCTAssertEqual(message.contentType, .PlainText)
+        XCTAssertEqual(message.contentType, .Text)
         XCTAssertEqual(message.controlBitmask.bytes, [0, 0])
 
         message.controlBitmask = .contentTypeJSON
@@ -84,7 +84,7 @@ final class LGNPTests: XCTestCase {
         message.controlBitmask = .contentTypeXML
         XCTAssertEqual(message.contentType, .XML)
         message.controlBitmask = .contentTypePlainText
-        XCTAssertEqual(message.contentType, .PlainText)
+        XCTAssertEqual(message.contentType, .Text)
 
         XCTAssertEqual(message.controlBitmask.contains(.containsMeta), false)
         message.meta = [7,8,9]

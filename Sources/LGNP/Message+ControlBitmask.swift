@@ -80,9 +80,9 @@ public extension LGNP.Message {
             } else if self.contains(.contentTypeXML) {
                 result = .XML
             } else if self.contains(.contentTypePlainText) {
-                result = .PlainText
+                result = .Text
             } else {
-                result = .PlainText
+                result = .Text
             }
 
             return result

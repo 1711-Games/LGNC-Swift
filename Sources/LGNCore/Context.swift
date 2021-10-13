@@ -9,7 +9,7 @@ public extension LGNCore {
     }
 
     /// Request or response context
-    struct Context: UnsafeSendable {
+    struct Context: @unchecked Sendable {
         /// Network address from which this request physically came from.
         /// It might not be actual client address, but rather last proxy server address.
         public let remoteAddr: String

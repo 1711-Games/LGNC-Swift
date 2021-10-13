@@ -72,11 +72,13 @@ public extension LGNP {
             payload: Bytes,
             controlBitmask: Message.ControlBitmask? = nil,
             URI: String? = nil,
-            uuid: UUID? = nil
+            uuid: UUID? = nil,
+            meta: Bytes? = nil
         ) -> Message {
             Message(
                 URI: URI ?? self.URI,
                 payload: payload,
+                meta: meta ?? self.meta,
                 controlBitmask: (controlBitmask ?? self.controlBitmask).subtracting(.containsMeta),
                 uuid: uuid ?? self.uuid
             )
