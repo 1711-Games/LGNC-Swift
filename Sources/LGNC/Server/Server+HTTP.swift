@@ -97,7 +97,6 @@ public extension Service {
                 var headers: [(name: String, value: String)] = [
                     ("Content-Language", context.locale.rawValue),
                     ("LGNC-UUID", request.uuid.string),
-                    ("Content-Type", request.contentType.HTTPHeader), // todo response content-type
                 ]
 
                 var metaContainsHeaders = false

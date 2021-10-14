@@ -1,0 +1,5 @@
+Transports: [ HTTP, LGNS ]
+IsGETSafe: True
+URI: about_us
+Request: Empty
+Response: HTML

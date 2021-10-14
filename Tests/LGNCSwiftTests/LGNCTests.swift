@@ -155,6 +155,10 @@ final class LGNCTests: XCTestCase {
             )
         }
 
+        S.AboutUs.guarantee { (result: Result<LGNC.Entity.Empty, Error>) -> HTMLResponse in
+            "default response"
+        }
+
         let promiseStartAuthLGNS: EventLoopPromise<Void> = Self.eventLoopGroup.next().makePromise()
         let promiseStartShopLGNS: EventLoopPromise<Void> = Self.eventLoopGroup.next().makePromise()
         let promiseStartAuthHTTP: EventLoopPromise<Void> = Self.eventLoopGroup.next().makePromise()
@@ -492,6 +496,75 @@ final class LGNCTests: XCTestCase {
 
         XCTAssertTrue(result.headers.contains(where: { k, v in k == "Lul" && v == "Kek" }))
         XCTAssertTrue(result.headers.contains(where: { k, v in k == "Gerreg" && v == "Tlaalt" }))
+    }
+
+    @discardableResult
+    func _testHTMLContract(expectedBody: String) async throws -> HTTPClient.Response {
+        let client = HTTPClient(eventLoopGroupProvider: .shared(Self.eventLoopGroup))
+        defer { try! client.syncShutdown() }
+
+        let addressShop = LGNCore.Address.ip(host: "http://127.0.0.1", port: 27023)
+
+        let result = try await client
+            .execute(request: HTTPClient.Request(url: "\(addressShop)/about_us", method: .GET))
+            .value
+
+        XCTAssertNotNil(result.body)
+        XCTAssertEqual(result.body!.getString(at: 0, length: result.body!.readableBytes), "<h1>Hello!</h1>")
+        XCTAssertEqual(result.headers.first(name: "Content-Type"), "text/html")
+
+        return result
+    }
+
+    func testHTMLContract_string() async throws {
+        let expectedBody = "<h1>Hello!</h1>"
+
+        S.AboutUs.guarantee { (result: Result<LGNC.Entity.Empty, Error>) -> HTMLResponse in
+            expectedBody
+        }
+
+        try await self._testHTMLContract(expectedBody: expectedBody)
+    }
+
+    func testHTMLContract_byteBuffer_string() async throws {
+        let expectedBody = "<h1>Hello!</h1>"
+
+        S.AboutUs.guarantee { (result: Result<LGNC.Entity.Empty, Error>) -> HTMLResponse in
+            ByteBufferAllocator().buffer(string: expectedBody)
+        }
+
+        try await self._testHTMLContract(expectedBody: expectedBody)
+    }
+
+    func testHTMLContract_byteBuffer_bytes() async throws {
+        let expectedBody = "<h1>Hello!</h1>"
+
+        S.AboutUs.guarantee { (result: Result<LGNC.Entity.Empty, Error>) -> HTMLResponse in
+            ByteBufferAllocator().buffer(bytes: LGNCore.getBytes(expectedBody))
+        }
+
+        try await self._testHTMLContract(expectedBody: expectedBody)
+    }
+
+    func testHTMLContract_ELF_byteBuffer() async throws {
+        let expectedBody = "<h1>Hello!</h1>"
+
+        S.AboutUs.guarantee { (result: Result<LGNC.Entity.Empty, Error>) -> HTMLResponse in
+            self.eventLoop.makeSucceededFuture(ByteBufferAllocator().buffer(string: expectedBody))
+        }
+
+        try await self._testHTMLContract(expectedBody: expectedBody)
+    }
+
+    func testHTMLContract_withHeaders() async throws {
+        let expectedBody = "<h1>Hello!</h1>"
+
+        S.AboutUs.guarantee { (result: Result<LGNC.Entity.Empty, Error>) -> HTMLResponse in
+            S.AboutUs.withHeaders(html: expectedBody, headers: ["X-Foo": "Bar"])
+        }
+
+        let result = try await self._testHTMLContract(expectedBody: expectedBody)
+        XCTAssertEqual(result.headers.first(name: "X-Foo"), "Bar")
     }
 
 //    static var allTests = [

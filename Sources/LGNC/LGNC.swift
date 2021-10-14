@@ -424,7 +424,9 @@ public extension LGNC.Entity {
         }
 
         public func getDictionary() throws -> Entita.Dict {
-            return [:]
+            [:]
         }
     }
+
+    typealias HTML = Empty
 }
