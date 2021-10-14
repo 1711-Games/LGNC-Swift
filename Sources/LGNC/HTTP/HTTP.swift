@@ -33,7 +33,7 @@ public extension HTTP {
         case Inline = "inline"
         case Attachment = "attachment"
 
-        func header(forFile file: File) -> (name: String, value: String) {
+        func header(forFile file: LGNC.Entity.File) -> (name: String, value: String) {
             (
                 name: "Content-Disposition",
                 value: "\(self)\(file.filename.map { "; filename=\"\($0)\"" } ?? "")"

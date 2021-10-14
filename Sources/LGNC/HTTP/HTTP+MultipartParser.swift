@@ -92,7 +92,7 @@ extension HTTP {
                     logger.debug("File does not contain filename: \(headers)")
                     continue
                 }
-                result = File(filename: filename, contentType: contentType, body: Bytes(body))
+                result = LGNC.Entity.File(filename: filename, contentType: contentType, body: Bytes(body))
             } else /* String */ {
                 result = String(bytes: body, encoding: .utf8)!
             }

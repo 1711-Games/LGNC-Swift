@@ -137,6 +137,8 @@ public extension LGNC {
     enum WebSocket {}
 }
 
+public enum Contracts {}
+
 public extension LGNC.Entity {
     typealias Meta = [String: String]
 

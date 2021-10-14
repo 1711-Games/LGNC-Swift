@@ -1,6 +1,6 @@
 import Entita
 
-extension File: DictionaryConvertible {
+extension LGNC.Entity.File: DictionaryConvertible {
     public init(from dictionary: Entita.Dict) throws {
         try self.init(
             filename: Self.extract(param: "filename", from: dictionary),
@@ -20,7 +20,7 @@ extension File: DictionaryConvertible {
 
 public extension DictionaryEncodable {
     /// Encodes input `File`
-    func encode(_ input: File) throws -> Any {
+    func encode(_ input: LGNC.Entity.File) throws -> Any {
         input as Any
     }
 }
