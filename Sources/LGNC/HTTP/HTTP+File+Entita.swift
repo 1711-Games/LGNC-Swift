@@ -18,6 +18,12 @@ extension LGNC.Entity.File: DictionaryConvertible {
     }
 }
 
+extension LGNC.Entity.File: ContractEntity {
+    public static func initWithValidation(from dictionary: Entita.Dict) async throws -> LGNC.Entity.File {
+        try self.init(from: dictionary)
+    }
+}
+
 public extension DictionaryEncodable {
     /// Encodes input `File`
     func encode(_ input: LGNC.Entity.File) throws -> Any {

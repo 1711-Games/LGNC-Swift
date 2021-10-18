@@ -90,7 +90,7 @@ public extension Service {
 
         do {
             guard let contractInfo = self.contractMap[URI] else {
-                throw LGNC.ContractError.URINotFound(URI)
+                throw LGNC.ContractError.URINotFound(URI) // todo customizable 404 errors
             }
             guard LGNC.ALLOW_ALL_TRANSPORTS == true || contractInfo.transports.contains(context.transport) else {
                 throw LGNC.ContractError.TransportNotAllowed(context.transport)
@@ -101,8 +101,13 @@ public extension Service {
                 switch rawResponse.result {
                 case let .Structured(entity):
                     result = .init(result: .Structured(LGNC.Entity.Result(from: entity)), meta: rawResponse.meta)
-                case .Binary:
-                    result = rawResponse
+                case let .Binary(entity, _):
+                    // for LGNS result must always be structured (todo: make binary result actually binary maybe?)
+                    if context.transport == .LGNS {
+                        result = .init(result: .Structured(LGNC.Entity.Result(from: entity)), meta: rawResponse.meta)
+                    } else {
+                        result = rawResponse
+                    }
                 }
             } catch {
                 do {

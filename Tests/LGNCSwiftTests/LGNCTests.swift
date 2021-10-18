@@ -156,7 +156,15 @@ final class LGNCTests: XCTestCase {
         }
 
         S.AboutUs.guarantee { (result: Result<LGNC.Entity.Empty, Error>) -> HTMLResponse in
-            "default response"
+            "default HTML response"
+        }
+
+        S.DownloadPurchase.guarantee { _ in
+            LGNC.Entity.File(filename: "", contentType: .TextPlain, body: Bytes([1, 2, 3]))
+        }
+
+        S.Upload.guarantee { _ in
+            "default upload response"
         }
 
         let promiseStartAuthLGNS: EventLoopPromise<Void> = Self.eventLoopGroup.next().makePromise()
@@ -511,7 +519,7 @@ final class LGNCTests: XCTestCase {
 
         XCTAssertNotNil(result.body)
         XCTAssertEqual(result.body!.getString(at: 0, length: result.body!.readableBytes), "<h1>Hello!</h1>")
-        XCTAssertEqual(result.headers.first(name: "Content-Type"), "text/html")
+        XCTAssertEqual(result.headers.first(name: "Content-Type"), "text/html; charset=UTF-8")
 
         return result
     }
@@ -565,6 +573,141 @@ final class LGNCTests: XCTestCase {
 
         let result = try await self._testHTMLContract(expectedBody: expectedBody)
         XCTAssertEqual(result.headers.first(name: "X-Foo"), "Bar")
+    }
+
+    func _testFileContract_setup() -> Bytes {
+        let bytes: Bytes = LGNCore.getBytes("😂 Привет мир! 😂")
+
+        S.DownloadPurchase.guaranteeCanonical { _ in
+            .init(
+                file: .init(filename: "LGNC.exe", contentType: .ApplicationOctetStream, body: bytes),
+                disposition: .Attachment,
+                meta: HTTP.metaWithHeaders(
+                    headers: ["X-Foo": "Bar"],
+                    meta: ["Baz": "Sas"]
+                )
+            )
+        }
+
+        return bytes
+    }
+
+    func testFileContract_download_HTTP() async throws {
+        let expected = self._testFileContract_setup()
+
+        let client = HTTPClient(eventLoopGroupProvider: .shared(Self.eventLoopGroup))
+        defer { try! client.syncShutdown() }
+
+        let addressShop = LGNCore.Address.ip(host: "http://127.0.0.1", port: 27023)
+
+        let result = try await client
+            .execute(request: HTTPClient.Request(url: "\(addressShop)/download_purchase", method: .GET))
+            .value
+
+        XCTAssertNotNil(result.body)
+        XCTAssertEqual(result.body!.getBytes(at: 0, length: result.body!.readableBytes), expected)
+        XCTAssertEqual(result.headers.first(name: "Content-Type"), "application/octet-stream")
+        XCTAssertEqual(result.headers.first(name: "Content-Disposition"), "Attachment; filename=\"LGNC.exe\"")
+        XCTAssertEqual(result.headers.first(name: "X-Foo"), "Bar")
+    }
+
+    func testFileContract_download_LGNS() async throws {
+        let expected = self._testFileContract_setup()
+
+        let cryptor = try LGNP.Cryptor(key: [1,2,3,4,5,6,7,8,1,2,3,4,5,6,7,8])
+        let controlBitmask: LGNP.Message.ControlBitmask = [.contentTypeMsgPack]
+
+        let client = LGNS.Client(
+            cryptor: cryptor,
+            controlBitmask: controlBitmask,
+            eventLoopGroup: Self.eventLoopGroup
+        )
+        let result = try await S.DownloadPurchase.execute(
+            at: LGNCore.Address.ip(host: "127.0.0.1", port: 27021),
+            with: .init(),
+            using: client
+        )
+
+        XCTAssertEqual(result.filename, "LGNC.exe")
+        XCTAssertEqual(result.contentType.type, "application/octet-stream")
+        XCTAssertEqual(result.body, expected)
+    }
+
+    public func testFileContract_upload() async throws {
+        // upload example taken from https://stackoverflow.com/a/28380690/25705
+        let upload = """
+        -----------------------------141487394013402550553084642717
+        Content-Disposition: form-data; name="text1"
+
+        text default
+        -----------------------------141487394013402550553084642717
+        Content-Disposition: form-data; name="text2"
+
+        aωb
+        -----------------------------141487394013402550553084642717
+        Content-Disposition: form-data; name="file1"; filename="a.txt"
+        Content-Type: text/plain
+
+        Content of a.txt.
+
+        -----------------------------141487394013402550553084642717
+        Content-Disposition: form-data; name="file2"; filename="a.html"
+        Content-Type: text/html;charset = utf-8
+
+        <!DOCTYPE html><title>Content of a.html.</title>
+
+        -----------------------------141487394013402550553084642717
+        Content-Disposition: form-data; name="file3"; filename="binary"
+        Content-Type: application/octet-stream
+
+        aωb
+        -----------------------------141487394013402550553084642717--
+        """.data(using: .utf8)!
+
+        S.Upload.guarantee { _request in
+            let result: String
+            switch _request {
+            case let .success(request):
+                result = """
+                text1=\(request.text1),
+                text2=\(request.text2),
+                file1=filename:\(request.file1.filename!) content-type:\(request.file1.contentType.header) body:\(String(bytes: request.file1.body, encoding: .utf8)!),
+                file2=filename:\(request.file2.filename!) content-type:\(request.file2.contentType.header) body:\(String(bytes: request.file2.body, encoding: .utf8)!),
+                file3=filename:\(request.file3.filename!) content-type:\(request.file3.contentType.header) body:\(String(bytes: request.file3.body, encoding: .utf8)!),
+                """
+            case let .failure(error):
+                result = "This shouldn't've happen: \(error)"
+            }
+            return result
+        }
+
+        let client = HTTPClient(eventLoopGroupProvider: .shared(Self.eventLoopGroup))
+        defer { try! client.syncShutdown() }
+
+        let result = try await client
+            .execute(
+                request: HTTPClient.Request(
+                    url: "\(LGNCore.Address.ip(host: "http://127.0.0.1", port: 27023))/Upload",
+                    method: .POST,
+                    headers: [
+                        "Content-Type": "multipart/form-data; boundary=---------------------------141487394013402550553084642717",
+                    ],
+                    body: .data(upload)
+                )
+            )
+            .value
+
+        XCTAssertNotNil(result.body)
+        XCTAssertEqual(
+            result.body!.getString(at: 0, length: result.body!.readableBytes)!,
+            """
+            text1=text default,
+            text2=aωb,
+            file1=filename:a.txt content-type:text/plain body:Content of a.txt.\n,
+            file2=filename:a.html content-type:text/html; charset=utf-8 body:<!DOCTYPE html><title>Content of a.html.</title>\n,
+            file3=filename:binary content-type:application/octet-stream body:aωb,
+            """
+        )
     }
 
 //    static var allTests = [

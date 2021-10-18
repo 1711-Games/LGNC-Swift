@@ -31,7 +31,7 @@ public protocol Contract: AnyContract {
 
 public extension Contract {
     static func _invoke(with dict: Entita.Dict) async throws -> ContractExecutionResult {
-        guard let guaranteeBody = self.guaranteeBody else {
+        guard let guaranteeBody = self._guaranteeBody else {
             throw LGNC.E.ControllerError("No guarantee closure for contract '\(self.URI)'")
         }
 
@@ -119,7 +119,8 @@ public extension Contract {
                         contract: Self.self,
                         payload: payload,
                         at: address,
-                        context: context)
+                        context: context
+                    )
                     .unpack(from: Self.preferredContentType),
                 type: Self.Response.self
             )

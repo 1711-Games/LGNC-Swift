@@ -28,14 +28,14 @@ public protocol AnyContract {
     /// Preferred content type of request for contract, see default implementation
     static var preferredContentType: LGNCore.ContentType { get }
 
-    /// Contract guarantee closure body
-    static var guaranteeBody: Optional<Self.CanonicalGuaranteeBody> { get set }
-
     /// Indicates whether this contract returns response in structured form (i.e. an API contract in JSON/MsgPack format)
     static var isResponseStructured: Bool { get }
 
     /// A computed property returning `true` if contract is guaranteed
     static var isGuaranteed: Bool { get }
+
+    /// Contract guarantee closure body (must not be set directly)
+    static var _guaranteeBody: Optional<Self.CanonicalGuaranteeBody> { get set }
 
     /// An internal method for invoking contract with given raw dict (context is available via `LGNCore.Context.current`), not to be used directly
     static func _invoke(with dict: Entita.Dict) async throws -> ContractExecutionResult
@@ -83,6 +83,6 @@ public extension AnyContract {
     }
 
     static var isGuaranteed: Bool {
-        self.guaranteeBody != nil
+        self._guaranteeBody != nil
     }
 }

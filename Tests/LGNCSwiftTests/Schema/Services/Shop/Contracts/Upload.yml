@@ -1,0 +1,9 @@
+Transports: [ HTTP ]
+Request:
+    Fields:
+        text1: String
+        text2: String
+        file1: File
+        file2: File
+        file3: File
+Response: HTML

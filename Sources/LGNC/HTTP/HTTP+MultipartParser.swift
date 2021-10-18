@@ -7,7 +7,7 @@ extension HTTPHeaders {
         guard let header = self.first(name: "Content-Type"), header.starts(with: "multipart/form-data") else {
             return nil
         }
-        return parseKV(from: header)["boundary"]
+        return LGNCore.parseKV(from: header)["boundary"]
     }
 }
 
@@ -68,7 +68,7 @@ extension HTTP {
                 continue
             }
 
-            let KVs = parseKV(from: contentDisposition)
+            let KVs = LGNCore.parseKV(from: contentDisposition)
             guard let name = KVs["name"] else {
                 logger.debug("Content-Disposition does not contain 'name' value: \(contentDisposition)")
                 continue
@@ -81,9 +81,9 @@ extension HTTP {
                 rawContentType = _rawContentType
             } else {
                 isFile = false
-                rawContentType = ContentType.textPlain.type
+                rawContentType = LGNCore.ContentType.TextPlain.type
             }
-            let contentType = ContentType(rawValue: rawContentType)
+            let contentType = LGNCore.ContentType(rawValue: rawContentType)
 
             let result: Any
 

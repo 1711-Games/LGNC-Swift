@@ -78,3 +78,31 @@ public extension Sequence {
             .compactMap { $0 }
     }
 }
+
+public extension LGNCore {
+    typealias KV = (key: String, value: String)
+
+    static func parseKV(from input: String) -> [String: String] {
+        .init(
+            input
+                .components(separatedBy: ";")
+                .compactMap { (rawPair: String) -> KV? in
+                    let parsedPair = rawPair
+                        .trimmingCharacters(in: .whitespaces)
+                        .components(separatedBy: "=")
+
+                    guard parsedPair.count == 2 else {
+                        return nil
+                    }
+
+                    return KV(
+                        key: parsedPair[0].trimmingCharacters(in: .whitespaces),
+                        value: parsedPair[1]
+                            .trimmingCharacters(in: .whitespaces)
+                            .trimmingCharacters(in: .init(charactersIn: "\""))
+                    )
+                },
+            uniquingKeysWith: { first, second in first }
+        )
+    }
+}

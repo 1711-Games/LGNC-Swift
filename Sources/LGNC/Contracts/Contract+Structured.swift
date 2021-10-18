@@ -30,7 +30,7 @@ public extension StructuredContract {
     }
 
     static func guaranteeCanonical(_ guaranteeBody: @escaping Self.GuaranteeBodyCanonical) {
-        self.guaranteeBody = { (request: CanonicalCompositeRequest) async throws -> ContractExecutionResult in
+        self._guaranteeBody = { (request: CanonicalCompositeRequest) async throws -> ContractExecutionResult in
             switch request {
             case .success(let rawRequest):
                 let (response, meta) = try await guaranteeBody(rawRequest as! Request)

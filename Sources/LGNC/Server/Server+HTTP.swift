@@ -100,6 +100,7 @@ public extension Service {
                 ]
 
                 var metaContainsHeaders = false
+                var contentTypeFound = false
                 headers.append(
                     contentsOf: result
                         .meta
@@ -115,6 +116,11 @@ public extension Service {
                             } else {
                                 key = k.replacingOccurrences(of: LGNC.HTTP.HEADER_PREFIX, with: "")
                             }
+
+                            if !contentTypeFound && key == "Content-Type" {
+                                contentTypeFound = true
+                            }
+
                             return (key, value)
                         }
                 )
@@ -128,7 +134,7 @@ public extension Service {
 
                 switch result.result {
                 case let .Structured(entity):
-                    contentType = request.contentType.HTTPHeader
+                    contentType = request.contentType.type
                     body = try entity.getDictionary().pack(to: request.contentType)
                 case let .Binary(file, maybeDisposition):
                     if let disposition = maybeDisposition {
@@ -138,7 +144,9 @@ public extension Service {
                     body = file.body
                 }
 
-                headers.append((name: "Content-Type", value: contentType))
+                if !contentTypeFound {
+                    headers.append((name: "Content-Type", value: contentType))
+                }
 
                 return (body: body, headers: headers)
             }

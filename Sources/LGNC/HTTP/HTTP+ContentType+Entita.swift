@@ -1,6 +1,7 @@
+import LGNCore
 import Entita
 
-extension HTTP.ContentType: DictionaryConvertible {
+extension LGNCore.ContentType: DictionaryConvertible {
     public init(from dictionary: Entita.Dict) throws {
         try self.init(
             type: Self.extract(param: "type", from: dictionary),

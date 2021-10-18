@@ -96,7 +96,7 @@ public extension LGNS {
                 resultString = "succeeded"
             } catch {
                 self.responsePromise?.fail(error)
-                resultString = "failed"
+                resultString = "failed (\(error))"
             }
 
             Self.logger.debug(

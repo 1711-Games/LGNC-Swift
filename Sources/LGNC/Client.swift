@@ -83,7 +83,7 @@ extension HTTPClient: LGNCClient {
             url: address.description + "/" + C.URI,
             method: .POST,
             headers: HTTPHeaders([
-                ("Content-Type", contentType.HTTPHeader),
+                ("Content-Type", contentType.type),
                 ("Accept-Language", requestContext.locale.rawValue),
             ]),
             body: .data(.init(payload))

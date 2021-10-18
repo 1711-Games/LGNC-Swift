@@ -4,6 +4,16 @@ import LGNCore
 
 public enum HTTP {}
 
+public extension HTTP {
+    static func metaWithHeaders(headers: [String: String], meta: Meta = [:]) -> Meta {
+        var result = meta
+        headers.forEach { k, v in
+            result[LGNC.HTTP.HEADER_PREFIX + k] = v
+        }
+        return result
+    }
+}
+
 public extension LGNC {
     enum HTTP {
         public typealias ResolverResult = (body: Bytes, headers: [(name: String, value: String)])
@@ -26,6 +36,20 @@ public extension LGNC.HTTP {
         public let meta: LGNC.Entity.Meta
         public let eventLoop: EventLoop
     }
+}
+
+extension LGNC.HTTP.Request {
+    var isURLEncoded: Bool {
+        self.method == .POST
+            && self.headers.first(name: "Content-Type")?.starts(with: "application/x-www-form-urlencoded") == true
+    }
+}
+
+public extension LGNCore.ContentType {
+    static var allowedHTTPTypes: [Self] = [
+        .MsgPack,
+        .JSON,
+    ]
 }
 
 public extension HTTP {

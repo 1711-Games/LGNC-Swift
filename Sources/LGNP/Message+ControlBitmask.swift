@@ -70,7 +70,8 @@ public extension LGNP.Message {
         }
 
         /// Returns message's content type
-        @inlinable public var contentType: LGNCore.ContentType {
+        @inlinable
+        public var contentType: LGNCore.ContentType {
             let result: LGNCore.ContentType
 
             if self.contains(.contentTypeMsgPack) {
@@ -80,9 +81,9 @@ public extension LGNP.Message {
             } else if self.contains(.contentTypeXML) {
                 result = .XML
             } else if self.contains(.contentTypePlainText) {
-                result = .Text
+                result = .TextPlain
             } else {
-                result = .Text
+                result = .TextPlain
             }
 
             return result

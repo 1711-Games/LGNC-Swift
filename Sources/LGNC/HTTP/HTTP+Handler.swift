@@ -42,18 +42,15 @@ internal extension LGNC.HTTP {
             if method == .GET {
                 contentType = .JSON
             } else {
-                guard
-                    let contentTypeString = request.head.headers["Content-Type"].first,
-                    let _contentType = LGNCore.ContentType(fromHTTPHeader: contentTypeString)
-                else {
+                guard let contentTypeString = request.head.headers["Content-Type"].first else {
                     self.sendBadRequestResponse(context: context, message: "400 Bad Request (Content-Type header missing)")
                     return
                 }
-                contentType = _contentType
+                contentType = LGNCore.ContentType(rawValue: contentTypeString)
             }
 
             let payloadBytes: Bytes
-            if var body = request.body, let bytes = body.readBytes(length: body.readableBytes) {
+            if let body = request.body, let bytes = body.getBytes(at: 0, length: body.readableBytes) {
                 payloadBytes = bytes
             } else if method == .GET {
                 payloadBytes = []
