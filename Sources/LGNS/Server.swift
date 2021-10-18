@@ -11,7 +11,7 @@ public extension LGNS {
     static let DEFAULT_PORT = 1711
 
     /// A LGNS server
-    class Server: AnyServer {
+    class Server: AnyServer, @unchecked Sendable {
         public typealias BindTo = LGNCore.Address
 
         public static var logger: Logger = Logger(label: "LGNS.Server")
