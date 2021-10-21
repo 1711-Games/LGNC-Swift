@@ -1,5 +1,5 @@
 public extension LGNCore {
-    struct ContentType {
+    struct ContentType: Sendable {
         public let type: String
         public let options: [String: String]
 

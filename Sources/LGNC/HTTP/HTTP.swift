@@ -25,7 +25,7 @@ public extension LGNC {
 }
 
 public extension LGNC.HTTP {
-    struct Request: Sendable {
+    struct Request: @unchecked Sendable {
         public let URI: String
         public let headers: HTTPHeaders
         public let remoteAddr: String
