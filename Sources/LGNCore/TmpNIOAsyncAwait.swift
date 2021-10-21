@@ -19,6 +19,8 @@ extension EventLoopFuture {
     }
 }
 
+#if os(macOS)
+
 extension Channel {
     @inlinable
     public func writeAndFlush<T>(_ any: T) async throws {
@@ -51,3 +53,5 @@ extension ChannelOutboundInvoker {
 //        try await self.triggerUserOutboundEvent(event, file: file, line: line).get()
 //    }
 }
+
+#endif // if os(macOS)
