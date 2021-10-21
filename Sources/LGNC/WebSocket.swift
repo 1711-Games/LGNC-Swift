@@ -27,7 +27,7 @@ public extension LGNC.WebSocket {
         case InvalidUpgradeURI
     }
 
-    struct Request: Sendable {
+    struct Request: @unchecked Sendable {
         public let remoteAddr: String
         public let body: Bytes
         public let eventLoop: EventLoop
