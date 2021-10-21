@@ -35,15 +35,15 @@ public extension LGNC.HTTP {
             self.readTimeout = readTimeout
             self.writeTimeout = writeTimeout
 
-            let httpHandlers: [ChannelHandler & RemovableChannelHandler] = [
-                NIOHTTPServerRequestAggregator(maxContentLength: 1_000_000),
-                LGNC.HTTP.Handler(resolver: resolver),
-            ]
-
             self.bootstrap = ServerBootstrap(group: self.eventLoopGroup)
                 .serverChannelOption(ChannelOptions.backlog, value: 256)
                 .serverChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
                 .childChannelInitializer { channel in
+                    let httpHandlers: [ChannelHandler & RemovableChannelHandler] = [
+                        NIOHTTPServerRequestAggregator(maxContentLength: 1_000_000),
+                        LGNC.HTTP.Handler(resolver: resolver),
+                    ]
+
                     var upgrader: NIOHTTPServerUpgradeConfiguration? = nil
                     if let webSocketRouterType = webSocketRouter {
                         let webSocketRouter = webSocketRouterType.init(channel: channel, service: service)
