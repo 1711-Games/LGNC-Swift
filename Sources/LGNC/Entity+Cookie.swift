@@ -206,13 +206,13 @@ extension LGNC.Entity.Cookie: Equatable {
 }
 
 extension LGNC.Entity.Meta {
-    static func initFrom(cookie: LGNC.Entity.Cookie) throws -> Self {
+    public static func initFrom(cookie: LGNC.Entity.Cookie) throws -> Self {
         var result = Self()
 
         return try result.appending(cookie: cookie)
     }
 
-    static func initFrom(cookies: [LGNC.Entity.Cookie]) throws -> Self {
+    public static func initFrom(cookies: [LGNC.Entity.Cookie]) throws -> Self {
         var result = Self()
 
         try cookies.forEach { cookie in try result.appending(cookie: cookie) }
@@ -221,7 +221,7 @@ extension LGNC.Entity.Meta {
     }
 
     @discardableResult
-    mutating func appending(cookie: LGNC.Entity.Cookie) throws -> Self {
+    public mutating func appending(cookie: LGNC.Entity.Cookie) throws -> Self {
         self[LGNC.HTTP.COOKIE_META_KEY_PREFIX + cookie.name] = try cookie.getCookieString()
 
         return self
