@@ -29,7 +29,7 @@ public extension Array where Element == String {
     }
 }
 
-extension LGNC.Entity.Cookie: ContractEntity {
+extension LGNC.Entity.Cookie: ContractEntity, @unchecked Sendable {
     public static func initWithValidation(from dictionary: Entita.Dict) async throws -> Self {
         try self.ensureNecessaryItems(
             in: dictionary,
