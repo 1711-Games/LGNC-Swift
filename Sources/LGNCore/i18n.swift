@@ -1,5 +1,5 @@
 import Foundation
-import Logging
+import LGNLog
 
 public extension LGNCore {
     enum i18n {

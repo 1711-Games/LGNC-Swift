@@ -1,5 +1,5 @@
 import Foundation
-import Logging
+import LGNLog
 import NIO
 
 /// A type-erased server type

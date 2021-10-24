@@ -15,8 +15,8 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.33.0"),
+        .package(url: "https://github.com/1711-Games/LGN-Log.git", .upToNextMinor(from: "0.2.0")),
 
-        .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.2.1"),
 
         // used by LGNPContenter
@@ -27,15 +27,15 @@ let package = Package(
         .package(name: "Gzip", url: "https://github.com/1024jp/GzipSwift.git", from: "5.1.1"),
 
         // used by LGNCore
-        .package(url: "https://github.com/1711-games/lgn-config", from: "0.3.0"),
+        .package(url: "https://github.com/1711-games/LGN-Config", from: "0.3.0"),
     ],
     targets: [
         .target(
             name: "LGNCore",
             dependencies: [
                 .product(name: "NIO", package: "swift-nio"),
-                .product(name: "Logging", package: "swift-log"),
-                .product(name: "LGNConfig", package: "lgn-config"),
+                .product(name: "LGNConfig", package: "LGN-Config"),
+                .product(name: "LGNLog", package: "LGN-Log"),
             ],
             exclude: ["README.md"]
         ),

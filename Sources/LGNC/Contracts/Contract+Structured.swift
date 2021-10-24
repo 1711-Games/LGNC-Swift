@@ -36,7 +36,7 @@ public extension StructuredContract {
                 let (response, meta) = try await guaranteeBody(rawRequest as! Request)
                 return ContractExecutionResult(result: .Structured(response as Entity), meta: meta)
             case .failure(let error):
-                LGNCore.Context.current.logger.critical(
+                Logger.current.critical(
                     "Contract \(Self.self) with structured response got request in error state (this must not happen)",
                     metadata: ["error": "\(error)"]
                 )

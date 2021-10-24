@@ -85,7 +85,7 @@ internal extension LGNS {
         }
 
         public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
-            var logger = LGNCore.Context.current.logger
+            var logger = Logger.current
             logger[metadataKey: "LGNS.Handler"] = "\(self.kind)"
 
             logger.debug("Channel read (\(context.remoteAddress?.description ?? "unknown addr"))")
@@ -138,8 +138,10 @@ internal extension LGNS {
                 eventLoop: context.eventLoop
             )
 
+            let contextLogger = requestContext.logger
+
             if Self.profile {
-                logger.debug(
+                contextLogger.debug(
                     """
                     About to serve request at URI '\(message.URI)' \
                     from remoteAddr \(remoteAddr) (clientAddr \(clientAddr)) by \
@@ -157,21 +159,23 @@ internal extension LGNS {
 
             Task.detached {
                 await LGNCore.Context.$current.withValue(requestContext) {
-                    do {
-                        promise.succeed(try await self.resolver(message))
-                    } catch {
-                        promise.fail(error)
+                    await Logger.$current.withValue(contextLogger) {
+                        do {
+                            promise.succeed(try await self.resolver(message))
+                        } catch {
+                            promise.fail(error)
+                        }
                     }
                 }
             }
 
             promise.futureResult.whenSuccess { result in
                 guard let message = result else {
-                    logger.debug("No LGNP message returned from resolver, do nothing")
+                    contextLogger.debug("No LGNP message returned from resolver, do nothing")
                     return
                 }
 
-                logger.debug("Writing LGNP message to channel")
+                contextLogger.debug("Writing LGNP message to channel")
 
                 context
                     .eventLoop.makeSucceededFuture(())
@@ -185,13 +189,13 @@ internal extension LGNS {
             }
 
             promise.futureResult.whenFailure { error in
-                logger.debug("Writing error to channel: \(error)")
+                contextLogger.debug("Writing error to channel: \(error)")
                 self.errorCaught(context: context, error: error)
             }
 
             promise.futureResult.whenComplete { _ in
                 if let profiler = profiler {
-                    logger.debug("""
+                    contextLogger.debug("""
                     LGNS \(type(of: self)) request '\(message.URI)' execution \
                     took \(profiler.end().rounded(toPlaces: 5)) s
                     """
@@ -223,7 +227,7 @@ internal extension LGNS {
         }
 
         fileprivate func close(context: ChannelHandlerContext) -> EventLoopFuture<Void> {
-            LGNCore.Context.current.logger.debug("Closing the channel")
+            Logger.current.debug("Closing the channel")
 
             return context.close().flatMapErrorThrowing { error in
                 switch error {

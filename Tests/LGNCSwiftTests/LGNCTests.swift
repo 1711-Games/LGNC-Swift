@@ -48,8 +48,10 @@ final class LGNCTests: XCTestCase {
     }
 
     override static func setUp() {
-        LoggingSystem.bootstrap(LGNCore.Logger.init)
-        LGNCore.Logger.logLevel = .trace
+        LoggingSystem.bootstrap(LGNLogger.init)
+        LGNLogger.logLevel = .trace
+        LGNLogger.hideLabel = true
+        LGNLogger.hideTimezone = true
 
         A.Signup.Request.validateEmail { email -> A.Signup.Request.CallbackValidatorEmailAllowedValues? in
             email == "foo@bar.com"

@@ -36,7 +36,7 @@ public extension ContractEntity {
                     if let error = error as? ValidatorError {
                         return [error]
                     }
-                    LGNCore.Context.current.logger.error("Unknown error while parsing contract entity: \(error)")
+                    Logger.current.error("Unknown error while parsing contract entity: \(error)")
                     return [Validation.Error.UnknownError()]
                 }
             }()

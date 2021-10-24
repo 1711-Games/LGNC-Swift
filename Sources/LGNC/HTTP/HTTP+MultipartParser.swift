@@ -13,7 +13,7 @@ extension HTTPHeaders {
 
 extension HTTP {
     static func parseMultipartFormdata(boundary: String, input: Bytes) -> Entita.Dict {
-        let logger = LGNCore.Context.current.logger
+        let logger = Logger.current
 
         let boundary = Bytes(("--" + boundary).utf8)
         let boundaryLength = boundary.count

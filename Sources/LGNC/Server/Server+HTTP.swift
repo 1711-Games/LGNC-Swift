@@ -32,7 +32,7 @@ public extension Service {
 
         let webSocketOnlyContracts = self.webSocketOnlyContracts
         if webSocketRouter == nil && webSocketOnlyContracts.count > 0 {
-            LGNCore.Context.current.logger.warning("Starting HTTP server without WebSocket upgrader while there are WebSocket-only contracts: \(webSocketOnlyContracts.map { $0.URI })")
+            Logger.current.warning("Starting HTTP server without WebSocket upgrader while there are WebSocket-only contracts: \(webSocketOnlyContracts.map { $0.URI })")
         }
 
         return LGNC.HTTP.Server(
@@ -57,98 +57,104 @@ public extension Service {
                 meta: request.meta,
                 eventLoop: request.eventLoop
             )
-            context.logger.debug("Serving request at HTTP URI '\(request.URI)'")
+
+            let logger = context.logger
+
+            logger.debug("Serving request at HTTP URI '\(request.URI)'")
+
             return try await LGNCore.Context.$current.withValue(context) {
-                let payload: Entita.Dict
-                let URI: String
+                try await Logger.$current.withValue(logger) {
+                    let payload: Entita.Dict
+                    let URI: String
 
-                guard !request.URI.isEmpty else {
-                    throw LGNC.E.clientError("No URI", 400)
-                }
-
-                if request.method == .GET {
-                    let components = request.URI.split(separator: "?", maxSplits: 1)
-                    URI = String(components[0])
-                    guard GETSafeURLs.contains(URI.lowercased()) else {
-                        return (
-                            body: LGNCore.getBytes("This contract cannot be invoked with GET"),
-                            headers: []
-                        )
+                    guard !request.URI.isEmpty else {
+                        throw LGNC.E.clientError("No URI", 400)
                     }
-                    payload = HTTP.parseQueryParams(String(components.last ?? ""))
-                } else if request.isURLEncoded {
-                    URI = request.URI
-                    payload = HTTP.parseQueryParams(request.body._string)
-                } else if let boundary = request.headers.getMultipartBoundary() {
-                    context.logger.debug("Parsing multipart formdata")
-                    URI = request.URI
-                    payload = HTTP.parseMultipartFormdata(boundary: boundary, input: request.body)
-                } else {
-                    URI = request.URI
-                    switch request.contentType {
-                    case .JSON: payload = try request.body.unpackFromJSON()
-                    case .MsgPack: payload = try request.body.unpackFromMsgPack()
-                    default: throw LGNC.E.clientError("Only JSON and MsgPack are allowed", 400)
-                    }
-                }
 
-                var result = try await self.executeContract(URI: URI, dict: payload)
-
-                var headers: [(name: String, value: String)] = [
-                    ("Content-Language", context.locale.rawValue),
-                    ("LGNC-UUID", request.uuid.string),
-                ]
-
-                var metaContainsHeaders = false
-                var contentTypeFound = false
-                headers.append(
-                    contentsOf: result
-                        .meta
-                        .filter { k, _ in k.starts(with: LGNC.HTTP.HEADER_PREFIX) }
-                        .map { k, value in
-                            if metaContainsHeaders == false {
-                                metaContainsHeaders = true
-                            }
-
-                            let key: String
-                            if k.starts(with: LGNC.HTTP.COOKIE_META_KEY_PREFIX) {
-                                key = "Set-Cookie"
-                            } else {
-                                key = k.replacingOccurrences(of: LGNC.HTTP.HEADER_PREFIX, with: "")
-                            }
-
-                            if !contentTypeFound && key == "Content-Type" {
-                                contentTypeFound = true
-                            }
-
-                            return (key, value)
+                    if request.method == .GET {
+                        let components = request.URI.split(separator: "?", maxSplits: 1)
+                        URI = String(components[0])
+                        guard GETSafeURLs.contains(URI.lowercased()) else {
+                            return (
+                                body: LGNCore.getBytes("This contract cannot be invoked with GET"),
+                                headers: []
+                            )
                         }
-                )
-
-                if metaContainsHeaders {
-                    result.meta = result.meta.filter { k, _ in !k.starts(with: LGNC.HTTP.HEADER_PREFIX) }
-                }
-
-                let contentType: String
-                let body: Bytes
-
-                switch result.result {
-                case let .Structured(entity):
-                    contentType = request.contentType.type
-                    body = try entity.getDictionary().pack(to: request.contentType)
-                case let .Binary(file, maybeDisposition):
-                    if let disposition = maybeDisposition {
-                        headers.append(disposition.header(forFile: file))
+                        payload = HTTP.parseQueryParams(String(components.last ?? ""))
+                    } else if request.isURLEncoded {
+                        URI = request.URI
+                        payload = HTTP.parseQueryParams(request.body._string)
+                    } else if let boundary = request.headers.getMultipartBoundary() {
+                        context.logger.debug("Parsing multipart formdata")
+                        URI = request.URI
+                        payload = HTTP.parseMultipartFormdata(boundary: boundary, input: request.body)
+                    } else {
+                        URI = request.URI
+                        switch request.contentType {
+                        case .JSON: payload = try request.body.unpackFromJSON()
+                        case .MsgPack: payload = try request.body.unpackFromMsgPack()
+                        default: throw LGNC.E.clientError("Only JSON and MsgPack are allowed", 400)
+                        }
                     }
-                    contentType = file.contentType.header
-                    body = file.body
-                }
 
-                if !contentTypeFound {
-                    headers.append((name: "Content-Type", value: contentType))
-                }
+                    var result = try await self.executeContract(URI: URI, dict: payload)
 
-                return (body: body, headers: headers)
+                    var headers: [(name: String, value: String)] = [
+                        ("Content-Language", context.locale.rawValue),
+                        ("LGNC-UUID", request.uuid.string),
+                    ]
+
+                    var metaContainsHeaders = false
+                    var contentTypeFound = false
+                    headers.append(
+                        contentsOf: result
+                            .meta
+                            .filter { k, _ in k.starts(with: LGNC.HTTP.HEADER_PREFIX) }
+                            .map { k, value in
+                                if metaContainsHeaders == false {
+                                    metaContainsHeaders = true
+                                }
+
+                                let key: String
+                                if k.starts(with: LGNC.HTTP.COOKIE_META_KEY_PREFIX) {
+                                    key = "Set-Cookie"
+                                } else {
+                                    key = k.replacingOccurrences(of: LGNC.HTTP.HEADER_PREFIX, with: "")
+                                }
+
+                                if !contentTypeFound && key == "Content-Type" {
+                                    contentTypeFound = true
+                                }
+
+                                return (key, value)
+                            }
+                    )
+
+                    if metaContainsHeaders {
+                        result.meta = result.meta.filter { k, _ in !k.starts(with: LGNC.HTTP.HEADER_PREFIX) }
+                    }
+
+                    let contentType: String
+                    let body: Bytes
+
+                    switch result.result {
+                    case let .Structured(entity):
+                        contentType = request.contentType.type
+                        body = try entity.getDictionary().pack(to: request.contentType)
+                    case let .Binary(file, maybeDisposition):
+                        if let disposition = maybeDisposition {
+                            headers.append(disposition.header(forFile: file))
+                        }
+                        contentType = file.contentType.header
+                        body = file.body
+                    }
+
+                    if !contentTypeFound {
+                        headers.append((name: "Content-Type", value: contentType))
+                    }
+
+                    return (body: body, headers: headers)
+                }
             }
         }
     }

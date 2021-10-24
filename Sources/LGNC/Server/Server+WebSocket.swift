@@ -99,45 +99,47 @@ public extension WebsocketRouter {
         dict: Entita.Dict
     ) async throws -> LGNC.WebSocket.Response? {
         try await LGNCore.Context.$current.withValue(self.baseContext) {
-            let contractResponse = try await self.service.executeContract(
-                URI: URI,
-                dict: dict
-            )
-
-            let result: WebSocketFrame?
-
-            switch contractResponse.result {
-            case let .Structured(entity):
-                // fast return on empty response
-                if let entity = entity as? LGNC.Entity.Result, entity.result is LGNC.Entity.Empty {
-                    result = nil
-                    break
-                }
-                result = try LGNC.WebSocket.getFrame(
-                    from: LGNC.WebSocket.Response.Box(
-                        RequestID: clientRequestID,
-                        Response: entity.getDictionary().pack(to: self.contentType)
-                    ),
-                    format: self.contentType,
-                    allocator: self.channel.allocator,
-                    opcode: self.contentType == .MsgPack ? .binary : .text
+            try await Logger.$current.withValue(self.baseContext.logger) {
+                let contractResponse = try await self.service.executeContract(
+                    URI: URI,
+                    dict: dict
                 )
-            case let .Binary(file, _):
-                result = WebSocketFrame(
-                    fin: true,
-                    opcode: .binary,
-                    data: self.channel.allocator.buffer(
-                        bytes: LGNCore.getBytes(clientRequestID) + Bytes([10]) + file.body
+
+                let result: WebSocketFrame?
+
+                switch contractResponse.result {
+                case let .Structured(entity):
+                    // fast return on empty response
+                    if let entity = entity as? LGNC.Entity.Result, entity.result is LGNC.Entity.Empty {
+                        result = nil
+                        break
+                    }
+                    result = try LGNC.WebSocket.getFrame(
+                        from: LGNC.WebSocket.Response.Box(
+                            RequestID: clientRequestID,
+                            Response: entity.getDictionary().pack(to: self.contentType)
+                        ),
+                        format: self.contentType,
+                        allocator: self.channel.allocator,
+                        opcode: self.contentType == .MsgPack ? .binary : .text
                     )
-                )
-            }
+                case let .Binary(file, _):
+                    result = WebSocketFrame(
+                        fin: true,
+                        opcode: .binary,
+                        data: self.channel.allocator.buffer(
+                            bytes: LGNCore.getBytes(clientRequestID) + Bytes([10]) + file.body
+                        )
+                    )
+                }
 
-            return result.map {
-                LGNC.WebSocket.Response(
-                    clientRequestID: clientRequestID,
-                    frame: $0,
-                    close: contractResponse.meta[LGNC.WebSocket.META_CLOSE_FLAG_KEY] == LGNC.WebSocket.META_CLOSE_FLAG
-                )
+                return result.map {
+                    LGNC.WebSocket.Response(
+                        clientRequestID: clientRequestID,
+                        frame: $0,
+                        close: contractResponse.meta[LGNC.WebSocket.META_CLOSE_FLAG_KEY] == LGNC.WebSocket.META_CLOSE_FLAG
+                    )
+                }
             }
         }
     }
@@ -184,7 +186,7 @@ extension LGNC.WebSocket {
         public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
             let frame = self.unwrapInboundIn(data)
 
-            let logger = LGNCore.Context.current.logger
+            let logger = Logger.current
 
             let payload: Bytes
 

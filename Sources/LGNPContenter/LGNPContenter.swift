@@ -45,7 +45,7 @@ public extension Dictionary where Key == String {
             case .XML, .TextHTML: throw LGNPContenter.E.ContentError("XML/HTML content type not implemented yet")
             case .TextPlain: throw LGNPContenter.E.ContentError("Dictionary cannot be plain text")
             default:
-                LGNCore.Context.current.logger.debug("Unknown format: \(format), falling back to JSON")
+                Logger.current.debug("Unknown format: \(format), falling back to JSON")
                 return try self.getMsgPack()
             }
         }

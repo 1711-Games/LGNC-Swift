@@ -1,8 +1,7 @@
 import Foundation
-import Logging
+import LGNLog
 
 extension UUID: @unchecked Sendable {}
-extension Logger: @unchecked Sendable {}
 
 // autoreleasepool is objc-exclusive thing
 #if !os(macOS)

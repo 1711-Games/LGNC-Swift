@@ -1,6 +1,6 @@
 import Foundation
 import NIO
-import Logging
+import LGNLog
 
 public extension LGNCore {
     enum Transport: String, Sendable {
@@ -42,8 +42,11 @@ public extension LGNCore {
         /// Event loop on which this request is being processed
         public let eventLoop: EventLoop
 
-        /// Logger
-        public private(set) var logger: Logging.Logger
+        public var logger: Logger {
+            var logger = Logging.Logger(label: "LGNCore.Context")
+            logger[metadataKey: "requestID"] = "\(self.uuid.string)"
+            return logger
+        }
 
         public init(
             remoteAddr: String,
@@ -67,9 +70,6 @@ public extension LGNCore {
             self.transport = transport
             self.meta = meta
             self.eventLoop = eventLoop
-
-            self.logger = Logging.Logger(label: "LGNCore.Context")
-            self.logger[metadataKey: "requestID"] = "\(self.uuid.string)"
         }
 
         /// Clones current context
