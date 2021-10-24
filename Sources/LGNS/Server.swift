@@ -1,4 +1,5 @@
 import LGNCore
+import LGNLog
 import LGNP
 import NIO
 
@@ -14,7 +15,6 @@ public extension LGNS {
     class Server: AnyServer, @unchecked Sendable {
         public typealias BindTo = LGNCore.Address
 
-        public static var logger: Logger = Logger(label: "LGNS.Server")
         public static let defaultPort: Int = LGNS.DEFAULT_PORT
 
         private let requiredBitmask: LGNP.Message.ControlBitmask
@@ -53,7 +53,7 @@ public extension LGNS {
                         BackPressureHandler(),
                         IdleStateHandler(readTimeout: self.readTimeout, writeTimeout: self.writeTimeout),
                         LGNS.LGNPCoder(cryptor: self.cryptor, requiredBitmask: self.requiredBitmask),
-                        LGNS.ServerHandler(logger: Self.logger, resolver: resolver)
+                        LGNS.ServerHandler(resolver: resolver)
                     )
                 }
 
@@ -65,7 +65,7 @@ public extension LGNS {
 
         deinit {
             if self.isRunning {
-                Self.logger.warning("LGNS Server has not been shutdown manually")
+                Logger.current.warning("LGNS Server has not been shutdown manually")
                 // try! await self.shutdown()
             }
         }

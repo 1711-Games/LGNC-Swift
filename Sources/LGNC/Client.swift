@@ -145,7 +145,6 @@ public extension LGNC.Client {
     /// This client implementation simply executes local contract (therefore one must previously guarantee it) without
     /// going to remote service over network. Useful for local development and testing.
     class Loopback: LGNCClient {
-        public lazy var logger: Logger = Logger(label: "\(self)")
         public let eventLoopGroup: EventLoopGroup
 
         public init(eventLoopGroup: EventLoopGroup) {
@@ -179,8 +178,6 @@ public extension LGNC.Client {
 
 public extension LGNC.Client {
     class Dynamic: LGNCClient {
-        public lazy var logger: Logger = Logger(label: "\(self)")
-
         public let clientLGNS: LGNS.Client
         public let clientHTTP: HTTPClient
 

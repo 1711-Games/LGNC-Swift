@@ -1,7 +1,7 @@
 import LGNCore
 import LGNP
 import NIO
-import _Concurrency
+import LGNLog
 
 internal extension LGNS {
     class BaseHandler: ChannelInboundHandler, @unchecked Sendable {
@@ -29,24 +29,20 @@ internal extension LGNS {
         }
 
         public private(set) var isOpen: Bool = false
-        public var logger: Logger
 
         public init(
             promise: EventLoopPromise<(LGNP.Message, LGNCore.Context)>? = nil,
-            logger: Logger = Logger(label: "LGNS.BaseHandler"),
             file: String = #file, line: Int = #line,
             resolver: @escaping Resolver
         ) {
             self.promise = promise
-            self.logger = logger
             self.resolver = resolver
 
-            self.logger[metadataKey: "ID"] = "\(ObjectIdentifier(self).hashValue)"
-            self.logger.trace("Handler initialized from \(file):\(line)")
+            Logger.current.trace("Handler initialized")
         }
 
         deinit {
-            self.logger.trace("Handler deinitialized")
+            Logger.current.trace("Handler deinitialized")
         }
 
         internal func sendError(to context: ChannelHandlerContext, error: ErrorTupleConvertible) {
@@ -71,13 +67,13 @@ internal extension LGNS {
 
         func channelActive(context: ChannelHandlerContext) {
             self.isOpen = true
-            self.logger.trace("Became active (\(context.remoteAddress?.description ?? "unknown addr"))")
+            Logger.current.trace("Became active (\(context.remoteAddress?.description ?? "unknown addr"))")
             context.fireChannelActive()
         }
 
         public func channelInactive(context: ChannelHandlerContext) {
             self.isOpen = false
-            self.logger.trace("Became inactive")
+            Logger.current.trace("Became inactive")
             if self.state == .WaitingForInbound {
                 self.promise?.fail(LGNS.E.ConnectionClosed)
             }

@@ -1,5 +1,6 @@
 import XCTest
 import NIO
+import LGNLog
 
 @testable import LGNS
 @testable import LGNP
@@ -64,11 +65,7 @@ final class LGNSTests: XCTestCase {
 
     override class func setUp() {
         super.setUp()
-        var logger = Logger(label: "testlogger")
-        logger.logLevel = .debug
-        LGNS.logger = logger
-        LGNS.Client.logger = logger
-        LGNS.Server.logger = logger
+        LGNLogger.logLevel = .debug
         self.eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
     }
 

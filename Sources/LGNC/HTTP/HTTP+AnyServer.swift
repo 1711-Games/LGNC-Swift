@@ -1,5 +1,6 @@
 import Foundation
 import LGNCore
+import LGNLog
 import LGNP
 import LGNPContenter
 import LGNS
@@ -12,7 +13,6 @@ public extension LGNC.HTTP {
         private let readTimeout: TimeAmount
         private let writeTimeout: TimeAmount
 
-        public static let logger: Logger = Logger(label: "LGNC.HTTP")
         public static var defaultPort: Int = 8080
 
         public let address: LGNCore.Address
@@ -69,7 +69,7 @@ public extension LGNC.HTTP {
 
         deinit {
             if self.isRunning {
-                Self.logger.warning("HTTP Server has not been shutdown manually")
+                Logger.current.warning("HTTP Server has not been shutdown manually")
             }
         }
     }

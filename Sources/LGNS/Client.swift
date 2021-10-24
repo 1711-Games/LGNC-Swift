@@ -1,7 +1,7 @@
 import LGNCore
 import LGNP
 import NIO
-import _Concurrency
+import LGNLog
 
 public extension LGNS {
     // todo add delegate
@@ -10,8 +10,6 @@ public extension LGNS {
     class Client {
         /// Response tuple type
         public typealias Response = (LGNP.Message, LGNCore.Context)
-
-        public static var logger = Logger(label: "LGNS.Client")
 
         public let controlBitmask: LGNP.Message.ControlBitmask
         public let cryptor: LGNP.Cryptor
@@ -61,10 +59,9 @@ public extension LGNS {
 
             let connectProfiler = LGNCore.Profiler.begin()
 
-            let clientHandler = LGNS.ClientHandler(promise: self.responsePromise, logger: Self.logger) { message in
-                let context = LGNCore.Context.current
-                context.logger.debug("Got LGNS response: \(message._payloadAsString)")
-                self.responsePromise?.succeed((message, context))
+            let clientHandler = LGNS.ClientHandler(promise: self.responsePromise) { message in
+                Logger.current.debug("Got LGNS response: \(message._payloadAsString)")
+                self.responsePromise?.succeed((message, LGNCore.Context.current))
                 return nil
             }
 
@@ -99,7 +96,7 @@ public extension LGNS {
                 resultString = "failed (\(error))"
             }
 
-            Self.logger.debug(
+            Logger.current.debug(
                 "Connection to \(address) \(resultString) in \(connectProfiler.end().rounded(toPlaces: 4))s"
             )
         }
@@ -138,7 +135,7 @@ public extension LGNS {
             file: String = #file, line: Int = #line
         ) async throws -> LGNP.Message {
             if self.responsePromise != nil {
-                Self.logger.warning("Trying to do a request while there is an existing promise (@ \(file):\(line)")
+                Logger.current.warning("Trying to do a request while there is an existing promise (@ \(file):\(line)")
             }
 
             let responsePromise: EventLoopPromise<Response> = (eventLoop ?? self.eventLoopGroup.next()).makePromise()

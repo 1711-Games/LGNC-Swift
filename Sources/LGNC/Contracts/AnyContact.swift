@@ -1,4 +1,5 @@
 import LGNCore
+import LGNLog
 import Entita
 
 public typealias Meta = LGNC.Entity.Meta
@@ -58,7 +59,7 @@ public extension AnyContract {
 
     static var preferredTransport: LGNCore.Transport {
         guard self.transports.count > 0 else {
-            LGNC.logger.error("Empty transports in contract \(Self.self), returning .LGNS")
+            Logger.current.error("Empty transports in contract \(Self.self), returning .LGNS")
             return .LGNS
         }
 
@@ -71,7 +72,7 @@ public extension AnyContract {
 
     static var preferredContentType: LGNCore.ContentType {
         guard self.transports.count > 0 else {
-            LGNC.logger.error("Empty content-types in contract \(Self.self), returning .JSON")
+            Logger.current.error("Empty content-types in contract \(Self.self), returning .JSON")
             return .JSON
         }
 

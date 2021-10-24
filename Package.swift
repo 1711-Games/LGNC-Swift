@@ -25,16 +25,12 @@ let package = Package(
         // used by LGNP
         .package(url: "https://github.com/apple/swift-crypto.git", from: "1.0.0"),
         .package(name: "Gzip", url: "https://github.com/1024jp/GzipSwift.git", from: "5.1.1"),
-
-        // used by LGNCore
-        .package(url: "https://github.com/1711-games/LGN-Config", from: "0.3.0"),
     ],
     targets: [
         .target(
             name: "LGNCore",
             dependencies: [
                 .product(name: "NIO", package: "swift-nio"),
-                .product(name: "LGNConfig", package: "LGN-Config"),
                 .product(name: "LGNLog", package: "LGN-Log"),
             ],
             exclude: ["README.md"]

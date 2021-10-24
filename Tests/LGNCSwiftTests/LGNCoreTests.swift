@@ -1,4 +1,6 @@
 import XCTest
+import NIO
+
 @testable import LGNCore
 
 final class LGNCoreTests: XCTestCase {

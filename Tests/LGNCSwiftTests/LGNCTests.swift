@@ -1,5 +1,6 @@
 import XCTest
 import LGNCore
+import LGNLog
 import LGNS
 import AsyncHTTPClient
 import NIOHTTP1

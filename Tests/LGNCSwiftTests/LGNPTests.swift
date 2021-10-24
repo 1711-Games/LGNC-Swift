@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 import LGNCore
+import LGNLog
 @testable import LGNP
 import Crypto
 
@@ -12,11 +13,11 @@ internal extension String {
 
 final class LGNPTests: XCTestCase {
     override class func setUp() {
-        LGNP.logger.logLevel = .trace
+        LGNLogger.logLevel = .trace
     }
 
     func testCryptor() throws {
-        LGNP.logger.logLevel = .trace
+        LGNLogger.logLevel = .trace
         XCTAssertThrowsError(try LGNP.Cryptor(key: [1,2,3,4,5,6,7,8]))
         XCTAssertThrowsError(try LGNP.Cryptor(key: [1,2,3,4,5,6,7,8,1,2,3,4,5,6,7]))
         XCTAssertNoThrow(try LGNP.Cryptor(key: [1,2,3,4,5,6,7,8,1,2,3,4,5,6,7,8]))

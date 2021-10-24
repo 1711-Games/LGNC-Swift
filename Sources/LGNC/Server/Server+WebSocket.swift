@@ -1,5 +1,6 @@
 import Foundation
 import LGNCore
+import LGNLog
 import Entita
 import NIO
 import NIOHTTP1
@@ -10,7 +11,6 @@ public protocol WebsocketRouter: AnyObject, Sendable {
     var upgrader: HTTPServerProtocolUpgrader { get }
     var service: Service.Type { get }
     var requestID: UUID { get set }
-    var logger: Logger { get set }
     var channel: Channel { get }
     var baseContext: LGNCore.Context! { get set }
     var contentType: LGNCore.ContentType { get }
@@ -45,13 +45,15 @@ public extension WebsocketRouter {
                 )
 
                 Task.detached {
+                    let logger = self.baseContext.logger
+
                     do {
                         guard let webSocketURI = self.service.webSocketURI else {
-                            self.logger.critical("Tried to upgrade HTTP to WebSocket while Service doesn't have a WebSocket URI")
+                            logger.critical("Tried to upgrade HTTP to WebSocket while Service doesn't have a WebSocket URI")
                             throw LGNC.WebSocket.E.InvalidUpgradeURI
                         }
                         guard head.uri.count > 0 else {
-                            self.logger.critical("Tried to upgrade HTTP to WebSocket: URI too short")
+                            logger.critical("Tried to upgrade HTTP to WebSocket: URI too short")
                             throw LGNC.WebSocket.E.InvalidUpgradeURI
                         }
                         var URI = head.uri
@@ -59,13 +61,13 @@ public extension WebsocketRouter {
                             URI.removeFirst()
                         }
                         guard URI == webSocketURI else {
-                            self.logger.critical("Tried to upgrade HTTP to WebSocket by invalid URI '\(head.uri)' (expected '\(webSocketURI)')")
+                            logger.critical("Tried to upgrade HTTP to WebSocket by invalid URI '\(head.uri)' (expected '\(webSocketURI)')")
                             throw LGNC.WebSocket.E.InvalidUpgradeURI
                         }
 
                         promise.succeed(try await self.shouldUpgrade(head: head))
                     } catch {
-                        self.logger.error("Could not execute \(#function): \(error)")
+                        logger.error("Could not execute \(#function): \(error)")
                         promise.fail(error)
                     }
                 }
@@ -79,7 +81,7 @@ public extension WebsocketRouter {
                     do {
                         promise.succeed(try await self.upgradePipelineHandler(head: head))
                     } catch {
-                        self.logger.error("Could not execute \(#function): \(error)")
+                        Logger.current.error("Could not execute \(#function): \(error)")
                         promise.fail(error)
                     }
                 }
@@ -99,7 +101,10 @@ public extension WebsocketRouter {
         dict: Entita.Dict
     ) async throws -> LGNC.WebSocket.Response? {
         try await LGNCore.Context.$current.withValue(self.baseContext) {
-            try await Logger.$current.withValue(self.baseContext.logger) {
+            var logger = Logger.current
+            logger[metadataKey: "requestID"] = "\(clientRequestID)"
+
+            return try await Logger.$current.withValue(logger) {
                 let contractResponse = try await self.service.executeContract(
                     URI: URI,
                     dict: dict
@@ -323,7 +328,6 @@ extension LGNC.WebSocket {
         public let service: Service.Type
         public var allowedURIs: [String]
         public var requestID: UUID = UUID()
-        public var logger: Logger
         public var baseContext: LGNCore.Context!
         public let contentType: LGNCore.ContentType = .JSON
 
@@ -331,11 +335,6 @@ extension LGNC.WebSocket {
             self.channel = channel
             self.service = service
             self.allowedURIs = service.webSocketContracts.map { $0.URI }
-
-            var logger = Logger(label: "LGNC.WebSocket")
-            logger[metadataKey: "requestID"] = "\(self.requestID.string)"
-
-            self.logger = logger
         }
 
         open func shouldUpgrade(head: HTTPRequestHead) async throws -> HTTPHeaders? {
@@ -343,6 +342,7 @@ extension LGNC.WebSocket {
         }
 
         open func route(request: Request) async throws -> Response? {
+            // todo validation (format? max length?)
             var clientRequestID: String = "unknown"
             let response: Response?
 
@@ -352,16 +352,16 @@ extension LGNC.WebSocket {
                     return nil
                 }
                 guard self.allowedURIs.contains(URI) else {
-                    self.logger.info("No URI in request")
+                    Logger.current.info("No URI in request")
                     throw LGNC.ContractError.URINotFound(URI)
                 }
                 guard let _clientRequestID = input["RequestID"] as? String else {
-                    self.logger.info("No RequestID in request")
+                    Logger.current.info("No RequestID in request")
                     throw E.DecodeError
                 }
                 clientRequestID = _clientRequestID
                 guard let dict = input["Request"] as? Entita.Dict else {
-                    self.logger.info("No Request in request")
+                    Logger.current.info("No Request in request")
                     throw E.DecodeError
                 }
 
@@ -369,7 +369,7 @@ extension LGNC.WebSocket {
             } catch LGNPContenter.E.UnpackError {
                 return nil
             } catch {
-                self.logger.error("Error while executing contract: \(error)")
+                Logger.current.error("Error while executing contract: \(error)")
                 response = Response(clientRequestID: clientRequestID, frame: LGNC.WebSocket.errorFrame, close: false)
             }
 

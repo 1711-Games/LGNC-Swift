@@ -1,6 +1,7 @@
 import Entita
 import Foundation
 import LGNCore
+import LGNLog
 import LGNP
 import LGNS
 
@@ -74,7 +75,7 @@ public extension Service {
                 if status == true {
                     return false
                 }
-                Logger(label: "LGNC.Contracts.Checkin").error("Contract '\(URI)' is not guaranteed")
+                Logger.current.error("Contract '\(URI)' is not guaranteed")
                 return true
             }
             .count == 0

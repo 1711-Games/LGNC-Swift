@@ -1,4 +1,5 @@
 import Foundation
+import LGNLog
 
 public enum LGNCore {
     public enum E: Error {
@@ -22,10 +23,10 @@ public enum AppEnv: String, CaseIterable {
         }
 
         #if os(macOS)
-            Logger(label: "LGNCore.AppEnv").info("Falling back to \(self.local) environment")
+            Logger.current.info("Falling back to \(self.local) environment")
             return .local
         #else
-            Logger(label: "LGNCore.AppEnv").info("APP_ENV must be set explicitly in non-macOS environment")
+            Logger.current.info("APP_ENV must be set explicitly in non-macOS environment")
             exit(1)
         #endif
     }

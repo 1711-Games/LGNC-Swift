@@ -1,6 +1,7 @@
 import Foundation
 import LGNCore
 import Crypto
+import LGNLog
 
 /// LGNP stands for LGN Protocol and is used for sending data over network in a strict, compact and secure way.
 /// Atomic unit of data in LGNP is called a message.
@@ -32,8 +33,6 @@ public enum LGNP {
         + 1 // NUL byte after URI
 
     public static var MAXIMUM_MESSAGE_LENGTH: Message.Block.SIZE.TYPE = .max
-
-    public static var logger = Logger(label: "LGNP")
 
     /// Validates and parses message header if enough bytes is provided, otherwise `LGNP.E.TooShortHeaderToParse` error is thrown which
     /// should be treated as `waiting for more bytes`. Returns expected message length.
@@ -74,6 +73,8 @@ public enum LGNP {
 
     /// Returns compiled body bytes for given `Message` and `Cryptor`
     internal static func getCompiledBodyFor(_ message: Message, with cryptor: Cryptor) throws -> Bytes {
+        let logger = Logger.current
+
         var messageBlocks: [LGNPMessageBlock] = []
 
         messageBlocks.append(Message.Block.URI(message.URI))
@@ -96,7 +97,7 @@ public enum LGNP {
 
         let signature = self.getSignature(bodySoFar: rawBody, cryptor: cryptor, message: message)
         if signature.count > 0 {
-            self.logger.trace(
+            logger.trace(
                 "[\(message.uuid.uuidString)] Compiled message signature \(signature.hexString) (from body \(rawBody))"
             )
             rawBody.insert(contentsOf: Message.Block.SIGN(signature).bytes, at: 0)
@@ -105,7 +106,7 @@ public enum LGNP {
         if message.controlBitmask.contains(.encrypted) {
             do {
                 rawBody = try cryptor.encrypt(input: rawBody, uuid: message.uuid)
-                self.logger.trace("[\(message.uuid.uuidString)] Encrypted message with")
+                logger.trace("[\(message.uuid.uuidString)] Encrypted message with")
             } catch {
                 throw E.EncryptionFailed("Encryption failed: \(error)")
             }
@@ -145,7 +146,7 @@ public enum LGNP {
 
         let saltedBody = bodySoFar + LGNCore.getBytes(uuid)
 
-        self.logger.trace("Salted prefix: \(saltedBody)")
+        Logger.current.trace("Salted prefix: \(saltedBody)")
 
         if controlBitmask.contains(.signatureSHA256) {
             result = Bytes(HMAC<SHA256>.authenticationCode(for: saltedBody, using: cryptor.symmetricKey))
@@ -174,18 +175,20 @@ public enum LGNP {
 
     /// Returns complete message bytes for given message and cryptor
     public static func encode(message: Message, with cryptor: Cryptor) throws -> Bytes {
+        let logger = Logger.current
+
         var result = Bytes()
 
-        self.logger.trace("[\(message.uuid.uuidString)] Began encoding message")
+        logger.trace("[\(message.uuid.uuidString)] Began encoding message")
 
         result.prepend(try self.getCompiledBodyFor(message, with: cryptor))
         result.prepend(LGNCore.getBytes(message.controlBitmask))
 
-        self.logger.trace("[\(message.uuid.uuidString)] Message control bitmask is \(message.controlBitmask.rawValue)")
+        logger.trace("[\(message.uuid.uuidString)] Message control bitmask is \(message.controlBitmask.rawValue)")
 
         result.prepend(LGNCore.getBytes(message.uuid))
 
-        self.logger.trace("[\(message.uuid.uuidString)] Message headless size is \(result.count) bytes")
+        logger.trace("[\(message.uuid.uuidString)] Message headless size is \(result.count) bytes")
 
         result.prepend(Message.Block.SIZE(headlessSize: result.count).bytes)
         result.prepend(Message.Block.HEAD.bytes)
@@ -226,6 +229,8 @@ public enum LGNP {
         length: Message.Block.SIZE.TYPE,
         with cryptor: Cryptor
     ) throws -> Message {
+        let logger = Logger.current
+
         let realLength = length - Message.Block.SIZE.TYPE(MESSAGE_HEADER_LENGTH)
         guard body.count >= realLength else {
             throw E.ParsingFailed("Body length must be \(realLength) bytes or more (given \(body.count) bytes)")
@@ -256,7 +261,7 @@ public enum LGNP {
         if controlBitmask.contains(.encrypted) {
             do {
                 payload = try cryptor.decrypt(input: payload, uuid: uuid)
-                self.logger.trace("Decrypted")
+                logger.trace("Decrypted")
             } catch {
                 throw E.DecryptionFailed("Could not decrypt payload: \(error)")
             }
@@ -278,7 +283,7 @@ public enum LGNP {
             throw E.URIParsingFailed("Could not parse ASCII URI from bytes \(Bytes(URIBytes))")
         }
 
-        self.logger.trace("Parsed URI '\(URI)'")
+        logger.trace("Parsed URI '\(URI)'")
 
         /// Please do not try to optimise this part: `self.extractMeta` may mutate `payload`
         payload = Bytes(payload[(URIEndPos + 1)...])
@@ -305,7 +310,7 @@ public enum LGNP {
         }
 
         let size: Message.Block.SIZE.TYPE = try payload[from ..< from + sizeLength].cast()
-        self.logger.trace("Meta section size is \(size) bytes")
+        Logger.current.trace("Meta section size is \(size) bytes")
         guard payload.count - sizeLength > size else {
             throw E.InvalidMessageLength(
                 "Meta section is not long enough (should be \(size), given \(payload.count - sizeLength))"
@@ -327,6 +332,8 @@ public enum LGNP {
         cryptor: Cryptor,
         controlBitmask: Message.ControlBitmask
     ) throws -> Bytes {
+        let logger = Logger.current
+
         if !controlBitmask.hasSignature {
             return payload
         }
@@ -352,7 +359,7 @@ public enum LGNP {
         let givenSignature = Bytes(payload[0 ..< signatureLength])
         let result = Bytes(payload[signatureLength...])
 
-        self.logger.trace(
+        logger.trace(
             """
             Sample signature source \(Bytes(payload[signatureLength...])), \
             uuid: \(uuid), bitmask \(controlBitmask)
@@ -367,7 +374,7 @@ public enum LGNP {
         let sampleSignatureHexString = sampleSignature.count > 0 ? sampleSignature.hexString : "NULL"
 
         guard givenSignature == sampleSignature else {
-            self.logger.error(
+            logger.error(
                 """
                 Given \(signatureName) signature (\(givenSignature.hexString)) does not match \
                 with sample (\(sampleSignatureHexString))
@@ -376,7 +383,7 @@ public enum LGNP {
             throw E.SignatureVerificationFailed("Signature mismatch")
         }
 
-        self.logger.trace("Validated \(signatureName) signature \(sampleSignatureHexString)")
+        logger.trace("Validated \(signatureName) signature \(sampleSignatureHexString)")
 
         return result
     }

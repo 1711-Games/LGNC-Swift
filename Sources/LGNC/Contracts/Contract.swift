@@ -1,5 +1,7 @@
 import LGNCore
+import LGNLog
 import Entita
+import NIO
 
 /// A type erased yet more concrete contract than `AnyContract`, as it defines `Request`, `Response` and other dynamic stuff
 public protocol Contract: AnyContract {
@@ -86,7 +88,7 @@ public extension Contract {
             eventLoop: eventLoop
         )
 
-        context.logger.debug(
+        Logger.current.debug(
             "Executing remote contract \(transport.rawValue.lowercased())://\(address)/\(Self.URI)",
             metadata: [
                 "requestID": "\(context.uuid.string)",
@@ -100,7 +102,7 @@ public extension Contract {
             } else {
                 resultString = "successful"
             }
-            context.logger.info(
+            Logger.current.info(
                 "Remote contract 'lgns://\(address)/\(URI)' execution was \(resultString) and took \(profiler.end().rounded(toPlaces: 4))s"
             )
         }
@@ -136,7 +138,7 @@ public extension Contract {
                 meta: result.meta
             )
         } catch let error as NIOConnectionError {
-            context.logger.error(
+            Logger.current.error(
                 """
                 Could not execute contract '\(self)' on service '\(self.ParentService.self)' \
                 @ \(address): \(error)

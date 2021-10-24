@@ -2,6 +2,7 @@ import Foundation
 import NIO
 import NIOHTTP1
 import LGNCore
+import LGNLog
 
 internal extension LGNC.HTTP {
     final class Handler: ChannelInboundHandler, RemovableChannelHandler, @unchecked Sendable {

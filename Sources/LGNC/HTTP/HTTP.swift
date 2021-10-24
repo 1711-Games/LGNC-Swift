@@ -1,6 +1,7 @@
 import Foundation
 import NIOHTTP1
 import LGNCore
+import NIO
 
 public enum HTTP {}
 

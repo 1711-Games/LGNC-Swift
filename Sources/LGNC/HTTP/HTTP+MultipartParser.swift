@@ -1,5 +1,6 @@
 import NIOHTTP1
 import LGNCore
+import LGNLog
 import Entita
 
 extension HTTPHeaders {

@@ -2,6 +2,7 @@ import Foundation
 import LGNCore
 import LGNP
 import SwiftMsgPack
+import LGNLog
 
 public enum LGNPContenter {
     public enum E: Error {

@@ -1,6 +1,7 @@
 import Entita
 import Foundation
 import LGNS
+import LGNLog
 
 /// A type erased contract entity. Must know how to init itself with validation.
 public protocol ContractEntity: Entity {

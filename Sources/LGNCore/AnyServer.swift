@@ -17,7 +17,6 @@ public protocol AnyServer: AnyObject {
 
     var address: LGNCore.Address { get }
 
-    static var logger: Logger { get }
     static var defaultPort: Int { get }
 
     /// Binds to an address and starts a server,
@@ -36,21 +35,21 @@ public extension AnyServer {
     fileprivate var name: String { "\(type(of: self))" }
 
     func bind() async throws {
-        Self.logger.info("Trying to bind at \(self.address)")
+        Logger.current.info("Trying to bind at \(self.address)")
 
         do {
             self.channel = try await self.bootstrap.bind(to: self.address, defaultPort: Self.defaultPort)
             self.isRunning = true
-            Self.logger.info("Succesfully started on \(self.address)")
+            Logger.current.info("Succesfully started on \(self.address)")
         } catch {
-            Self.logger.info("Could not start on \(self.address): \(error)")
+            Logger.current.info("Could not start on \(self.address): \(error)")
             throw error
         }
     }
 
     func waitForStop() throws {
         guard self.isRunning, self.channel != nil else {
-            Self.logger.warning("Trying to wait for a server that is not running")
+            Logger.current.warning("Trying to wait for a server that is not running")
             return
         }
 
@@ -62,15 +61,15 @@ public extension AnyServer {
             return
         }
 
-        Self.logger.info("Shutting down")
+        Logger.current.info("Shutting down")
 
         do {
             try await self.channel.close()
             self.isRunning = false
             self.channel = nil
-            Self.logger.info("Goodbye")
+            Logger.current.info("Goodbye")
         } catch {
-            Self.logger.info("Could not shutdown: \(error)")
+            Logger.current.info("Could not shutdown: \(error)")
         }
     }
 }

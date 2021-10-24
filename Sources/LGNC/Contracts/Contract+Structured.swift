@@ -1,4 +1,5 @@
 import LGNCore
+import LGNLog
 import Entita
 
 public protocol StructuredContract: Contract {
