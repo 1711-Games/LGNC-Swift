@@ -11,7 +11,7 @@ public extension ClientBootstrap {
             case let .unixDomainSocket(path):
                 return self.connect(unixDomainSocketPath: path)
             }
-        }().value
+        }().get()
     }
 }
 
@@ -26,6 +26,6 @@ public extension ServerBootstrap {
             case let .unixDomainSocket(path):
                 return self.bind(unixDomainSocketPath: path)
             }
-        }().value
+        }().get()
     }
 }

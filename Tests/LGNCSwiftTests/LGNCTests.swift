@@ -496,7 +496,7 @@ final class LGNCTests: XCTestCase {
                     ("Cookie", "m-wf-loaded=q-icons-q_serif ; token=\(Self.validToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)!); lul=kek%3Dchebu%3F%3F%3F%3Brek ; _ga = GA1.2.942846199.1482123615"),
                 ])
             )
-        ).value
+        ).get()
         XCTAssertNotNil(result.body)
         var body = result.body!
         XCTAssertGreaterThan(body.readableBytes, 0)
@@ -518,7 +518,7 @@ final class LGNCTests: XCTestCase {
 
         let result = try await client
             .execute(request: HTTPClient.Request(url: "\(addressShop)/about_us", method: .GET))
-            .value
+            .get()
 
         XCTAssertNotNil(result.body)
         XCTAssertEqual(result.body!.getString(at: 0, length: result.body!.readableBytes), "<h1>Hello!</h1>")
@@ -605,7 +605,7 @@ final class LGNCTests: XCTestCase {
 
         let result = try await client
             .execute(request: HTTPClient.Request(url: "\(addressShop)/download_purchase", method: .GET))
-            .value
+            .get()
 
         XCTAssertNotNil(result.body)
         XCTAssertEqual(result.body!.getBytes(at: 0, length: result.body!.readableBytes), expected)
@@ -698,7 +698,7 @@ final class LGNCTests: XCTestCase {
                     body: .data(upload)
                 )
             )
-            .value
+            .get()
 
         XCTAssertNotNil(result.body)
         XCTAssertEqual(

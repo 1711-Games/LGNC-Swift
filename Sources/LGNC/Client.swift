@@ -91,7 +91,7 @@ extension HTTPClient: LGNCClient {
 
         let response = try await self
             .execute(request: request, eventLoop: .delegateAndChannel(on: context.eventLoop))
-            .value
+            .get()
 
         guard var body = response.body, let bytes = body.readBytes(length: body.readableBytes) else {
             throw LGNC.Client.E.EmptyResponse

@@ -4,7 +4,7 @@ import PackageDescription
 
 let package = Package(
     name: "LGNC-Swift",
-    platforms: [.macOS(.v10_15)],
+    platforms: [.macOS(.v12)],
     products: [
         .library(name: "LGNCore", targets: ["LGNCore"]),
         .library(name: "LGNP", targets: ["LGNP"]),
@@ -15,7 +15,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.33.0"),
-        .package(url: "https://github.com/1711-Games/LGN-Log.git", .upToNextMinor(from: "0.2.0")),
+        .package(url: "https://github.com/1711-Games/LGN-Log.git", .upToNextMinor(from: "0.4.0")),
 
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.2.1"),
 

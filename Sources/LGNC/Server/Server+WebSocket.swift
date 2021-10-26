@@ -92,7 +92,7 @@ public extension WebsocketRouter {
     }
 
     func upgradePipelineHandler(head: HTTPRequestHead) async throws {
-        try await self.channel.pipeline.addHandler(LGNC.WebSocket.Handler(router: self)).value
+        try await self.channel.pipeline.addHandler(LGNC.WebSocket.Handler(router: self)).get()
     }
 
     func executeContract(

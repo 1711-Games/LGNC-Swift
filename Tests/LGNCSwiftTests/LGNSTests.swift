@@ -267,7 +267,7 @@ final class LGNSTests: XCTestCase {
             }
             .connect(to: address, defaultPort: 0)
 
-        let result = try await promise.futureResult.value
+        let result = try await promise.futureResult.get()
 
         try await channel.closeAcceptingAlreadyClosed()
 

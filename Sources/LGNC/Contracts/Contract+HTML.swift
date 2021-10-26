@@ -61,7 +61,7 @@ extension ByteBuffer: HTMLResponse {
 extension EventLoopFuture: HTMLResponse where Value == ByteBuffer {
     public var htmlResponse: HTMLContract.CanonicalResponse {
         get async throws {
-            try await self.value.htmlResponse
+            try await self.get().htmlResponse
         }
     }
 }

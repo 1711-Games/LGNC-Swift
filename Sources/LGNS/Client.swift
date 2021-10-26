@@ -143,7 +143,7 @@ public extension LGNS {
 
             try await self.connect(at: address)
             try await self.channel?.writeAndFlush(message)
-            let result = try await responsePromise.futureResult.value
+            let result = try await responsePromise.futureResult.get()
 
             if !result.0.controlBitmask.contains(.keepAlive) {
                 try await self.disconnect()
