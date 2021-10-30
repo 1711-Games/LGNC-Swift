@@ -21,9 +21,11 @@ public protocol AnyServer: AnyObject {
 
     /// Binds to an address and starts a server,
     /// Method returns when server is started
+    @Sendable
     func bind() async throws
 
     /// Performs server shutdown and returns when server is down
+    @Sendable
     func shutdown() async throws
 
     /// Blocks current thread until server is stopped.
@@ -34,6 +36,7 @@ public protocol AnyServer: AnyObject {
 public extension AnyServer {
     fileprivate var name: String { "\(type(of: self))" }
 
+    @Sendable
     func bind() async throws {
         Logger.current.info("Trying to bind at \(self.address)")
 
@@ -56,6 +59,7 @@ public extension AnyServer {
         try self.channel.closeFuture.wait()
     }
 
+    @Sendable
     func shutdown() async throws {
         guard self.channel != nil else {
             return
