@@ -46,7 +46,7 @@ public extension Service {
         try self.validateContract(requiredBitmask: requiredBitmask)
 
         return LGNS.Server(
-            address: try self.unwrapAddress(from: target),
+            address: try self.unwrapAddressGeneric(from: target, transport: .LGNS),
             cryptor: cryptor,
             requiredBitmask: requiredBitmask,
             eventLoopGroup: eventLoopGroup,

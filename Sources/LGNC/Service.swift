@@ -16,6 +16,9 @@ public protocol Service {
     /// Contains allowed service transports and respective ports
     static var transports: [LGNCore.Transport: Int] { get }
 
+    /// Indicates whether LGNC should do case-sensitive request routing
+    static var caseSensitiveURIs: Bool { get }
+
     /// A storage for custom KV info defined in LGNC schema
     static var info: [String: String] { get }
 
@@ -53,6 +56,8 @@ public protocol Service {
 }
 
 public extension Service {
+    static var caseSensitiveURIs: Bool { false }
+
     static var info: [String: String] { [:] }
 
     static var webSocketURI: String? { nil }
@@ -90,7 +95,7 @@ public extension Service {
         let result: ContractExecutionResult
 
         do {
-            guard let contractInfo = self.contractMap[URI] else {
+            guard let contractInfo = self.contractMap[Self.caseSensitiveURIs ? URI.lowercased() : URI] else {
                 throw LGNC.ContractError.URINotFound(URI) // todo customizable 404 errors
             }
             guard LGNC.ALLOW_ALL_TRANSPORTS == true || contractInfo.transports.contains(context.transport) else {
@@ -160,21 +165,6 @@ public extension Service {
         }
     }
 
-    internal static func unwrapAddress(from target: LGNCore.Address?) throws -> LGNCore.Address {
-        let address: LGNCore.Address
-
-        if let target = target {
-            address = target
-        } else {
-            guard let port = Self.transports[.LGNS] else {
-                throw LGNC.E.serverError("LGNS transport is not available in service")
-            }
-            address = .port(port)
-        }
-
-        return address
-    }
-
     internal static func validate(transport: LGNCore.Transport) throws {
         guard let _ = self.transports[transport] else {
             throw LGNC.E.ServiceError("Transport \(transport) not supported for service")
@@ -185,5 +175,23 @@ public extension Service {
         guard controlBitmask.hasContentType else {
             throw LGNC.E.ServiceError("No content type set in control bitmask (or plain text set)")
         }
+    }
+
+    internal static func unwrapAddressGeneric(
+        from target: LGNCore.Address?,
+        transport: LGNCore.Transport
+    ) throws -> LGNCore.Address {
+        let address: LGNCore.Address
+
+        if let target = target {
+            address = target
+        } else {
+            guard let port = Self.transports[transport] else {
+                throw LGNC.E.serverError("\(transport) transport is not available in service '\(self)'")
+            }
+            address = .port(port)
+        }
+
+        return address
     }
 }

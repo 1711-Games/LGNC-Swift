@@ -37,7 +37,7 @@ public extension Service {
         }
 
         return LGNC.HTTP.Server(
-            address: try self.unwrapAddress(from: target),
+            address: try self.unwrapAddressGeneric(from: target, transport: .HTTP),
             eventLoopGroup: eventLoopGroup,
             service: self,
             webSocketRouter: webSocketRouter,
@@ -65,15 +65,16 @@ public extension Service {
 
             return try await LGNCore.Context.$current.withValue(context) {
                 try await Logger.$current.withValue(logger) {
+                    var rawURI: String = request.URI
                     let payload: Entita.Dict
                     let URI: String
 
-                    guard !request.URI.isEmpty else {
-                        throw LGNC.E.clientError("No URI", 400)
+                    if rawURI.isEmpty {
+                        rawURI = "Index"
                     }
 
                     if request.method == .GET {
-                        let components = request.URI.split(separator: "?", maxSplits: 1)
+                        let components = rawURI.split(separator: "?", maxSplits: 1)
                         URI = String(components[0])
                         guard GETSafeURLs.contains(URI.lowercased()) else {
                             return (
@@ -83,14 +84,14 @@ public extension Service {
                         }
                         payload = HTTP.parseQueryParams(String(components.last ?? ""))
                     } else if request.isURLEncoded {
-                        URI = request.URI
+                        URI = rawURI
                         payload = HTTP.parseQueryParams(request.body._string)
                     } else if let boundary = request.headers.getMultipartBoundary() {
                         context.logger.debug("Parsing multipart formdata")
-                        URI = request.URI
+                        URI = rawURI
                         payload = HTTP.parseMultipartFormdata(boundary: boundary, input: request.body)
                     } else {
-                        URI = request.URI
+                        URI = rawURI
                         switch request.contentType {
                         case .JSON: payload = try request.body.unpackFromJSON()
                         case .MsgPack: payload = try request.body.unpackFromMsgPack()
