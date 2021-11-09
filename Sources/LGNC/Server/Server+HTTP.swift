@@ -6,12 +6,15 @@ import LGNP
 import LGNPContenter
 import LGNS
 import NIO
+import NIOHTTP1
 
 public struct Redirect: Error {
     public let location: String
+    public let status: HTTPResponseStatus
 
-    public init(location: String) {
+    public init(location: String, status: HTTPResponseStatus = .temporaryRedirect) {
         self.location = location
+        self.status = status
     }
 }
 
@@ -79,6 +82,7 @@ public extension Service {
                         guard GETSafeURLs.contains(URI.lowercased()) else {
                             return (
                                 body: LGNCore.getBytes("This contract cannot be invoked with GET"),
+                                status: .badRequest,
                                 headers: []
                             )
                         }
@@ -133,6 +137,7 @@ public extension Service {
                     )
 
                     if metaContainsHeaders {
+                        // todo: do we need it here?
                         result.meta = result.meta.filter { k, _ in !k.starts(with: LGNC.HTTP.HEADER_PREFIX) }
                     }
 
@@ -155,7 +160,18 @@ public extension Service {
                         headers.append((name: "Content-Type", value: contentType))
                     }
 
-                    return (body: body, headers: headers)
+                    let status: HTTPResponseStatus
+                    if let rawStatus = result.meta[LGNC.HTTP.STATUS_PREFIX], let intStatus = Int(rawStatus) {
+                        status = .init(statusCode: intStatus)
+                    } else {
+                        status = .ok
+                    }
+
+                    return (
+                        body: body,
+                        status: status,
+                        headers: headers
+                    )
                 }
             }
         }

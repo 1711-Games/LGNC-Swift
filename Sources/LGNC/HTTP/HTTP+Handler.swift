@@ -90,10 +90,10 @@ internal extension LGNC.HTTP {
                 ("Server", "LGNC \(LGNC.VERSION)"),
             ]
 
-            resolverResultPromise.futureResult.whenSuccess { body, additionalHeaders in
+            resolverResultPromise.futureResult.whenSuccess { body, status, additionalHeaders in
                 self.sendResponse(
                     context: context,
-                    status: .ok,
+                    status: status,
                     body: context.channel.allocator.buffer(bytes: body),
                     close: request.head.isKeepAlive == false,
                     headers: .init(headers.appending(contentsOf: additionalHeaders))

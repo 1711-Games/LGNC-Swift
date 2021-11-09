@@ -1,6 +1,7 @@
 import LGNCore
 import LGNLog
 import Entita
+import NIOHTTP1
 
 public protocol StructuredContract: Contract {
     /// Contract body (guarantee) type in which contract returns a tuple of Response and meta
@@ -19,7 +20,8 @@ public protocol StructuredContract: Contract {
     static func withHeaders(
         response: Self.Response,
         meta: LGNC.Entity.Meta,
-        headers: [(String, String)]
+        status: HTTPResponseStatus,
+        headers: [String: String]
     ) -> (response: Self.Response, meta: LGNC.Entity.Meta)
 }
 
@@ -48,15 +50,13 @@ public extension StructuredContract {
 
     static func withHeaders(
         response: Self.Response,
-        meta _meta: LGNC.Entity.Meta = [:],
-        headers: [(String, String)]
+        meta: LGNC.Entity.Meta = [:],
+        status: HTTPResponseStatus = .ok,
+        headers: [String: String]
     ) -> (response: Self.Response, meta: LGNC.Entity.Meta) {
-        var meta = _meta
-
-        headers.forEach { k, v in
-            meta[LGNC.HTTP.HEADER_PREFIX + k] = v
-        }
-
-        return (response: response, meta: meta)
+        (
+            response: response,
+            meta: HTTP.metaWithHeaders(headers: headers, status: status, meta: meta)
+        )
     }
 }

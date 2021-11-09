@@ -1,11 +1,20 @@
+import NIOHTTP1
+
 public struct FileContractResponse {
     public let file: LGNC.Entity.File
     public let disposition: HTTP.ContentDisposition?
+    public let status: HTTPResponseStatus
     public let meta: Meta
 
-    public init(file: LGNC.Entity.File, disposition: HTTP.ContentDisposition? = nil, meta: Meta = [:]) {
+    public init(
+        file: LGNC.Entity.File,
+        disposition: HTTP.ContentDisposition? = nil,
+        status: HTTPResponseStatus = .ok,
+        meta: Meta = [:]
+    ) {
         self.file = file
         self.disposition = disposition
+        self.status = status
         self.meta = meta
     }
 }
@@ -24,7 +33,10 @@ public extension FileContract {
     static func guaranteeCanonical(_ guaranteeBody: @escaping Self.GuaranteeBodyCanonical) {
         self._guaranteeBody = { (request: CanonicalCompositeRequest) async throws -> ContractExecutionResult in
             let response = try await guaranteeBody(request.map { $0 as! Request })
-            return ContractExecutionResult(result: .Binary(response.file, response.disposition), meta: response.meta)
+            return ContractExecutionResult(
+                result: .Binary(response.file, response.disposition),
+                meta: HTTP.metaWithHeaders(headers: [:], status: response.status, meta: response.meta)
+            )
         }
     }
 

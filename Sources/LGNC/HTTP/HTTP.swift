@@ -6,21 +6,29 @@ import NIO
 public enum HTTP {}
 
 public extension HTTP {
-    static func metaWithHeaders(headers: [String: String], meta: Meta = [:]) -> Meta {
+    static func metaWithHeaders(headers: [String: String], status: HTTPResponseStatus, meta: Meta = [:]) -> Meta {
         var result = meta
+
         headers.forEach { k, v in
             result[LGNC.HTTP.HEADER_PREFIX + k] = v
         }
+        result[LGNC.HTTP.STATUS_PREFIX] = "\(status.code)"
+
         return result
     }
 }
 
 public extension LGNC {
     enum HTTP {
-        public typealias ResolverResult = (body: Bytes, headers: [(name: String, value: String)])
+        public typealias ResolverResult = (
+            body: Bytes,
+            status: HTTPResponseStatus,
+            headers: [(name: String, value: String)]
+        )
         public typealias Resolver = (Request) async throws -> ResolverResult
 
         public static let HEADER_PREFIX = "HEADER__"
+        public static let STATUS_PREFIX = "STATUS__"
         public static let COOKIE_META_KEY_PREFIX = HEADER_PREFIX + "Set-Cookie: "
     }
 }

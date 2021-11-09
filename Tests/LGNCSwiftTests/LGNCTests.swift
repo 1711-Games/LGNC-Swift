@@ -153,7 +153,7 @@ final class LGNCTests: XCTestCase {
                     LGNC.HTTP.HEADER_PREFIX + "Gerreg": "Tlaalt",
                 ],
                 headers: [
-                    ("Lul", "Kek"),
+                    "Lul": "Kek",
                 ]
             )
         }
@@ -587,6 +587,7 @@ final class LGNCTests: XCTestCase {
                 disposition: .Attachment,
                 meta: HTTP.metaWithHeaders(
                     headers: ["X-Foo": "Bar"],
+                    status: .ok,
                     meta: ["Baz": "Sas"]
                 )
             )
