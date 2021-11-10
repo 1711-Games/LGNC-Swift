@@ -59,6 +59,7 @@ public extension Service {
                 isSecure: false,
                 transport: .HTTP,
                 meta: request.meta,
+                headers: request.headers,
                 eventLoop: request.eventLoop
             )
 

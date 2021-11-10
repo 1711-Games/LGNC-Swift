@@ -1,6 +1,7 @@
 import Foundation
 import NIO
 import LGNLog
+import NIOHTTP1
 
 public extension LGNCore {
     enum Transport: String, Sendable {
@@ -39,6 +40,8 @@ public extension LGNCore {
 
         public let meta: [String: String]
 
+        public let headers: HTTPHeaders?
+
         /// Event loop on which this request is being processed
         public let eventLoop: EventLoop
 
@@ -58,6 +61,7 @@ public extension LGNCore {
             isSecure: Bool,
             transport: Transport,
             meta: [String: String],
+            headers: HTTPHeaders? = nil,
             eventLoop: EventLoop
         ) {
             self.remoteAddr = remoteAddr
@@ -69,6 +73,7 @@ public extension LGNCore {
             self.isSecure = isSecure
             self.transport = transport
             self.meta = meta
+            self.headers = headers
             self.eventLoop = eventLoop
         }
 

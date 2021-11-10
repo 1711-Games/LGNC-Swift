@@ -106,7 +106,7 @@ final class LGNCTests: XCTestCase {
         }
 
         S.Goods.guaranteeCanonical { _ -> (response: S.Goods.Response, meta: Meta) in
-            (
+            S.Goods.withHeaders(
                 response: S.Goods.Response(
                     list: [
                         Good(ID: 1, name: "foo", description: "bar", price: 13.37),
@@ -115,6 +115,10 @@ final class LGNCTests: XCTestCase {
                 ),
                 meta: [
                     "lul": "kek",
+                ],
+                status: .found,
+                headers: [
+                    "is_foo_present": LGNCore.Context.current.headers?.first(name: "foo") ?? "no",
                 ]
             )
         }
@@ -700,6 +704,7 @@ final class LGNCTests: XCTestCase {
                 )
             )
             .get()
+        XCTAssertEqual(result.status, .ok)
 
         XCTAssertNotNil(result.body)
         XCTAssertEqual(
@@ -712,6 +717,39 @@ final class LGNCTests: XCTestCase {
             file3=filename:binary content-type:application/octet-stream body:aωb,
             """
         )
+    }
+
+    public func testHeadersWithStatus() async throws {
+        let client = HTTPClient(eventLoopGroupProvider: .shared(Self.eventLoopGroup))
+        defer { try! client.syncShutdown() }
+
+        let addressShop = LGNCore.Address.ip(host: "http://127.0.0.1", port: 27023)
+
+        let result1 = try await client.execute(
+            request: HTTPClient.Request(
+                url: "\(addressShop)/Goods",
+                method: .POST,
+                headers: HTTPHeaders([
+                    ("Content-type", "application/json"),
+                ]),
+                body: .string("{}")
+            )
+        ).get()
+        XCTAssertEqual(result1.headers.first(name: "is_foo_present"), "no")
+
+        let result2 = try await client.execute(
+            request: HTTPClient.Request(
+                url: "\(addressShop)/Goods",
+                method: .POST,
+                headers: HTTPHeaders([
+                    ("foo", "Y E S"),
+                    ("Content-type", "application/json"),
+                ]),
+                body: .string("{}")
+            )
+        ).get()
+        XCTAssertEqual(result2.headers.first(name: "is_foo_present"), "Y E S")
+        XCTAssertEqual(result2.status, .found)
     }
 
 //    static var allTests = [
