@@ -88,13 +88,6 @@ public extension Contract {
             eventLoop: eventLoop
         )
 
-        Logger.current.debug(
-            "Executing remote contract \(transport.rawValue.lowercased())://\(address)/\(Self.URI)",
-            metadata: [
-                "requestID": "\(context.uuid.string)",
-            ]
-        )
-
         func resultLog(_ maybeError: Error? = nil) {
             let resultString: String
             if let error = maybeError {
@@ -103,7 +96,7 @@ public extension Contract {
                 resultString = "successful"
             }
             Logger.current.info(
-                "Remote contract 'lgns://\(address)/\(URI)' execution was \(resultString) and took \(profiler.end().rounded(toPlaces: 4))s"
+                "Remote contract '\(address)/\(URI)' execution was \(resultString) and took \(profiler.end().rounded(toPlaces: 4))s"
             )
         }
 

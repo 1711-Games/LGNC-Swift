@@ -141,7 +141,7 @@ internal extension LGNC.HTTP {
         func sendResponse(
             context: ChannelHandlerContext,
             status: HTTPResponseStatus,
-            body: ByteBuffer,
+            body _body: ByteBuffer,
             close: Bool,
             headers: HTTPHeaders = [:]
         ) {
@@ -154,13 +154,22 @@ internal extension LGNC.HTTP {
                     )
                 )
             )
-            let body = self.wrapOutboundOut(.body(.byteBuffer(body)))
+            let body = self.wrapOutboundOut(.body(.byteBuffer(_body)))
             let end = self.wrapOutboundOut(.end(nil))
 
             context.eventLoop.makeSucceededFuture(())
-                .flatMap { context.writeAndFlush(head) }
-                .flatMap { context.writeAndFlush(body) }
-                .flatMap { context.writeAndFlush(end) }
+                .flatMap {
+                    return context.writeAndFlush(head)
+                }
+                .flatMap {
+                    guard _body.readableBytes > 0 else {
+                        return context.eventLoop.makeSucceededVoidFuture()
+                    }
+                    return context.writeAndFlush(body)
+                }
+                .flatMap {
+                    return context.writeAndFlush(end)
+                }
                 .flatMapError { error in
                     self.logger.error("Could not send response: \(error)")
                     return context.eventLoop.makeSucceededFuture(())

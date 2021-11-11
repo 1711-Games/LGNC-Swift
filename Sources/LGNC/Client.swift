@@ -6,7 +6,7 @@ import Entita
 import LGNP
 import LGNS
 import NIO
-import _Concurrency
+import LGNLog
 
 public extension LGNC {
     enum Client {}
@@ -36,6 +36,13 @@ public protocol LGNCClient {
     ) async throws -> Bytes
 }
 
+public extension LGNCClient {
+    func log(transport: LGNCore.Transport, address: LGNCore.Address, URI: String, extra: String = "") {
+        let prefix = transport == .LGNS ? transport.rawValue.lowercased() + "://" : ""
+        Logger.current.debug("Executing remote contract \(prefix)\(address)/\(URI) \(extra)")
+    }
+}
+
 extension LGNS.Client: LGNCClient {
     public func send<C: Contract>(
         contract: C.Type,
@@ -48,6 +55,8 @@ extension LGNS.Client: LGNCClient {
             transport: .LGNS,
             eventLoop: context.eventLoop
         )
+
+        self.log(transport: .LGNS, address: address, URI: C.URI)
 
         return try await self
             .singleRequest(
@@ -78,6 +87,8 @@ extension HTTPClient: LGNCClient {
             transport: .HTTP,
             eventLoop: context.eventLoop
         )
+
+        self.log(transport: .HTTP, address: address, URI: C.URI)
 
         let request = try HTTPClient.Request(
             url: address.description + "/" + C.URI,
@@ -157,6 +168,8 @@ public extension LGNC.Client {
             at address: LGNCore.Address,
             context: LGNCore.Context
         ) async throws -> Bytes {
+            self.log(transport: .LGNS, address: address, URI: C.URI, extra: "(loopback)")
+
             let result = try await C.ParentService.executeContract(
                 URI: C.URI,
                 dict: try payload.unpack(from: C.preferredContentType)
