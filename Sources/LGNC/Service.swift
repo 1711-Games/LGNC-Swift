@@ -95,7 +95,7 @@ public extension Service {
         let result: ContractExecutionResult
 
         do {
-            guard let contractInfo = self.contractMap[Self.caseSensitiveURIs ? URI.lowercased() : URI] else {
+            guard let contractInfo = self.contractMap[Self.caseSensitiveURIs ? URI : URI.lowercased()] else {
                 throw LGNC.ContractError.URINotFound(URI) // todo customizable 404 errors
             }
             guard LGNC.ALLOW_ALL_TRANSPORTS == true || contractInfo.transports.contains(context.transport) else {
