@@ -127,7 +127,7 @@ internal extension LGNS {
                 clientID: clientID,
                 userAgent: userAgent,
                 locale: locale,
-                uuid: message.uuid,
+                requestID: message.msid,
                 isSecure: message.controlBitmask.contains(.encrypted) || message.controlBitmask.hasSignature,
                 transport: .LGNS,
                 meta: metaDict,

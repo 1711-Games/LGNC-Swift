@@ -55,7 +55,7 @@ public extension Service {
                     maybeLocale: request.headers["Accept-Language"].first,
                     allowedLocales: LGNCore.i18n.translator.allowedLocales
                 ),
-                uuid: request.uuid,
+                requestID: request.requestID,
                 isSecure: false,
                 transport: .HTTP,
                 meta: request.meta,
@@ -108,7 +108,7 @@ public extension Service {
 
                     var headers: [(name: String, value: String)] = [
                         ("Content-Language", context.locale.rawValue),
-                        ("LGNC-UUID", request.uuid.string),
+                        ("LGNC-RequestID", request.requestID.string),
                     ]
 
                     var metaContainsHeaders = false

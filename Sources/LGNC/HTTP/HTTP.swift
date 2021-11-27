@@ -39,7 +39,7 @@ public extension LGNC.HTTP {
         public let headers: HTTPHeaders
         public let remoteAddr: String
         public let body: Bytes
-        public let uuid: UUID
+        public let requestID: LGNCore.RequestID
         public let contentType: LGNCore.ContentType
         public let method: HTTPMethod
         public let meta: LGNC.Entity.Meta

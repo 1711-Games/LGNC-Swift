@@ -145,7 +145,7 @@ final class LGNSTests: XCTestCase {
         // 103 Message length cannot be zero
         let written = try await self.write(
             to: address,
-            payload: "LGNP".bytes + [0,0,0,0] + [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1] + [2,3,4]
+            payload: "LGNP".bytes + [0,0,0,0] + [97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97] + [2,3,4]
         )
         let zeroErrorMessage = try LGNP.decode(
             body: written,
@@ -160,7 +160,7 @@ final class LGNSTests: XCTestCase {
                 to: address,
                 payload: "LGNP".bytes +
                     Bytes([20,0,0,0]) +
-                    Bytes([1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]) +
+                    Bytes([97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97]) +
                     Bytes([0,0]) +
                     Bytes(repeating: 0, count: 20)
             ),

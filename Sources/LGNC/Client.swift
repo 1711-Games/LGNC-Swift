@@ -66,7 +66,7 @@ extension LGNS.Client: LGNCClient {
                     payload: payload,
                     meta: LGNC.getPackedMeta(from: requestContext, clientID: requestContext.clientID),
                     controlBitmask: self.controlBitmask,
-                    uuid: requestContext.uuid
+                    msid: requestContext.requestID
                 ),
                 on: context.eventLoop
             )
@@ -114,7 +114,7 @@ extension HTTPClient: LGNCClient {
                 clientAddr: "127.0.0.1",
                 userAgent: "AsyncHTTPClient",
                 locale: requestContext.locale,
-                uuid: UUID(),
+                requestID: LGNCore.RequestID(),
                 isSecure: false,
                 transport: .HTTP,
                 meta: response.headers["Cookie"].parseCookies(),
@@ -143,7 +143,7 @@ public extension LGNC.Client {
             clientAddr: "127.0.0.1",
             userAgent: "\(self)",
             locale: maybeContext?.locale ?? .enUS,
-            uuid: maybeContext?.uuid ?? UUID(),
+            requestID: maybeContext?.requestID ?? LGNCore.RequestID(),
             isSecure: transport == .LGNS,
             transport: transport,
             meta: maybeContext?.meta ?? [:],

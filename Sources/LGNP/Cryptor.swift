@@ -1,5 +1,4 @@
 import Crypto
-import Foundation
 import Gzip
 import LGNCore
 
@@ -27,22 +26,22 @@ public extension LGNP {
             try self.init(key: LGNCore.getBytes(key))
         }
 
-        /// Encrypts input bytes using given UUID as nonce
+        /// Encrypts input bytes using given LGNCore.RequestID as nonce
         @inlinable
-        public func encrypt(input: Bytes, uuid: UUID) throws -> Bytes {
-            try self.encrypt(input, nonce: self.getNonce(from: uuid))
+        public func encrypt(input: Bytes, requestID: LGNCore.RequestID) throws -> Bytes {
+            try self.encrypt(input, nonce: self.getNonce(from: requestID))
         }
 
-        /// Decrypts input bytes using given UUID as nonce
+        /// Decrypts input bytes using given LGNCore.RequestID as nonce
         @inlinable
-        public func decrypt(input: Bytes, uuid: UUID) throws -> Bytes {
-            try self.decrypt(input, nonce: self.getNonce(from: uuid))
+        public func decrypt(input: Bytes, requestID: LGNCore.RequestID) throws -> Bytes {
+            try self.decrypt(input, nonce: self.getNonce(from: requestID))
         }
 
-        /// Computes nonce from given UUID
+        /// Computes nonce from given LGNCore.RequestID
         @usableFromInline
-        internal func getNonce(from uuid: UUID) -> Bytes {
-            Bytes(LGNCore.getBytes(uuid)[0 ..< Self.NONCE_SIZE])
+        internal func getNonce(from requestID: LGNCore.RequestID) -> Bytes {
+            Bytes(LGNCore.getBytes(requestID)[0 ..< Self.NONCE_SIZE])
         }
 
         @usableFromInline

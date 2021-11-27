@@ -5,13 +5,21 @@ public typealias Bytes = [Byte]
 
 public extension LGNCore {
     /// Returns raw underlying byte array from given String
-    @inlinable static func getBytes(_ string: String) -> Bytes {
-        return Bytes(string.utf8)
+    @inlinable
+    static func getBytes(_ string: String) -> Bytes {
+        Bytes(string.utf8)
+    }
+
+    /// Returns raw underlying byte array from given RequestID
+    @inlinable
+    static func getBytes(_ requestID: RequestID) -> Bytes {
+        RequestID.getBytesFrom(value: requestID.value)
     }
 
     /// Returns raw underlying byte array from given input
-    @inlinable static func getBytes<Input>(_ input: Input) -> Bytes {
-        return withUnsafeBytes(of: input) { Bytes($0) }
+    @inlinable
+    static func getBytes<Input>(_ input: Input) -> Bytes {
+        withUnsafeBytes(of: input) { Bytes($0) }
     }
 }
 

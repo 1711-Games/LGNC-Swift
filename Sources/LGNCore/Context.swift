@@ -28,8 +28,8 @@ public extension LGNCore {
         /// User locale of request of response. In HTTP - `Accept-Language` header, in LGNS - `lc` meta key in LGNP message.
         public let locale: LGNCore.i18n.Locale
 
-        /// Unique identifier of request/response in UUID v4 format.
-        public let uuid: UUID
+        /// Unique identifier of request/response
+        public let requestID: LGNCore.RequestID
 
         /// Indicates if request was encrypted and/or signed.
         /// Currently supported only in LGNS (`.encrypted`, `.hasSignature` in control bitmask), HTTPS doesn't set this value to `true`.
@@ -47,7 +47,7 @@ public extension LGNCore {
 
         public var logger: Logger {
             var logger = Logging.Logger(label: "LGNCore.Context")
-            logger[metadataKey: "requestID"] = "\(self.uuid.string)"
+            logger[metadataKey: "requestID"] = "\(self.requestID.string)"
             return logger
         }
 
@@ -57,7 +57,7 @@ public extension LGNCore {
             clientID: String? = nil,
             userAgent: String,
             locale: LGNCore.i18n.Locale,
-            uuid: UUID,
+            requestID: LGNCore.RequestID,
             isSecure: Bool,
             transport: Transport,
             meta: [String: String],
@@ -69,7 +69,7 @@ public extension LGNCore {
             self.clientID = clientID
             self.userAgent = userAgent
             self.locale = locale
-            self.uuid = uuid
+            self.requestID = requestID
             self.isSecure = isSecure
             self.transport = transport
             self.meta = meta
@@ -84,7 +84,7 @@ public extension LGNCore {
             clientID: String? = nil,
             userAgent: String? = nil,
             locale: LGNCore.i18n.Locale? = nil,
-            uuid: UUID? = nil,
+            requestID: LGNCore.RequestID? = nil,
             isSecure: Bool? = nil,
             transport: Transport? = nil,
             meta: [String: String]? = nil
@@ -95,7 +95,7 @@ public extension LGNCore {
                 clientID: clientID ?? self.clientID,
                 userAgent: userAgent ?? self.userAgent,
                 locale: locale ?? self.locale,
-                uuid: uuid ?? self.uuid,
+                requestID: requestID ?? self.requestID,
                 isSecure: isSecure ?? self.isSecure,
                 transport: transport ?? self.transport,
                 meta: meta ?? self.meta,
@@ -113,7 +113,7 @@ public extension LGNCore.Context {
         clientID: nil,
         userAgent: "",
         locale: .enUS,
-        uuid: UUID(),
+        requestID: LGNCore.RequestID(),
         isSecure: false,
         transport: .HTTP,
         meta: [:],

@@ -140,7 +140,7 @@ futureResult.whenComplete { resultMonad in
             """
             Received message.\
                 Body: \(message._payloadAsString).\
-                UUID: \(message.uuid).\
+                MSID: \(message.msid).\
                 Locale: \(context.locale).
             """
         )

@@ -1,8 +1,6 @@
 import Foundation
 import LGNLog
 
-extension UUID: @unchecked Sendable {}
-
 // autoreleasepool is objc-exclusive thing
 #if !os(macOS)
     public func autoreleasepool<Result>(invoking body: () throws -> Result) rethrows -> Result {
@@ -29,18 +27,6 @@ public func _precondition(
 ) {
     guard condition() == true else {
         fatalError("Precondition failed: \(message())", file: file, line: line)
-    }
-}
-
-public extension UUID {
-    /// A helper function for UUID initialization from byte array (it should be exactly 16 bytes)
-    init(bytes: Bytes) throws {
-        self.init(uuid: try bytes.cast())
-    }
-
-    /// A helper var for casting UUID to string HEX form (just an alias for `UUID.uuidString`)
-    var string: String {
-        return uuidString
     }
 }
 

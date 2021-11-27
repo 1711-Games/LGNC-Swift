@@ -74,7 +74,7 @@ final class LGNCoreTests: XCTestCase {
             clientID: "id1",
             userAgent: "Safari",
             locale: .ukUA,
-            uuid: UUID(),
+            requestID: LGNCore.RequestID(),
             isSecure: true,
             transport: .HTTP,
             meta: [:],
@@ -87,7 +87,7 @@ final class LGNCoreTests: XCTestCase {
         XCTAssertEqual(fullyClonedInstance.clientID, originalInstance.clientID)
         XCTAssertEqual(fullyClonedInstance.userAgent, originalInstance.userAgent)
         XCTAssertEqual(fullyClonedInstance.locale, originalInstance.locale)
-        XCTAssertEqual(fullyClonedInstance.uuid, originalInstance.uuid)
+        XCTAssertEqual(fullyClonedInstance.requestID, originalInstance.requestID)
         XCTAssertEqual(fullyClonedInstance.isSecure, originalInstance.isSecure)
         XCTAssertEqual(fullyClonedInstance.transport, originalInstance.transport)
 
@@ -96,7 +96,7 @@ final class LGNCoreTests: XCTestCase {
         let clonedInstanceClientID: String = "id2"
         let clonedInstanceUserAgent: String = "Firefox"
         let clonedInstanceLocale: LGNCore.i18n.Locale = .ruRU
-        let clonedInstanceUuid: UUID = UUID()
+        let clonedInstanceRequestID = LGNCore.RequestID()
         let clonedInstanceIsSecure: Bool = false
         let clonedInstanceTransport: LGNCore.Transport = .LGNS
 
@@ -106,7 +106,7 @@ final class LGNCoreTests: XCTestCase {
             clientID: clonedInstanceClientID,
             userAgent: clonedInstanceUserAgent,
             locale: clonedInstanceLocale,
-            uuid: clonedInstanceUuid,
+            requestID: clonedInstanceRequestID,
             isSecure: clonedInstanceIsSecure,
             transport: clonedInstanceTransport
         )
@@ -116,7 +116,7 @@ final class LGNCoreTests: XCTestCase {
         XCTAssertEqual(notFullyClonedInstance.clientID, clonedInstanceClientID)
         XCTAssertEqual(notFullyClonedInstance.userAgent, clonedInstanceUserAgent)
         XCTAssertEqual(notFullyClonedInstance.locale, clonedInstanceLocale)
-        XCTAssertEqual(notFullyClonedInstance.uuid, clonedInstanceUuid)
+        XCTAssertEqual(notFullyClonedInstance.requestID, clonedInstanceRequestID)
         XCTAssertEqual(notFullyClonedInstance.isSecure, clonedInstanceIsSecure)
         XCTAssertEqual(notFullyClonedInstance.transport, clonedInstanceTransport)
 
@@ -125,7 +125,7 @@ final class LGNCoreTests: XCTestCase {
         XCTAssertNotEqual(notFullyClonedInstance.clientID, originalInstance.clientID)
         XCTAssertNotEqual(notFullyClonedInstance.userAgent, originalInstance.userAgent)
         XCTAssertNotEqual(notFullyClonedInstance.locale, originalInstance.locale)
-        XCTAssertNotEqual(notFullyClonedInstance.uuid, originalInstance.uuid)
+        XCTAssertNotEqual(notFullyClonedInstance.requestID, originalInstance.requestID)
         XCTAssertNotEqual(notFullyClonedInstance.isSecure, originalInstance.isSecure)
         XCTAssertNotEqual(notFullyClonedInstance.transport, originalInstance.transport)
     }

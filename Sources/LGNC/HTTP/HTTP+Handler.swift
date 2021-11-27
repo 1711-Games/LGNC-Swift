@@ -10,7 +10,7 @@ internal extension LGNC.HTTP {
         typealias OutboundOut = HTTPServerResponsePart
 
         private let resolver: Resolver
-        private let requestID = UUID()
+        private let requestID = LGNCore.RequestID()
 
         private lazy var logger: Logger = {
             var logger = Logger(label: "LGNC.HTTP.Handler")
@@ -69,7 +69,7 @@ internal extension LGNC.HTTP {
                 headers: request.head.headers,
                 remoteAddr: request.head.headers["X-Real-IP"].first ?? context.channel.remoteAddrString,
                 body: payloadBytes,
-                uuid: self.requestID,
+                requestID: self.requestID,
                 contentType: contentType,
                 method: method,
                 meta: meta,

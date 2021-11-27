@@ -30,29 +30,29 @@ final class LGNPTests: XCTestCase {
         let cryptor = try LGNP.Cryptor(key: "1234567812345678")
 
         let sampleData: Bytes = (0...16).map { _ in Byte.random(in: (Byte.min...Byte.max)) }
-        let uuid = UUID()
+        let msid = LGNCore.RequestID()
 
         XCTAssertEqual(
             try cryptor.decrypt(
                 input: try cryptor.encrypt(
                     input: sampleData,
-                    uuid: uuid
+                    requestID: msid
                 ),
-                uuid: uuid
+                requestID: msid
             ),
             sampleData
         )
     }
 
     func testMessage() {
-        let uuid = UUID()
+        let msid = LGNCore.RequestID()
 
         var message = LGNP.Message(
             URI: "foo",
             payload: [1,2,3],
             meta: [0,0,0],
             controlBitmask: .defaultValues,
-            uuid: uuid
+            msid: msid
         )
 
         message.meta = nil
@@ -96,15 +96,15 @@ final class LGNPTests: XCTestCase {
         XCTAssertEqual(LGNP.Message.error(message: "abc").payload, [97, 98, 99])
         XCTAssertEqual(LGNP.Message.error(message: "abc")._payloadAsString, "abc")
 
-        let uuid2 = UUID()
+        let msid2 = LGNCore.RequestID()
         XCTAssertEqual(
-            message.copied(payload: [3,2,2], controlBitmask: .compressed, URI: "bar", uuid: uuid2),
+            message.copied(payload: [3,2,2], controlBitmask: .compressed, URI: "bar", msid: msid2),
             LGNP.Message(
                 URI: "bar",
                 payload: [3,2,2],
                 meta: nil,
                 controlBitmask: .compressed,
-                uuid: uuid2
+                msid: msid2
             )
         )
         XCTAssertEqual(
@@ -114,20 +114,20 @@ final class LGNPTests: XCTestCase {
                 payload: [3,2,2],
                 meta: nil,
                 controlBitmask: message.controlBitmask,
-                uuid: uuid
+                msid: msid
             )
         )
     }
 
     func testLGNP() throws {
-        let uuid = UUID()
+        let msid = LGNCore.RequestID()
         let cryptor = try LGNP.Cryptor(key: "1234567812345678")
         var message = LGNP.Message(
             URI: "foo",
             payload: [1,2,3],
             meta: [4,5,6],
             controlBitmask: [.contentTypePlainText, .signatureSHA512],
-            uuid: uuid
+            msid: msid
         )
 
         XCTAssertEqual(
@@ -146,7 +146,7 @@ final class LGNPTests: XCTestCase {
                         payload: [1,2,3],
                         meta: [4,5,6],
                         controlBitmask: [.contentTypePlainText, .signatureSHA256],
-                        uuid: uuid
+                        msid: msid
                     ),
                     with: cryptor
                 ),
@@ -351,8 +351,8 @@ final class LGNPTests: XCTestCase {
         XCTAssertThrowsError(
             try LGNP.decode(
                 body: [
-                    76, 71, 78, 80, 30, 0, 0, 0, 184, 148, 23, 34, 12, 79, 74,
-                    224, 149, 247, 118, 235, 247, 85, 37, 162, 4, 0, 0, 1, 2, 3,
+                    76, 71, 78, 80, 30, 0, 0, 0, 100, 97, 97, 97, 97, 97, 97,
+                    97, 97, 97, 97, 97, 97, 97, 97, 97, 4, 0, 0, 1, 2, 3,
                 ],
                 with: cryptor
             )
@@ -367,13 +367,13 @@ final class LGNPTests: XCTestCase {
             }
         }
 
-        let uuid = UUID()
+        let msid = LGNCore.RequestID()
         let message = LGNP.Message(
             URI: "foo",
             payload: [1,2,3],
             meta: [4,5,6],
             controlBitmask: [.contentTypePlainText, .signatureSHA512, .encrypted],
-            uuid: uuid
+            msid: msid
         )
         let encoded = try! LGNP.encode(message: message, with: cryptor)
         let headlessBody = Bytes(encoded[Int(LGNP.MESSAGE_HEADER_LENGTH)...])
@@ -408,7 +408,7 @@ final class LGNPTests: XCTestCase {
             URI: "AAAAAAAAAAAAA",
             payload: [1,2,3],
             controlBitmask: .defaultValues,
-            uuid: uuid
+            msid: msid
         )
         var encoded2 = try! LGNP.encode(message: message2, with: cryptor)
         encoded2[encoded2.count - 4] = 100
@@ -455,7 +455,7 @@ final class LGNPTests: XCTestCase {
     }
 
     func testValidateSignatureAndGetBody() {
-        let uuid = UUID()
+        let msid = LGNCore.RequestID()
 
         let cryptor = try! LGNP.Cryptor(key: "1234567812345678")
         let message = LGNP.Message(
@@ -463,13 +463,13 @@ final class LGNPTests: XCTestCase {
             payload: [1,2,3],
             meta: [4,5,6],
             controlBitmask: .signatureSHA384,
-            uuid: uuid
+            msid: msid
         )
 
         XCTAssertThrowsError(
             try LGNP.validateSignatureAndGetBody(
                 from: try LGNP.encode(message: message, with: cryptor),
-                uuid: uuid,
+                msid: msid,
                 cryptor: cryptor,
                 controlBitmask: message.controlBitmask
             )

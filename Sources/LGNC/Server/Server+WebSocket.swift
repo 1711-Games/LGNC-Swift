@@ -10,7 +10,7 @@ import LGNPContenter
 public protocol WebsocketRouter: AnyObject, Sendable {
     var upgrader: HTTPServerProtocolUpgrader { get }
     var service: Service.Type { get }
-    var requestID: UUID { get set }
+    var requestID: LGNCore.RequestID { get set }
     var channel: Channel { get }
     var baseContext: LGNCore.Context! { get set }
     var contentType: LGNCore.ContentType { get }
@@ -37,7 +37,7 @@ public extension WebsocketRouter {
                         maybeLocale: head.headers["Accept-Language"].first,
                         allowedLocales: LGNCore.i18n.translator.allowedLocales
                     ),
-                    uuid: UUID(),
+                    requestID: LGNCore.RequestID(),
                     isSecure: false,
                     transport: .WebSocket,
                     meta: [:],
@@ -327,7 +327,7 @@ extension LGNC.WebSocket {
         public unowned let channel: Channel
         public let service: Service.Type
         public var allowedURIs: [String]
-        public var requestID: UUID = UUID()
+        public var requestID: LGNCore.RequestID = LGNCore.RequestID()
         public var baseContext: LGNCore.Context!
         public let contentType: LGNCore.ContentType = .JSON
 
