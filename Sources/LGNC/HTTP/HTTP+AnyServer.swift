@@ -39,9 +39,11 @@ public extension LGNC.HTTP {
                 .serverChannelOption(ChannelOptions.backlog, value: 256)
                 .serverChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
                 .childChannelInitializer { channel in
+                    let profiler = LGNCore.Profiler()
+
                     let httpHandlers: [ChannelHandler & RemovableChannelHandler] = [
                         NIOHTTPServerRequestAggregator(maxContentLength: 1_000_000),
-                        LGNC.HTTP.Handler(resolver: resolver),
+                        LGNC.HTTP.Handler(resolver: resolver, profiler: profiler),
                     ]
 
                     var upgrader: NIOHTTPServerUpgradeConfiguration? = nil

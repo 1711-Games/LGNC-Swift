@@ -60,7 +60,8 @@ public extension Service {
                 transport: .HTTP,
                 meta: request.meta,
                 headers: request.headers,
-                eventLoop: request.eventLoop
+                eventLoop: request.eventLoop,
+                profiler: request.profiler
             )
 
             let logger = context.logger

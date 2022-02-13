@@ -91,7 +91,6 @@ public extension Service {
         dict: Entita.Dict
     ) async throws -> ContractExecutionResult {
         let context = LGNCore.Context.current
-        let profiler = LGNCore.Profiler.begin()
         let result: ContractExecutionResult
 
         do {
@@ -151,7 +150,7 @@ public extension Service {
         }
 
         context.logger.info(
-            "[\(context.clientAddr)] [\(context.transport.rawValue)] [\(URI)] \(profiler.end().rounded(toPlaces: 4))s"
+            "[\(context.clientAddr)] [\(context.transport.rawValue)] [\(URI)] \(context.profiler.mark("contract executed").elapsed.rounded(toPlaces: 4))s"
         )
 
         return result

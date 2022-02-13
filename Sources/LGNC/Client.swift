@@ -118,7 +118,8 @@ extension HTTPClient: LGNCClient {
                 isSecure: false,
                 transport: .HTTP,
                 meta: response.headers["Cookie"].parseCookies(),
-                eventLoop: context.eventLoop
+                eventLoop: context.eventLoop,
+                profiler: context.profiler
             )
         ) { bytes } // todo fix
     }
@@ -147,7 +148,8 @@ public extension LGNC.Client {
             isSecure: transport == .LGNS,
             transport: transport,
             meta: maybeContext?.meta ?? [:],
-            eventLoop: eventLoop
+            eventLoop: eventLoop,
+            profiler: maybeContext?.profiler ?? LGNCore.Profiler()
         )
     }
 }

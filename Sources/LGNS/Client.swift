@@ -57,9 +57,9 @@ public extension LGNS {
                 try await self.disconnect()
             }
 
-            let connectProfiler = LGNCore.Profiler.begin()
+            let connectProfiler = LGNCore.Profiler()
 
-            let clientHandler = LGNS.ClientHandler(promise: self.responsePromise) { message in
+            let clientHandler = LGNS.ClientHandler(promise: self.responsePromise, profiler: connectProfiler) { message in
                 Logger.current.debug("Got LGNS response: \(message._payloadAsString)")
                 self.responsePromise?.succeed((message, LGNCore.Context.current))
                 return nil
@@ -97,7 +97,7 @@ public extension LGNS {
             }
 
             Logger.current.debug(
-                "Connection to \(address) \(resultString) in \(connectProfiler.end().rounded(toPlaces: 4))s"
+                "Connection to \(address) \(resultString) in \(connectProfiler.mark("connection established").elapsed.rounded(toPlaces: 4))s"
             )
         }
 

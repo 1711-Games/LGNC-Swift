@@ -8,12 +8,10 @@ import SwiftMsgPack
 
 public extension EventLoopFuture {
     func map<NewValue>(
-        file: StaticString = #file,
-        line: UInt = #line,
         _ keyPath: KeyPath<Value, NewValue>
     ) -> EventLoopFuture<NewValue> {
-        return self.map(file: file, line: line) { (result: Value) -> NewValue in
-            return result[keyPath: keyPath]
+        self.map { (result: Value) -> NewValue in
+            result[keyPath: keyPath]
         }
     }
 }

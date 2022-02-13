@@ -10,6 +10,7 @@ internal extension LGNC.HTTP {
         typealias OutboundOut = HTTPServerResponsePart
 
         private let resolver: Resolver
+        private let profiler: LGNCore.Profiler
         private let requestID = LGNCore.RequestID()
 
         private lazy var logger: Logger = {
@@ -20,14 +21,15 @@ internal extension LGNC.HTTP {
             return logger
         }()
 
-        public init(resolver: @escaping Resolver) {
+        public init(resolver: @escaping Resolver, profiler: LGNCore.Profiler) {
             self.resolver = resolver
+            self.profiler = profiler
         }
 
         func channelRead(context: ChannelHandlerContext, data: NIOAny) {
-            let profiler = LGNCore.Profiler.begin()
+            self.logger.trace("LGNC.HTTP.channelRead \(self.profiler.mark("LGNC.HTTP.channelRead"))")
 
-            let request = self.unwrapInboundIn(data)
+            let request: NIOHTTPServerRequestFull = self.unwrapInboundIn(data)
 
             self.logger.debug("About to serve \(request.head.method) \(request.head.uri)")
 
@@ -73,17 +75,20 @@ internal extension LGNC.HTTP {
                 contentType: contentType,
                 method: method,
                 meta: meta,
-                eventLoop: context.eventLoop
+                eventLoop: context.eventLoop,
+                profiler: self.profiler
             )
 
             let resolverResultPromise = context.eventLoop.makePromise(of: ResolverResult.self)
 
             Task.detached {
+                self.logger.trace("Resolver invocation begin \(self.profiler.mark("resolver invocation begin"))")
                 do {
                     resolverResultPromise.succeed(try await self.resolver(resolverRequest))
                 } catch {
                     resolverResultPromise.fail(error)
                 }
+                self.logger.trace("Resolver invocation end \(self.profiler.mark("resolver invocation end"))")
             }
 
             let headers = [
@@ -113,7 +118,7 @@ internal extension LGNC.HTTP {
 
             resolverResultPromise.futureResult.whenComplete { _ in
                 self.logger.debug(
-                    "HTTP request '\(resolverRequest.URI)' execution took \(profiler.end().rounded(toPlaces: 5)) s"
+                    "HTTP request '\(resolverRequest.URI)' served in \(self.profiler.mark("HTTP request served").elapsed.rounded(toPlaces: 4))"
                 )
             }
         }

@@ -22,6 +22,7 @@ internal extension LGNS {
         open private(set) var kind: String = "Base"
 
         private let resolver: LGNS.Resolver
+        private let profiler: LGNCore.Profiler
         public var promise: EventLoopPromise<(LGNP.Message, LGNCore.Context)>?
 
         fileprivate class var profile: Bool {
@@ -33,10 +34,12 @@ internal extension LGNS {
         public init(
             promise: EventLoopPromise<(LGNP.Message, LGNCore.Context)>? = nil,
             file: String = #file, line: Int = #line,
+            profiler: LGNCore.Profiler,
             resolver: @escaping Resolver
         ) {
             self.promise = promise
             self.resolver = resolver
+            self.profiler = profiler
 
             Logger.current.trace("Handler initialized")
         }
@@ -83,6 +86,8 @@ internal extension LGNS {
         public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
             var logger = Logger.current
             logger[metadataKey: "LGNS.Handler"] = "\(self.kind)"
+
+            logger.trace("LGNS.BaseHandler.channelRead \(self.profiler.mark("LGNS.BaseHandler.channelRead"))")
 
             logger.debug("Channel read (\(context.remoteAddress?.description ?? "unknown addr"))")
 
@@ -131,7 +136,8 @@ internal extension LGNS {
                 isSecure: message.controlBitmask.contains(.encrypted) || message.controlBitmask.hasSignature,
                 transport: .LGNS,
                 meta: metaDict,
-                eventLoop: context.eventLoop
+                eventLoop: context.eventLoop,
+                profiler: self.profiler
             )
 
             let contextLogger = requestContext.logger
@@ -148,9 +154,8 @@ internal extension LGNS {
 
             let promise = context.eventLoop.makePromise(of: LGNP.Message?.self)
 
-            var profiler: LGNCore.Profiler?
             if Self.profile == true {
-                profiler = LGNCore.Profiler.begin()
+                self.profiler.mark()
             }
 
             Task.detached {
@@ -190,10 +195,10 @@ internal extension LGNS {
             }
 
             promise.futureResult.whenComplete { _ in
-                if let profiler = profiler {
+                if Self.profile {
                     contextLogger.debug("""
                     LGNS \(type(of: self)) request '\(message.URI)' execution \
-                    took \(profiler.end().rounded(toPlaces: 5)) s
+                    took \(self.profiler.mark("LGNS request served").elapsed.rounded(toPlaces: 4))s
                     """
                     )
                 }

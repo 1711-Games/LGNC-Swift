@@ -41,7 +41,8 @@ public extension WebsocketRouter {
                     isSecure: false,
                     transport: .WebSocket,
                     meta: [:],
-                    eventLoop: channel.eventLoop
+                    eventLoop: channel.eventLoop,
+                    profiler: LGNCore.Profiler()
                 )
 
                 Task.detached {

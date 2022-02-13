@@ -78,7 +78,6 @@ public extension Contract {
         using client: LGNCClient,
         context maybeContext: LGNCore.Context? = nil
     ) async throws -> (response: Self.Response, meta: LGNC.Entity.Meta) {
-        let profiler = LGNCore.Profiler.begin()
         let eventLoop = maybeContext?.eventLoop ?? client.eventLoopGroup.next()
         let transport = Self.preferredTransport
 
@@ -88,6 +87,8 @@ public extension Contract {
             eventLoop: eventLoop
         )
 
+        context.profiler.mark("from channel to execution")
+
         func resultLog(_ maybeError: Error? = nil) {
             let resultString: String
             if let error = maybeError {
@@ -95,8 +96,9 @@ public extension Contract {
             } else {
                 resultString = "successful"
             }
+            let milestone = context.profiler.mark("remote contract executed")
             Logger.current.info(
-                "Remote contract '\(address)/\(URI)' execution was \(resultString) and took \(profiler.end().rounded(toPlaces: 4))s"
+                "Remote contract '\(address)/\(URI)' execution was \(resultString) and took \(milestone.elapsed.rounded(toPlaces: 4))s"
             )
         }
 

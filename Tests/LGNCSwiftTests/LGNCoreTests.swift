@@ -78,7 +78,8 @@ final class LGNCoreTests: XCTestCase {
             isSecure: true,
             transport: .HTTP,
             meta: [:],
-            eventLoop: eventLoop
+            eventLoop: eventLoop,
+            profiler: LGNCore.Profiler()
         )
 
         let fullyClonedInstance = originalInstance.cloned()

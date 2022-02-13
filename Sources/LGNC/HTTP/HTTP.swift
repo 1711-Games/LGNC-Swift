@@ -44,6 +44,7 @@ public extension LGNC.HTTP {
         public let method: HTTPMethod
         public let meta: LGNC.Entity.Meta
         public let eventLoop: EventLoop
+        public let profiler: LGNCore.Profiler
     }
 }
 

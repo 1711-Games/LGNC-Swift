@@ -45,6 +45,9 @@ public extension LGNCore {
         /// Event loop on which this request is being processed
         public let eventLoop: EventLoop
 
+        /// A profiler (SHOULD be created with channel initializer)
+        public let profiler: LGNCore.Profiler
+
         public var logger: Logger {
             var logger = Logging.Logger(label: "LGNCore.Context")
             logger[metadataKey: "requestID"] = "\(self.requestID.string)"
@@ -62,7 +65,8 @@ public extension LGNCore {
             transport: Transport,
             meta: [String: String],
             headers: HTTPHeaders? = nil,
-            eventLoop: EventLoop
+            eventLoop: EventLoop,
+            profiler: LGNCore.Profiler
         ) {
             self.remoteAddr = remoteAddr
             self.clientAddr = clientAddr
@@ -75,6 +79,7 @@ public extension LGNCore {
             self.meta = meta
             self.headers = headers
             self.eventLoop = eventLoop
+            self.profiler = profiler
         }
 
         /// Clones current context
@@ -99,7 +104,8 @@ public extension LGNCore {
                 isSecure: isSecure ?? self.isSecure,
                 transport: transport ?? self.transport,
                 meta: meta ?? self.meta,
-                eventLoop: self.eventLoop
+                eventLoop: self.eventLoop,
+                profiler: self.profiler
             )
         }
     }
@@ -117,6 +123,7 @@ public extension LGNCore.Context {
         isSecure: false,
         transport: .HTTP,
         meta: [:],
-        eventLoop: EmbeddedEventLoop()
+        eventLoop: EmbeddedEventLoop(),
+        profiler: LGNCore.Profiler()
     )
 }
