@@ -23,7 +23,7 @@ let package = Package(
         .package(url: "https://github.com/kirilltitov/SwiftMsgPack.git", from: "2.0.1"),
 
         // used by LGNP
-        .package(url: "https://github.com/apple/swift-crypto.git", from: "1.0.0"),
+        .package(url: "https://github.com/apple/swift-crypto.git", from: "1.1.7"),
         .package(name: "Gzip", url: "https://github.com/1024jp/GzipSwift.git", from: "5.1.1"),
     ],
     targets: [
