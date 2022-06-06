@@ -31,6 +31,7 @@ let package = Package(
             name: "LGNCore",
             dependencies: [
                 .product(name: "NIO", package: "swift-nio"),
+                .product(name: "NIOHTTP1", package: "swift-nio"),
                 .product(name: "LGNLog", package: "LGN-Log"),
             ],
             exclude: ["README.md"]
