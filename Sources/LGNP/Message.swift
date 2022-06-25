@@ -3,14 +3,16 @@ import LGNCore
 
 public extension LGNP {
     struct Message {
+        public typealias MSID = LGNCore.RequestID
+
         /// Message URI
         public let URI: String
 
         /// Message payload body
         public let payload: Bytes
 
-        /// Message UUID
-        public var uuid: UUID
+        /// Message ID
+        public var msid: MSID
 
         /// Message control bitmask
         public var controlBitmask: ControlBitmask
@@ -47,12 +49,12 @@ public extension LGNP {
             payload: Bytes,
             meta: Bytes? = nil,
             controlBitmask: ControlBitmask = .defaultValues,
-            uuid: UUID = UUID()
+            msid: MSID = MSID()
         ) {
             self.URI = URI
             self.payload = payload
             self.meta = meta
-            self.uuid = uuid
+            self.msid = msid
 
             var _controlBitmask = controlBitmask
             if let _ = self.meta {
@@ -67,18 +69,20 @@ public extension LGNP {
             return self.init(URI: "", payload: LGNCore.getBytes(message))
         }
 
-        /// Copies current message replacing payload, control bitmask (optional), URI (optional) and UUID (optional)
+        /// Copies current message replacing payload, control bitmask (optional), URI (optional) and MSID (optional)
         public func copied(
             payload: Bytes,
             controlBitmask: Message.ControlBitmask? = nil,
             URI: String? = nil,
-            uuid: UUID? = nil
+            msid: MSID? = nil,
+            meta: Bytes? = nil
         ) -> Message {
             Message(
                 URI: URI ?? self.URI,
                 payload: payload,
+                meta: meta ?? self.meta,
                 controlBitmask: (controlBitmask ?? self.controlBitmask).subtracting(.containsMeta),
-                uuid: uuid ?? self.uuid
+                msid: msid ?? self.msid
             )
         }
     }
@@ -88,7 +92,7 @@ extension LGNP.Message: Equatable {
     public static func == (lhs: LGNP.Message, rhs: LGNP.Message) -> Bool {
         true
             && lhs.payload == rhs.payload
-            && lhs.uuid == rhs.uuid
+            && lhs.msid == rhs.msid
             && lhs.URI == rhs.URI // why explicit method? what's wrong with synthesized one?
     }
 }

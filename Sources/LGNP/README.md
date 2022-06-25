@@ -14,20 +14,20 @@ LGNP message consists of following blocks (placed in logical order):
 
 * `HEAD` — message header. It's always static — just four bytes of ASCII `LGNP` (or just `Array<UInt8>([76, 71, 78, 80])`). Any message that starts not from these bytes must be considered invalid.
 * `SIZE` — 4 bytes of message size in LE (little-endian) `UInt32` (this value should include size of `HEAD` and `SIZE` blocks). Message that is less than this value must be considered invalid. Larger message may be considered invalid, or valid after trimming.
-* `UUID` — 16 bytes of v4 UUID. Same UUID may be reused when responding to a message. 
+* `MSID` — 16 bytes of `LGNCore.RequestID`. Same MSID may be reused when responding to a message. 
 * `BMSK` — 2 bytes of control bitmask in LE `UInt16`, see respective section below on control bitmasks.
-* `SIGN` — (optional, if stated in `BMSK`) some number of bytes of HMAC-signature (depends of algo), computed as `HMAC<algo>(URI + MSZE + META + BODY + UUID, KEY)`.
+* `SIGN` — (optional, if stated in `BMSK`) some number of bytes of HMAC-signature (depends of algo), computed as `HMAC<algo>(URI + MSZE + META + BODY + MSID, KEY)`.
 * `URI` — some number of bytes of URI and a terminating `NUL` byte.
 * `MSZE` — (optional, if stated in `BMSK`) 4 bytes of meta section size in LE `UInt32`
 * `META` — (optional, if stated in `BMSK`) some number of bytes of meta section (size is specified in `MSZE`), see details in respective section.
 * `BODY` — some number of payload bytes (size is `SIZE` minus size of every preceeding block, e.g. `BODY` is the rest of message trimming after `SIZE`)
 
-Sections starting from `SIGN` (uncluding one) may be encrypted with AES (GCM) using external secret key and first 12 bytes of `UUID` as nonce, encrypted payload is followed by a tag.
+Sections starting from `SIGN` (uncluding one) may be encrypted with AES (GCM) using external secret key and first 12 bytes of `MSID` as nonce, encrypted payload is followed by a tag.
 
 Possible failfast scenarios:
 * message size is less than 28 bytes 
 * `HEAD` isn't `LGNP` bytes
-* `UUID` isn't a v4 UUID
+* `MSID` isn't a `LGNCore.RequestID`
 
 ## Control bitmask (`BMSK` block)
 Control bitmask is a 2 bytes block which holds a bitmask with various flags related to current message. Possible values are:
@@ -67,7 +67,7 @@ let message = LGNP.Message(
     payload: Bytes([1,2,3]),
     meta: Bytes([4,5,6]), // optional
     controlBitmask: [.contentTypePlainText, .signatureSHA256],
-    uuid: UUID() // may be omitted
+    msid: LGNCore.RequestID() // may be omitted
 )
 ```
 

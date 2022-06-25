@@ -116,7 +116,7 @@ internal extension LGNS {
             }
         }
 
-        public func write(context: ChannelHandlerContext, data: NIOAny, promise: PromiseVoid?) {
+        public func write(context: ChannelHandlerContext, data: NIOAny, promise: EventLoopPromise<Void>?) {
             do {
                 context.write(
                     self.wrapOutboundOut(

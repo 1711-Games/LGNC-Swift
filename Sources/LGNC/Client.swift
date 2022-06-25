@@ -6,6 +6,7 @@ import Entita
 import LGNP
 import LGNS
 import NIO
+import LGNLog
 
 public extension LGNC {
     enum Client {}
@@ -32,7 +33,14 @@ public protocol LGNCClient {
         payload: Bytes,
         at address: LGNCore.Address,
         context: LGNCore.Context
-    ) -> EventLoopFuture<(response: Bytes, context: LGNCore.Context)>
+    ) async throws -> Bytes
+}
+
+public extension LGNCClient {
+    func log(transport: LGNCore.Transport, address: LGNCore.Address, URI: String, extra: String = "") {
+        let prefix = transport == .LGNS ? transport.rawValue.lowercased() + "://" : ""
+        Logger.current.debug("Executing remote contract \(prefix)\(address)/\(URI) \(extra)")
+    }
 }
 
 extension LGNS.Client: LGNCClient {
@@ -41,28 +49,28 @@ extension LGNS.Client: LGNCClient {
         payload: Bytes,
         at address: LGNCore.Address,
         context: LGNCore.Context
-    ) -> EventLoopFuture<(response: Bytes, context: LGNCore.Context)> {
+    ) async throws -> Bytes {
         let requestContext = LGNC.Client.getRequestContext(
             from: context,
             transport: .LGNS,
             eventLoop: context.eventLoop
         )
 
-        return self
+        self.log(transport: .LGNS, address: address, URI: C.URI)
+
+        return try await self
             .singleRequest(
                 at: address,
                 with: LGNP.Message(
                     URI: C.URI,
                     payload: payload,
-                    meta: LGNC.getCompiledMeta(from: requestContext, clientID: requestContext.clientID),
+                    meta: LGNC.getPackedMeta(from: requestContext, clientID: requestContext.clientID),
                     controlBitmask: self.controlBitmask,
-                    uuid: requestContext.uuid
+                    msid: requestContext.requestID
                 ),
                 on: context.eventLoop
             )
-            .flatMapThrowing { responseMessage, responseContext in
-                (response: responseMessage.payload, responseContext)
-            }
+            .payload
     }
 }
 
@@ -72,7 +80,7 @@ extension HTTPClient: LGNCClient {
         payload: Bytes,
         at address: LGNCore.Address,
         context: LGNCore.Context
-    ) -> EventLoopFuture<(response: Bytes, context: LGNCore.Context)> {
+    ) async throws -> Bytes {
         let contentType = C.preferredContentType
         let requestContext = LGNC.Client.getRequestContext(
             from: context,
@@ -80,59 +88,40 @@ extension HTTPClient: LGNCClient {
             eventLoop: context.eventLoop
         )
 
-        let headers = HTTPHeaders([
-            ("Content-Type", contentType.header),
-            ("Accept-Language", requestContext.locale.rawValue),
-        ])
-        var request: HTTPClient.Request
+        self.log(transport: .HTTP, address: address, URI: C.URI)
 
-        do {
-            request = try HTTPClient.Request(
-                url: address.description + "/" + C.URI,
-                method: .POST,
-                headers: headers,
-                body: .data(.init(payload))
-            )
-        } catch {
-            return context.eventLoop.makeFailedFuture(error)
+        let request = try HTTPClient.Request(
+            url: address.description + "/" + C.URI,
+            method: .POST,
+            headers: HTTPHeaders([
+                ("Content-Type", contentType.type),
+                ("Accept-Language", requestContext.locale.rawValue),
+            ]),
+            body: .data(.init(payload))
+        )
+
+        let response = try await self
+            .execute(request: request, eventLoop: .delegateAndChannel(on: context.eventLoop))
+            .get()
+
+        guard var body = response.body, let bytes = body.readBytes(length: body.readableBytes) else {
+            throw LGNC.Client.E.EmptyResponse
         }
 
-        return self
-            .execute(request: request, eventLoop: .delegateAndChannel(on: context.eventLoop))
-            .flatMapThrowing { response in
-                guard var body = response.body, let bytes = body.readBytes(length: body.readableBytes) else {
-                    throw LGNC.Client.E.EmptyResponse
-                }
-
-                let isSecure = false // response.host.starts(with: "https://")
-
-                return (
-                    response: bytes,
-                    context: LGNCore.Context(
-                        remoteAddr: "127.0.0.1",
-                        clientAddr: "127.0.0.1",
-                        userAgent: "AsyncHTTPClient",
-                        locale: requestContext.locale,
-                        uuid: {
-                            let result: UUID
-
-                            let newUUID = UUID()
-                            // TODO extract LGNC-UUID to const
-                            if isSecure, let UUIDHeader = response.headers["LGNC-UUID"].first {
-                                result = UUID(uuidString: UUIDHeader) ?? newUUID
-                            } else {
-                                result = newUUID
-                            }
-
-                            return result
-                        }(),
-                        isSecure: isSecure,
-                        transport: .HTTP,
-                        meta: response.headers["Cookie"].parseCookies(),
-                        eventLoop: context.eventLoop
-                    )
-                )
-            }
+        return LGNCore.Context.$current.withValue(
+            LGNCore.Context(
+                remoteAddr: "127.0.0.1",
+                clientAddr: "127.0.0.1",
+                userAgent: "AsyncHTTPClient",
+                locale: requestContext.locale,
+                requestID: LGNCore.RequestID(),
+                isSecure: false,
+                transport: .HTTP,
+                meta: response.headers["Cookie"].parseCookies(),
+                eventLoop: context.eventLoop,
+                profiler: context.profiler
+            )
+        ) { bytes } // todo fix
     }
 }
 
@@ -155,11 +144,12 @@ public extension LGNC.Client {
             clientAddr: "127.0.0.1",
             userAgent: "\(self)",
             locale: maybeContext?.locale ?? .enUS,
-            uuid: maybeContext?.uuid ?? UUID(),
+            requestID: maybeContext?.requestID ?? LGNCore.RequestID(),
             isSecure: transport == .LGNS,
             transport: transport,
             meta: maybeContext?.meta ?? [:],
-            eventLoop: eventLoop
+            eventLoop: eventLoop,
+            profiler: maybeContext?.profiler ?? LGNCore.Profiler()
         )
     }
 }
@@ -168,7 +158,6 @@ public extension LGNC.Client {
     /// This client implementation simply executes local contract (therefore one must previously guarantee it) without
     /// going to remote service over network. Useful for local development and testing.
     class Loopback: LGNCClient {
-        public lazy var logger: Logger = Logger(label: "\(self)")
         public let eventLoopGroup: EventLoopGroup
 
         public init(eventLoopGroup: EventLoopGroup) {
@@ -180,35 +169,30 @@ public extension LGNC.Client {
             payload: Bytes,
             at address: LGNCore.Address,
             context: LGNCore.Context
-        ) -> EventLoopFuture<(response: Bytes, context: LGNCore.Context)> {
-            let requestContext = LGNC.Client.getRequestContext(
-                from: context,
-                transport: C.preferredTransport,
-                eventLoop: context.eventLoop
+        ) async throws -> Bytes {
+            self.log(transport: .LGNS, address: address, URI: C.URI, extra: "(loopback)")
+
+            let result = try await C.ParentService.executeContract(
+                URI: C.URI,
+                dict: try payload.unpack(from: C.preferredContentType)
             )
-            let dict: Entita.Dict
-            do {
-                dict = try payload.unpack(from: C.preferredContentType)
-            } catch {
-                return context.eventLoop.makeFailedFuture(error)
+
+            let body: Bytes
+
+            switch result.result {
+            case let .Structured(entity):
+                body = try entity.getDictionary().pack(to: C.preferredContentType)
+            case let .Binary(file, _):
+                body = file.body
             }
 
-            return context.eventLoop
-                .makeSucceededFuture(())
-                .flatMap {
-                    C.ParentService.executeContract(URI: C.URI, dict: dict, context: requestContext)
-                }
-                .flatMapThrowing { response in
-                    (try response.getDictionary().pack(to: C.preferredContentType), requestContext)
-                }
+            return body
         }
     }
 }
 
 public extension LGNC.Client {
     class Dynamic: LGNCClient {
-        public lazy var logger: Logger = Logger(label: "\(self)")
-
         public let clientLGNS: LGNS.Client
         public let clientHTTP: HTTPClient
 
@@ -233,8 +217,8 @@ public extension LGNC.Client {
             try? self.clientHTTP.syncShutdown()
         }
 
-        public func disconnect() -> EventLoopFuture<Void> {
-            self.clientLGNS.disconnect()
+        public func disconnect() async throws {
+            try await self.clientLGNS.disconnect()
         }
 
         public func send<C: Contract>(
@@ -242,7 +226,7 @@ public extension LGNC.Client {
             payload: Bytes,
             at address: LGNCore.Address,
             context: LGNCore.Context
-        ) -> EventLoopFuture<(response: Bytes, context: LGNCore.Context)> {
+        ) async throws -> Bytes {
             let transport: LGNCore.Transport = C.preferredTransport
 
             let client: LGNCClient
@@ -250,9 +234,10 @@ public extension LGNC.Client {
             switch transport {
             case .LGNS: client = self.clientLGNS
             case .HTTP: client = self.clientHTTP
+            default: throw E.UnsupportedTransport(transport) // todo once
             }
 
-            return client.send(
+            return try await client.send(
                 contract: C.self,
                 payload: payload,
                 at: address,

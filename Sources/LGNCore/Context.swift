@@ -1,23 +1,16 @@
 import Foundation
 import NIO
-import Logging
+import LGNLog
+import NIOHTTP1
 
 public extension LGNCore {
-    enum Transport: String {
-        case LGNS, HTTP
+    enum Transport: String, Sendable {
+        case LGNS, HTTP, WebSocket
         // case LGNSS, HTTPS // once, maybe
-
-        public init?(from rawValue: String) {
-            guard let result = Self(rawValue: rawValue.uppercased()) else {
-                return nil
-            }
-
-            self = result
-        }
     }
 
     /// Request or response context
-    struct Context {
+    struct Context: @unchecked Sendable {
         /// Network address from which this request physically came from.
         /// It might not be actual client address, but rather last proxy server address.
         public let remoteAddr: String
@@ -35,8 +28,8 @@ public extension LGNCore {
         /// User locale of request of response. In HTTP - `Accept-Language` header, in LGNS - `lc` meta key in LGNP message.
         public let locale: LGNCore.i18n.Locale
 
-        /// Unique identifier of request/response in UUID v4 format.
-        public let uuid: UUID
+        /// Unique identifier of request/response
+        public let requestID: LGNCore.RequestID
 
         /// Indicates if request was encrypted and/or signed.
         /// Currently supported only in LGNS (`.encrypted`, `.hasSignature` in control bitmask), HTTPS doesn't set this value to `true`.
@@ -47,11 +40,19 @@ public extension LGNCore {
 
         public let meta: [String: String]
 
-        /// Event loop on which this request is being processed
-        public var eventLoop: EventLoop
+        public let headers: HTTPHeaders?
 
-        /// Logger
-        public var logger: Logging.Logger
+        /// Event loop on which this request is being processed
+        public let eventLoop: EventLoop
+
+        /// A profiler (SHOULD be created with channel initializer)
+        public let profiler: LGNCore.Profiler
+
+        public var logger: Logger {
+            var logger = Logging.Logger(label: "LGNCore.Context")
+            logger[metadataKey: "requestID"] = "\(self.requestID.string)"
+            return logger
+        }
 
         public init(
             remoteAddr: String,
@@ -59,25 +60,26 @@ public extension LGNCore {
             clientID: String? = nil,
             userAgent: String,
             locale: LGNCore.i18n.Locale,
-            uuid: UUID,
+            requestID: LGNCore.RequestID,
             isSecure: Bool,
             transport: Transport,
             meta: [String: String],
-            eventLoop: EventLoop
+            headers: HTTPHeaders? = nil,
+            eventLoop: EventLoop,
+            profiler: LGNCore.Profiler
         ) {
             self.remoteAddr = remoteAddr
             self.clientAddr = clientAddr
             self.clientID = clientID
             self.userAgent = userAgent
             self.locale = locale
-            self.uuid = uuid
+            self.requestID = requestID
             self.isSecure = isSecure
             self.transport = transport
             self.meta = meta
+            self.headers = headers
             self.eventLoop = eventLoop
-
-            self.logger = Logging.Logger(label: "LGNCore.Context")
-            self.logger[metadataKey: "requestID"] = "\(self.uuid.string)"
+            self.profiler = profiler
         }
 
         /// Clones current context
@@ -87,7 +89,7 @@ public extension LGNCore {
             clientID: String? = nil,
             userAgent: String? = nil,
             locale: LGNCore.i18n.Locale? = nil,
-            uuid: UUID? = nil,
+            requestID: LGNCore.RequestID? = nil,
             isSecure: Bool? = nil,
             transport: Transport? = nil,
             meta: [String: String]? = nil
@@ -98,12 +100,30 @@ public extension LGNCore {
                 clientID: clientID ?? self.clientID,
                 userAgent: userAgent ?? self.userAgent,
                 locale: locale ?? self.locale,
-                uuid: uuid ?? self.uuid,
+                requestID: requestID ?? self.requestID,
                 isSecure: isSecure ?? self.isSecure,
                 transport: transport ?? self.transport,
                 meta: meta ?? self.meta,
-                eventLoop: self.eventLoop
+                eventLoop: self.eventLoop,
+                profiler: self.profiler
             )
         }
     }
+}
+
+public extension LGNCore.Context {
+    @TaskLocal
+    static var current = LGNCore.Context(
+        remoteAddr: "",
+        clientAddr: "",
+        clientID: nil,
+        userAgent: "",
+        locale: .enUS,
+        requestID: LGNCore.RequestID(),
+        isSecure: false,
+        transport: .HTTP,
+        meta: [:],
+        eventLoop: EmbeddedEventLoop(),
+        profiler: LGNCore.Profiler()
+    )
 }

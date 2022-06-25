@@ -2,12 +2,25 @@ import Foundation
 import LGNCore
 import LGNP
 import SwiftMsgPack
+import LGNLog
 
 public enum LGNPContenter {
     public enum E: Error {
         case ContentError(String)
         case UnpackError(String)
         case ContentTypeNotAllowed(String)
+    }
+}
+
+public extension LGNCore.ContentType {
+    static var allowedLGNPTypes: [Self] {
+        [
+            .MsgPack,
+            .JSON,
+            .XML,
+            .TextHTML,
+            .TextPlain,
+        ]
     }
 }
 
@@ -30,8 +43,11 @@ public extension Dictionary where Key == String {
             switch format {
             case .MsgPack: return try self.getMsgPack()
             case .JSON: return try Bytes(JSONSerialization.data(withJSONObject: self, options: .sortedKeys))
-            case .XML: throw LGNPContenter.E.ContentError("XML content type not implemented yet")
-            case .PlainText: throw LGNPContenter.E.ContentError("Dictionary cannot be plain text")
+            case .XML, .TextHTML: throw LGNPContenter.E.ContentError("XML/HTML content type not implemented yet")
+            case .TextPlain: throw LGNPContenter.E.ContentError("Dictionary cannot be plain text")
+            default:
+                Logger.current.debug("Unknown format: \(format), falling back to JSON")
+                return try self.getMsgPack()
             }
         }
     }
@@ -65,7 +81,7 @@ extension Sequence where Iterator.Element: OptionalType {
 
 public extension LGNP.Message {
     func unpackPayload(
-        _ allowedContentTypes: [LGNCore.ContentType] = LGNCore.ContentType.allCases
+        _ allowedContentTypes: [LGNCore.ContentType] = LGNCore.ContentType.allowedLGNPTypes
     ) throws -> [String: Any] {
         let contentType = self.contentType
         guard allowedContentTypes.contains(contentType) else {
@@ -74,8 +90,9 @@ public extension LGNP.Message {
         switch contentType {
         case .MsgPack: return try self.payload.unpackFromMsgPack()
         case .JSON: return try self.payload.unpackFromJSON()
-        case .XML: throw LGNPContenter.E.ContentError("XML content type not implemented yet")
-        case .PlainText: throw LGNPContenter.E.ContentError("Plain text content type not supported")
+        case .XML, .TextHTML: throw LGNPContenter.E.ContentError("XML/HTML content type not implemented yet")
+        case .TextPlain: throw LGNPContenter.E.ContentError("Plain text content type not supported")
+        default: throw LGNPContenter.E.ContentError("Invalid content-type: \(contentType)")
         }
     }
 }
@@ -86,6 +103,10 @@ public extension Array where Element == Byte {
     }
 
     func unpackFromMsgPack() throws -> [String: Any] {
+        guard !self.isEmpty else {
+            return [:]
+        }
+
         do {
             let result: [String: Any] = try autoreleasepool {
                 let copy = Data(self) // decoder is bugged and cannot accept sliced Data

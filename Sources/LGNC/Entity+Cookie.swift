@@ -7,7 +7,7 @@ public extension LGNC.Entity {
     typealias Cookie = HTTPClient.Cookie
 }
 
-internal extension Array where Element == String {
+public extension Array where Element == String {
     func parseCookies() -> [String: String] {
         var result = [String: String]()
 
@@ -21,7 +21,7 @@ internal extension Array where Element == String {
                     let value = parts[1].removingPercentEncoding?.trimmingCharacters(in: .whitespacesAndNewlines),
                     !value.isEmpty
                 else { continue }
-                result[LGNC.HTTP.COOKIE_META_KEY_PREFIX + name] = value
+                result[LGNC.HTTP.COOKIE_META_KEY_PREFIX + name] = "\(name)=\(value)"
             }
         }
 
@@ -29,13 +29,9 @@ internal extension Array where Element == String {
     }
 }
 
-extension LGNC.Entity.Cookie: ContractEntity {
-    public static func initWithValidation(
-        from dictionary: Entita.Dict, context: LGNCore.Context
-    ) -> EventLoopFuture<Self> {
-        let eventLoop = context.eventLoop
-
-        if let error = self.ensureNecessaryItems(
+extension LGNC.Entity.Cookie: ContractEntity, @unchecked Sendable {
+    public static func initWithValidation(from dictionary: Entita.Dict) async throws -> Self {
+        try self.ensureNecessaryItems(
             in: dictionary,
             necessaryItems: [
                 "name",
@@ -47,9 +43,7 @@ extension LGNC.Entity.Cookie: ContractEntity {
                 "httpOnly",
                 "secure",
             ]
-        ) {
-            return eventLoop.makeFailedFuture(error)
-        }
+        )
 
         let name: String? = try? (self.extract(param: "name", from: dictionary) as String)
         let value: String? = try? (self.extract(param: "value", from: dictionary) as String)
@@ -60,90 +54,80 @@ extension LGNC.Entity.Cookie: ContractEntity {
         let httpOnly: Bool? = try? (self.extract(param: "httpOnly", from: dictionary) as Bool)
         let secure: Bool? = try? (self.extract(param: "secure", from: dictionary) as Bool)
 
-        let validatorFutures: [String: EventLoopFuture<Void>] = [
-            "name": eventLoop
-                .submit {
-                    guard let _ = name else {
-                        throw Validation.Error.MissingValue(context.locale)
-                    }
-                },
-            "value": eventLoop
-                .submit {
-                    guard let _ = value else {
-                        throw Validation.Error.MissingValue(context.locale)
-                    }
-                },
-            "path": eventLoop
-                .submit {
-                    guard let _ = path else {
-                        throw Validation.Error.MissingValue(context.locale)
-                    }
-                },
-            "domain": eventLoop
-                .submit {
-                    guard let domain = domain else {
-                        throw Validation.Error.MissingValue(context.locale)
-                    }
-                    if domain == nil {
-                        throw Validation.Error.SkipMissingOptionalValueValidators()
-                    }
-                },
-            "expires": eventLoop
-                .submit {
+        let validatorClosures: [String: ValidationClosure] = [
+            "name": {
+                guard let _ = name else {
+                    throw Validation.Error.MissingValue()
+                }
+            },
+            "value": {
+                guard let _ = value else {
+                    throw Validation.Error.MissingValue()
+                }
+            },
+            "path": {
+                guard let _ = path else {
+                    throw Validation.Error.MissingValue()
+                }
+            },
+            "domain": {
+                guard let domain = domain else {
+                    throw Validation.Error.MissingValue()
+                }
+                if domain == nil {
+                    throw Validation.Error.SkipMissingOptionalValueValidators()
+                }
+            },
+            "expires": {
+                try await { () async throws -> Void in
                     guard let expires = expires else {
-                        throw Validation.Error.MissingValue(context.locale)
+                        throw Validation.Error.MissingValue()
                     }
                     if expires == nil {
                         throw Validation.Error.SkipMissingOptionalValueValidators()
                     }
+                }()
+                try await { () async throws -> Void in
+                    if let expires = expires {
+                        try await Validation.Date(format: "E, d MMM yyyy HH:mm:ss zzz").validate(expires!)
+                    }
+                }()
+            },
+            "maxAge": {
+                guard let maxAge = maxAge else {
+                    throw Validation.Error.MissingValue()
                 }
-                .flatMap {
-                    if let expires = expires, let error = Validation.Date(format: "E, d MMM yyyy HH:mm:ss zzz").validate(expires!, context.locale) {
-                        return eventLoop.makeFailedFuture(error)
-                    }
-                    return eventLoop.makeSucceededFuture()
-                },
-            "maxAge": eventLoop
-                .submit {
-                    guard let maxAge = maxAge else {
-                        throw Validation.Error.MissingValue(context.locale)
-                    }
-                    if maxAge == nil {
-                        throw Validation.Error.SkipMissingOptionalValueValidators()
-                    }
-                },
-            "httpOnly": eventLoop
-                .submit {
-                    guard let _ = httpOnly else {
-                        throw Validation.Error.MissingValue(context.locale)
-                    }
-                },
-            "secure": eventLoop
-                .submit {
-                    guard let _ = secure else {
-                        throw Validation.Error.MissingValue(context.locale)
-                    }
-                },
+                if maxAge == nil {
+                    throw Validation.Error.SkipMissingOptionalValueValidators()
+                }
+            },
+            "httpOnly": {
+                guard let _ = httpOnly else {
+                    throw Validation.Error.MissingValue()
+                }
+            },
+            "secure": {
+                guard let _ = secure else {
+                    throw Validation.Error.MissingValue()
+                }
+            },
         ]
 
-        return self
-            .reduce(validators: validatorFutures, context: context)
-            .flatMapThrowing {
-                guard $0.count == 0 else {
-                    throw LGNC.E.DecodeError($0)
-                }
+        let __validationErrors = await self.reduce(closures: validatorClosures)
+        guard __validationErrors.isEmpty else {
+            throw LGNC.E.DecodeError(__validationErrors)
+        }
 
-                return self.init(
-                    name: name!,
-                    value: value!,
-                    path: path!,
-                    domain: domain!,
-                    expires: expires!.flatMap { LGNC.cookieDateFormatter.date(from: $0) },
-                    maxAge: maxAge!,
-                    httpOnly: httpOnly!,
-                    secure: secure!
-                )
-            }
+        return self.init(
+            name: name!,
+            value: value!,
+            path: path!,
+            domain: domain!,
+            expires: expires!.flatMap { LGNC.cookieDateFormatter.date(from: $0) },
+            maxAge: maxAge!,
+            httpOnly: httpOnly!,
+            secure: secure!
+        )
     }
 
     public init(from dictionary: Entita.Dict) throws {
@@ -221,14 +205,14 @@ extension LGNC.Entity.Cookie: Equatable {
     }
 }
 
-public extension LGNC.Entity.Meta {
-    static func initFrom(cookie: LGNC.Entity.Cookie) throws -> Self {
+extension LGNC.Entity.Meta {
+    public static func initFrom(cookie: LGNC.Entity.Cookie) throws -> Self {
         var result = Self()
 
         return try result.appending(cookie: cookie)
     }
 
-    static func initFrom(cookies: [LGNC.Entity.Cookie]) throws -> Self {
+    public static func initFrom(cookies: [LGNC.Entity.Cookie]) throws -> Self {
         var result = Self()
 
         try cookies.forEach { cookie in try result.appending(cookie: cookie) }
@@ -237,9 +221,24 @@ public extension LGNC.Entity.Meta {
     }
 
     @discardableResult
-    mutating func appending(cookie: LGNC.Entity.Cookie) throws -> Self {
+    public mutating func appending(cookie: LGNC.Entity.Cookie) throws -> Self {
         self[LGNC.HTTP.COOKIE_META_KEY_PREFIX + cookie.name] = try cookie.getCookieString()
 
         return self
+    }
+}
+
+public extension LGNC.Entity.Cookie {
+    init(_ value: String) {
+        self.init(
+            name: "",
+            value: value,
+            path: "",
+            domain: nil,
+            expires: nil,
+            maxAge: nil,
+            httpOnly: false,
+            secure: false
+        )
     }
 }

@@ -2,13 +2,14 @@ import Foundation
 import LGNCore
 import LGNC
 import Entita
+import _Concurrency
 
-func executeTestCase(under url: URL) -> (String, Bool) {
+func executeTestCase(under url: URL) async throws -> (String, Bool) {
     let testName = url.lastPathComponent.replacingOccurrences(of: "test_", with: "")
 
     return (
         testName,
-        {
+        try await {
             let manager = FileManager.default
             let profiler = LGNCore.Profiler.begin()
             do {
@@ -71,10 +72,10 @@ func executeTestCase(under url: URL) -> (String, Bool) {
                 }
 
                 let eventLoop = EmbeddedEventLoop()
-                let response = S.executeContract(
-                    URI: uri,
-                    dict: request,
-                    context: .init(
+
+                let response = try await Task.withLocal(
+                    \.context,
+                    boundTo: .init(
                         remoteAddr: "0.0.0.0",
                         clientAddr: "0.0.0.0",
                         userAgent: "",
@@ -85,13 +86,20 @@ func executeTestCase(under url: URL) -> (String, Bool) {
                         meta: requestMeta,
                         eventLoop: eventLoop
                     )
-                )
-                eventLoop.run()
-                let responseDict = try response.wait().getDictionary()
-                let actualResponseJSON = try JSONSerialization.data(
-                    withJSONObject: responseDict,
-                    options: [.sortedKeys, .prettyPrinted]
-                ).string
+                ) {
+                    try await S.executeContract(
+                        URI: uri,
+                        dict: request
+                    )
+                }
+
+                let responseDict = try response.getDictionary()
+                let actualResponseJSON = try JSONSerialization
+                    .data(
+                        withJSONObject: responseDict,
+                        options: [.sortedKeys, .prettyPrinted]
+                    )
+                    .string
 
                 guard actualResponseJSON == expectedResponseJSON else {
                     print(

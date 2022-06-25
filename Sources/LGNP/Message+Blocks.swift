@@ -48,8 +48,8 @@ public extension LGNP.Message.Block {
         }
     }
 
-    struct UUID: LGNPMessageStaticBlock {
-        public typealias TYPE = Foundation.UUID // 16
+    struct MSID: LGNPMessageStaticBlock {
+        public typealias TYPE = LGNCore.RequestID // 16
 
         public let bytes: Bytes
     }

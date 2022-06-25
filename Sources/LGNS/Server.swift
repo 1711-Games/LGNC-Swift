@@ -1,4 +1,5 @@
 import LGNCore
+import LGNLog
 import LGNP
 import NIO
 
@@ -6,15 +7,14 @@ public typealias Time = TimeAmount
 public typealias ControlBitmask = LGNP.Message.ControlBitmask
 
 public extension LGNS {
-    typealias Resolver = (LGNP.Message, LGNCore.Context) -> EventLoopFuture<LGNP.Message?>
+    typealias Resolver = (LGNP.Message) async throws -> LGNP.Message?
 
     static let DEFAULT_PORT = 1711
 
     /// A LGNS server
-    class Server: AnyServer {
+    class Server: AnyServer, @unchecked Sendable {
         public typealias BindTo = LGNCore.Address
 
-        public static var logger: Logger = Logger(label: "LGNS.Server")
         public static let defaultPort: Int = LGNS.DEFAULT_PORT
 
         private let requiredBitmask: LGNP.Message.ControlBitmask
@@ -53,7 +53,7 @@ public extension LGNS {
                         BackPressureHandler(),
                         IdleStateHandler(readTimeout: self.readTimeout, writeTimeout: self.writeTimeout),
                         LGNS.LGNPCoder(cryptor: self.cryptor, requiredBitmask: self.requiredBitmask),
-                        LGNS.ServerHandler(logger: Self.logger, resolver: resolver)
+                        LGNS.ServerHandler(profiler: LGNCore.Profiler(), resolver: resolver)
                     )
                 }
 
@@ -65,8 +65,8 @@ public extension LGNS {
 
         deinit {
             if self.isRunning {
-                Self.logger.warning("LGNS Server has not been shutdown manually")
-                try! self.shutdown().wait()
+                Logger.current.warning("LGNS Server has not been shutdown manually")
+                // try! await self.shutdown()
             }
         }
     }

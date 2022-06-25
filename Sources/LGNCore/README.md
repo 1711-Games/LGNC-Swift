@@ -13,8 +13,7 @@ In particular, it has following useful tools:
 * Minor tools:
 * * `AnyServer`, a protocol used in LGNS and LGNC for defining general server interface (`AnyServer.swift`)
 * * Various unsafe `Array<UInt8>` extensions for casting anything to bytes and back ([`BytesTrickery.swift`](#bytes-trickery-usage))
-* * A polyfill version of `precondition` function which prints error message even if product is built in RELEASE mode, an extension for `Foundation.UUID` which initializes an UUID instance with `Array<UInt8>` (`Helpers.swift`)
-* * An extension for `NIO.EventLoop.makeSucceededFuture` which does not take any parameters and returns a new `EventLoopFuture<Void>`.
+* * A polyfill version of `precondition` function which prints error message even if product is built in RELEASE mode (`Helpers.swift`)
 
 Additionally, this module defines following typealises:
 * `typealias Byte = UInt8`
@@ -173,11 +172,11 @@ On macOS the result value defaults to `.local` if no `APP_ENV` is provided in en
 3. `clientID` — an optional field holding client unique ID (used only in LGNS, see details in readme).
 4. `userAgent` — a user agent, nuff said.
 5. `locale` — user locale of request or response (see details in LGNS and LGNC).
-6. `uuid` — a unique identifier of this request (in UUID v4 format)
+6. `requestID` — a unique identifier of this request (see `RequestID` struct)
 7. `isSecure` — indicates whether request has been encrypted/signed (only relevant for LGNS, not for HTTPS)
 8. `transport` — request transport (LGNS, HTTP)
 9. `eventLoop` — and `EventLoop` on which this request is being processed
-10. `logger` — logger for current request (already contains `uuid` as `requestID` in metadata)
+10. `logger` — logger for current request (already contains `requestID` in metadata)
 
 ## `LGNCore.Logger` usage
 LGNCore comes with custom Logger backend implementation which produces following output (human-readable date, file in which log message has been emitted and JSON formatting of metadata):
@@ -187,7 +186,7 @@ LoggingSystem.bootstrap(LGNCore.Logger.init)
 
 let myLogger = Logger(label: "test")
 
-myLogger.info("Some test message", metadata: ["foo": "bar", "requestID": "\(UUID())"])
+myLogger.info("Some test message", metadata: ["foo": "bar", "requestID": "\(LGNCore.RequestID())"])
 
 // Output will be
 // [2020-02-18 14:38:48 @ main:8] [info] [F41988B9-1ED7-4AAC-9827-588D077B81F9]: Some test message (metadata: {"foo":"bar"})

@@ -1,8 +1,9 @@
 import LGNC
 import LGNCore
+import _Concurrency
 
 func setupContract() {
-    C1.guarantee { (request: C1.Request, _: LGNCore.Context) -> C1.Response in
+    C1.guarantee { (request: C1.Request) -> C1.Response in
         C1.Response(
             ok: [String?]([
                 "stringField               : \(request.stringField)",
@@ -29,7 +30,7 @@ func setupContract() {
         )
     }
 
-    C1.Request.validateStringFieldWithValidations { input, eventLoop in
+    C1.Request.validateStringFieldWithValidations { input in
         let result: C1.Request.CallbackValidatorStringFieldWithValidationsAllowedValues?
 
         switch input {
@@ -39,10 +40,10 @@ func setupContract() {
         default: result = nil
         }
 
-        return eventLoop.makeSucceededFuture(result)
+        return result
     }
 
-    C1.Request.validateDateField { (input, eventLoop) -> EventLoopFuture<[ErrorTuple]?> in
+    C1.Request.validateDateField { (input) -> [ErrorTuple]? in
         let result: [ErrorTuple]?
 
         switch input {
@@ -55,10 +56,10 @@ func setupContract() {
         default: result = nil
         }
 
-        return eventLoop.makeSucceededFuture(result)
+        return result
     }
 
-    C2.guarantee { (request, context) throws -> C2.Response in
+    C2.guarantee { (request) -> C2.Response in
         C2.Response(
             pronto: [
                 "stringField   : \(request.stringField)",

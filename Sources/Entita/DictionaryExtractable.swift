@@ -55,6 +55,10 @@ public extension DictionaryExtractable {
         return result
     }
 
+    static func extractArbitrary<T>(param name: String, from dictionary: Entita.Dict) throws -> T {
+        try self.extract(param: name, from: dictionary)
+    }
+
     /// Exracts a decodable value from dictionary
     static func extract<T: DictionaryDecodable>(
         param name: String,

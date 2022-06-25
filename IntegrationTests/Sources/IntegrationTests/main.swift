@@ -44,12 +44,12 @@ struct Execute: ParsableCommand {
         self.testsDirectoryURL = testsDirectoryURL
     }
 
-    mutating func run() throws {
+    mutating func run() async throws {
         setupContract()
 
         print("About to execute tests under \(self.testsDirectory)")
 
-        let testCasesResults: [(String, Bool)] = try FileManager.default
+        let testCasesResults: [(String, Bool)] = try await FileManager.default
             .contentsOfDirectory(at: self.testsDirectoryURL, includingPropertiesForKeys: [.isDirectoryKey])
             .filter { try $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true }
             .filter { $0.lastPathComponent.starts(with: "test_") }

@@ -1,5 +1,6 @@
 import XCTest
 import NIO
+import LGNLog
 
 @testable import LGNS
 @testable import LGNP
@@ -64,11 +65,7 @@ final class LGNSTests: XCTestCase {
 
     override class func setUp() {
         super.setUp()
-        var logger = Logger(label: "testlogger")
-        logger.logLevel = .debug
-        LGNS.logger = logger
-        LGNS.Client.logger = logger
-        LGNS.Server.logger = logger
+        LGNLogger.logLevel = .debug
         self.eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
     }
 
@@ -77,7 +74,7 @@ final class LGNSTests: XCTestCase {
         try! self.eventLoopGroup.syncShutdownGracefully()
     }
 
-    func testLGNS() throws {
+    func testLGNS() async throws {
         let address = LGNCore.Address.port(32269)
         let cryptor = try! LGNP.Cryptor(key: "1234567812345678")
         let controlBitmask = LGNP.Message.ControlBitmask([.encrypted, .signatureSHA512, .contentTypeJSON])
@@ -99,30 +96,20 @@ final class LGNSTests: XCTestCase {
             eventLoopGroup: self.eventLoopGroup,
             readTimeout: .milliseconds(100),
             writeTimeout: .milliseconds(100)
-        ) { message, context -> EventLoopFuture<LGNP.Message?> in
+        ) { (message: LGNP.Message) async throws -> LGNP.Message? in
+            let context = LGNCore.Context.current
+
             XCTAssertEqual(context.clientAddr, "195.248.161.225")
             XCTAssertEqual(context.clientID, "LGNSTests")
             XCTAssertEqual(context.userAgent, "NIO")
             XCTAssertEqual(context.locale, .enUS)
-            return context.eventLoop.makeSucceededFuture(
-                message.copied(payload: message.payload + ", hooman".bytes)
-            )
-        }
-        let promiseStart: PromiseVoid = self.eventLoop.makePromise()
-        defer {
-            XCTAssertNoThrow(try server.shutdown().wait())
-        }
-        self.queue.async {
-            do {
-                try server.bind().wait()
-                promiseStart.succeed(())
-                try server.waitForStop()
 
-            } catch {
-                promiseStart.fail(error)
-            }
+            return message.copied(payload: message.payload + ", hooman".bytes)
         }
-        XCTAssertNoThrow(try promiseStart.futureResult.wait())
+
+        try await server.bind()
+        defer { try! server.channel.close().wait() }
+
         let message: LGNP.Message = .init(
             URI: "/test1",
             payload: "henlo".bytes,
@@ -130,49 +117,50 @@ final class LGNSTests: XCTestCase {
             controlBitmask: controlBitmask
         )
         let LGNSClient = LGNS.Client(cryptor: cryptor, controlBitmask: controlBitmask, eventLoopGroup: self.eventLoopGroup)
-        let response = try LGNSClient.request(
+
+        let response1 = try await LGNSClient.request(
             at: address,
             with: message
-        ).wait()
-
+        )
         XCTAssertEqual(
-            response.0.payload,
+            response1.payload,
             "henlo".bytes + ", hooman".bytes
         )
 
+        let response2 = try await LGNSClient.request(
+            at: address,
+            with: .init(
+                URI: "/test2",
+                payload: "henlo".bytes,
+                meta: [0, 255] + meta,
+                controlBitmask: controlBitmask
+            ),
+            on: self.eventLoop
+        )
         XCTAssertEqual(
-            try LGNSClient.request(
-                at: address,
-                with: .init(
-                    URI: "/test2",
-                    payload: "henlo".bytes,
-                    meta: [0, 255] + meta,
-                    controlBitmask: controlBitmask
-                ),
-                on: self.eventLoop
-            ).wait().0.payload,
+            response2.payload,
             "henlo".bytes + ", hooman".bytes
         )
 
         // 103 Message length cannot be zero
+        let written = try await self.write(
+            to: address,
+            payload: "LGNP".bytes + [0,0,0,0] + [97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97] + [2,3,4]
+        )
         let zeroErrorMessage = try LGNP.decode(
-            body: self.write(
-                to: address,
-                payload: "LGNP".bytes + [0,0,0,0] + [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1] + [2,3,4]
-            ),
+            body: written,
             with: cryptor
         )
-
         XCTAssertEqual(zeroErrorMessage._payloadAsString.split(separator: " ", maxSplits: 1).first, "103")
         XCTAssertTrue(zeroErrorMessage.containsError)
 
         // 201 Required bitmask not satisfied
         let requiredBitmaskErrorMessage = try LGNP.decode(
-            body: self.write(
+            body: try await self.write(
                 to: address,
                 payload: "LGNP".bytes +
                     Bytes([20,0,0,0]) +
-                    Bytes([1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]) +
+                    Bytes([97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97]) +
                     Bytes([0,0]) +
                     Bytes(repeating: 0, count: 20)
             ),
@@ -182,12 +170,12 @@ final class LGNSTests: XCTestCase {
         XCTAssertTrue(requiredBitmaskErrorMessage.containsError)
 
         // 202 Connection timeout
-        let timeoutErrorMessage = try LGNP.decode(body: self.write(to: address, payload: "LUL".bytes), with: cryptor)
+        let timeoutErrorMessage = try await LGNP.decode(body: self.write(to: address, payload: "LUL".bytes), with: cryptor)
         XCTAssertEqual(timeoutErrorMessage._payloadAsString.split(separator: " ", maxSplits: 1).first, "202")
         XCTAssertTrue(timeoutErrorMessage.containsError)
     }
 
-    func testKeepAliveServer() {
+    func testKeepAliveServer() async throws {
         let address = LGNCore.Address.port(32269)
         let cryptor = try! LGNP.Cryptor(key: "1234567812345678")
         let controlBitmask = LGNP.Message.ControlBitmask.defaultValues
@@ -204,7 +192,7 @@ final class LGNSTests: XCTestCase {
             cryptor: cryptor,
             requiredBitmask: controlBitmask,
             eventLoopGroup: self.eventLoopGroup
-        ) { message, context in
+        ) { message in
             XCTAssertTrue(message.controlBitmask.contains(.keepAlive))
 
             let response: LGNP.Message
@@ -233,67 +221,73 @@ final class LGNSTests: XCTestCase {
                 XCTFail("We shouldn't've end up here")
             }
 
-            return context.eventLoop.makeSucceededFuture(response)
+            return response
         }
-        try! server.bind().wait()
-        defer { try! server.shutdown().wait() }
+        try await server.bind()
+        defer { try! server.channel.close().wait() }
 
         let client = LGNS.Client(cryptor: cryptor, controlBitmask: controlBitmask, eventLoopGroup: self.eventLoopGroup)
-        try! client.connect(at: address).wait()
+        try await client.connect(at: address)
 
-        XCTAssertEqual(
-            try client.request(
-                at: address,
-                with: LGNP.Message(URI: request1, payload: [], controlBitmask: [.keepAlive])
-            ).wait().0.URI,
-            response1
+        let actualResponse1 = try await client.request(
+            at: address,
+            with: LGNP.Message(URI: request1, payload: [], controlBitmask: [.keepAlive])
         )
-        XCTAssertEqual(
-            try client.request(
-                at: address,
-                with: LGNP.Message(URI: request2, payload: [], controlBitmask: [.keepAlive])
-            ).wait().0.URI,
-            response2
+        XCTAssertEqual(actualResponse1.URI, response1)
+
+        let actualResponse2 = try await client.request(
+            at: address,
+            with: LGNP.Message(URI: request2, payload: [], controlBitmask: [.keepAlive])
         )
-        XCTAssertEqual(
-            try client.request(
-                at: address,
-                with: LGNP.Message(
-                    URI: request3,
-                    payload: [],
-                    controlBitmask: [
-                        .keepAlive // this should be ignored by server
-                    ]
-                )
-            ).wait().0.URI,
-            response3
+        XCTAssertEqual(actualResponse2.URI, response2)
+
+        let actualResponse3 = try await client.request(
+            at: address,
+            with: LGNP.Message(
+                URI: request3,
+                payload: [],
+                controlBitmask: [
+                    .keepAlive // this should be ignored by server
+                ]
+            )
         )
+        XCTAssertEqual(actualResponse3.URI, response3)
+
         XCTAssertFalse(client.isConnected)
     }
 
-    func write(to address: LGNCore.Address, payload: Bytes) throws -> Bytes {
+    func write(to address: LGNCore.Address, payload: Bytes) async throws -> Bytes {
         let promise: EventLoopPromise<Bytes> = self.eventLoop.makePromise()
 
-        let channel = try ClientBootstrap(group: self.eventLoopGroup)
+        let channel = try await ClientBootstrap(group: self.eventLoopGroup)
             .connectTimeout(.seconds(3))
             .channelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
             .channelInitializer { channel in
                 channel.pipeline.addHandlers(TestHandler(payload: payload, promise: promise))
             }
             .connect(to: address, defaultPort: 0)
-            .wait()
 
-        return try promise
-            .futureResult
-            .flatMap { bytes in
-                channel
-                    .close()
-                    .map { bytes }
-            }
-            .wait()
+        let result = try await promise.futureResult.get()
+
+        try await channel.closeAcceptingAlreadyClosed()
+
+        return result
     }
 
-    static var allTests = [
-        ("testLGNS", testLGNS),
-    ]
+//    static var allTests = [
+//        ("testLGNS", testLGNS),
+//        ("testKeepAliveServer", testKeepAliveServer),
+//    ]
+}
+
+extension Channel {
+    func closeAcceptingAlreadyClosed() async throws {
+        do {
+            try await self.close()
+        } catch ChannelError.alreadyClosed {
+            /* we're happy with this one */
+        } catch let e {
+            throw e
+        }
+    }
 }

@@ -1,9 +1,9 @@
 import Foundation
-import Logging
+import LGNLog
 import NIO
 
 /// A type-erased server type
-public protocol AnyServer: class {
+public protocol AnyServer: AnyObject {
     /// Indicates whether server is running (and serving requests) or not
     var isRunning: Bool { get set }
 
@@ -17,15 +17,16 @@ public protocol AnyServer: class {
 
     var address: LGNCore.Address { get }
 
-    static var logger: Logger { get }
     static var defaultPort: Int { get }
 
     /// Binds to an address and starts a server,
-    /// `Void` future is fulfilled when server is started
-    func bind() -> EventLoopFuture<Void>
+    /// Method returns when server is started
+    @Sendable
+    func bind() async throws
 
-    /// Performs server shutdown and return a `Void` future when server is down
-    func shutdown() -> EventLoopFuture<Void>
+    /// Performs server shutdown and returns when server is down
+    @Sendable
+    func shutdown() async throws
 
     /// Blocks current thread until server is stopped.
     /// This method **must not** be called in `EventLoop` context, only on dedicated threads/dispatch queues/main thread
@@ -35,50 +36,44 @@ public protocol AnyServer: class {
 public extension AnyServer {
     fileprivate var name: String { "\(type(of: self))" }
 
-    func bind() -> EventLoopFuture<Void> {
-        Self.logger.info("LGNS Server: Trying to bind at \(self.address)")
+    @Sendable
+    func bind() async throws {
+        Logger.current.info("Trying to bind at \(self.address)")
 
-        let bindFuture: EventLoopFuture<Channel> = self.bootstrap.bind(to: self.address, defaultPort: Self.defaultPort)
-
-        bindFuture.whenComplete { result in
-            switch result {
-            case .success(_): Self.logger.info("LGNS Server: Succesfully started on \(self.address)")
-            case let .failure(error): Self.logger.info("LGNS Server: Could not start on \(self.address): \(error)")
-            }
-        }
-
-        return bindFuture.map {
-            self.channel = $0
+        do {
+            self.channel = try await self.bootstrap.bind(to: self.address, defaultPort: Self.defaultPort)
             self.isRunning = true
+            Logger.current.info("Succesfully started on \(self.address)")
+        } catch {
+            Logger.current.info("Could not start on \(self.address): \(error)")
+            throw error
         }
     }
 
     func waitForStop() throws {
         guard self.isRunning, self.channel != nil else {
-            Self.logger.warning("Trying to wait for a server that is not running")
+            Logger.current.warning("Trying to wait for a server that is not running")
             return
         }
 
         try self.channel.closeFuture.wait()
     }
 
-    func shutdown() -> EventLoopFuture<Void> {
-        let promise: PromiseVoid = self.eventLoopGroup.next().makePromise()
-
-        Self.logger.info("LGNS Server: Shutting down")
-
-        self.channel.close(promise: promise)
-
-        promise.futureResult.whenComplete { result in
-            switch result {
-            case .success(_): Self.logger.info("LGNS Server: Goodbye")
-            case let .failure(error): Self.logger.info("LGNS Server: Could not shutdown: \(error)")
-            }
+    @Sendable
+    func shutdown() async throws {
+        guard self.channel != nil else {
+            return
         }
 
-        return promise.futureResult.map {
+        Logger.current.info("Shutting down")
+
+        do {
+            try await self.channel.close()
             self.isRunning = false
             self.channel = nil
+            Logger.current.info("Goodbye")
+        } catch {
+            Logger.current.info("Could not shutdown: \(error)")
         }
     }
 }
