@@ -1,5 +1,4 @@
 import Crypto
-import Gzip
 import LGNCore
 
 public extension LGNP {

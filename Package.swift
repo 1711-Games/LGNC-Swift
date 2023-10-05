@@ -1,4 +1,4 @@
-// swift-tools-version:5.5
+// swift-tools-version:5.9
 
 import PackageDescription
 
@@ -24,7 +24,6 @@ let package = Package(
 
         // used by LGNP
         .package(url: "https://github.com/apple/swift-crypto.git", from: "1.1.7"),
-        .package(name: "Gzip", url: "https://github.com/1024jp/GzipSwift.git", from: "5.1.1"),
     ],
     targets: [
         .target(
@@ -40,7 +39,6 @@ let package = Package(
             name: "LGNP",
             dependencies: [
                 "LGNCore",
-                "Gzip",
                 .product(name: "Crypto", package: "swift-crypto"),
             ],
             exclude: ["README.md", "logo.png"]

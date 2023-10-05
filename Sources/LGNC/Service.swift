@@ -5,13 +5,12 @@ import LGNLog
 import LGNP
 import LGNS
 
-/// A type-erased service
 public protocol Service {
     /// A storage for all keydictionaries of requests and responses of all contracts
     static var keyDictionary: [String: Entita.Dict] { get }
 
     /// A storage for storing `URI -> Contract` connection, used for routing
-    static var contractMap: [String: AnyContract.Type] { get }
+    static var contractMap: [String: any Contract.Type] { get }
 
     /// Contains allowed service transports and respective ports
     static var transports: [LGNCore.Transport: Int] { get }
@@ -35,24 +34,6 @@ public protocol Service {
         URI: String,
         dict: Entita.Dict
     ) async throws -> ContractExecutionResult
-
-    /// Starts a LGNS server at given target. Returns a future with a server, which must be waited for until claiming the server as operational.
-    static func startServerLGNS(
-        at target: LGNS.Server.BindTo?,
-        cryptor: LGNP.Cryptor,
-        eventLoopGroup: EventLoopGroup,
-        requiredBitmask: LGNP.Message.ControlBitmask,
-        readTimeout: TimeAmount,
-        writeTimeout: TimeAmount
-    ) async throws -> AnyServer
-
-    /// Starts a HTTP server at given target. Returns a future with a server, which must be waited for until claiming the server as operational.
-    static func startServerHTTP(
-        at target: LGNS.Server.BindTo?,
-        eventLoopGroup: EventLoopGroup,
-        readTimeout: TimeAmount,
-        writeTimeout: TimeAmount
-    ) async throws -> AnyServer
 }
 
 public extension Service {
@@ -62,13 +43,13 @@ public extension Service {
 
     static var webSocketURI: String? { nil }
 
-    static var webSocketContracts: [AnyContract.Type] {
+    static var webSocketContracts: [any Contract.Type] {
         self.contractMap
             .map { $0.value }
             .filter { $0.isWebSocketTransportAvailable }
     }
 
-    static var webSocketOnlyContracts: [AnyContract.Type] {
+    static var webSocketOnlyContracts: [any Contract.Type] {
         self.contractMap
             .map { $0.value }
             .filter { $0.transports == [.WebSocket] }

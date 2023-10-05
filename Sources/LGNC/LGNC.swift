@@ -6,6 +6,8 @@ import LGNP
 import LGNS
 import NIO
 
+public typealias Server = LGNCoreServer
+
 public enum LGNC {
     public static let VERSION = "0.9.9.9"
 
@@ -64,7 +66,7 @@ public enum LGNC {
         eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
         readTimeout: TimeAmount = .minutes(1),
         writeTimeout: TimeAmount = .minutes(1)
-    ) async throws -> AnyServer {
+    ) async throws -> some Server {
         try await S.startServerHTTP(
             at: target,
             eventLoopGroup: eventLoopGroup,
@@ -82,7 +84,7 @@ public enum LGNC {
         requiredBitmask: LGNP.Message.ControlBitmask = .defaultValues,
         readTimeout: TimeAmount = .seconds(1),
         writeTimeout: TimeAmount = .seconds(1)
-    ) async throws -> AnyServer {
+    ) async throws -> some Server {
         try await S.startServerLGNS(
             at: target,
             cryptor: cryptor,

@@ -25,7 +25,7 @@ public extension Service {
         webSocketRouter: WebsocketRouter.Type? = nil,
         readTimeout: TimeAmount = .minutes(1),
         writeTimeout: TimeAmount = .minutes(1)
-    ) throws -> AnyServer {
+    ) throws -> some Server {
         try self.validate(transport: .HTTP)
         try self.checkGuarantees()
 
@@ -184,8 +184,8 @@ public extension Service {
         eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount),
         readTimeout: TimeAmount = .minutes(1),
         writeTimeout: TimeAmount = .minutes(1)
-    ) async throws -> AnyServer {
-        let server: AnyServer = try self.getServerHTTP(
+    ) async throws -> some Server {
+        let server: some Server = try self.getServerHTTP(
             at: target,
             eventLoopGroup: eventLoopGroup,
             readTimeout: readTimeout,

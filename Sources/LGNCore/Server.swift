@@ -2,8 +2,10 @@ import Foundation
 import LGNLog
 import NIO
 
+public typealias LGNCoreServer = Server
+
 /// A type-erased server type
-public protocol AnyServer: AnyObject {
+public protocol Server: AnyObject {
     /// Indicates whether server is running (and serving requests) or not
     var isRunning: Bool { get set }
 
@@ -33,7 +35,7 @@ public protocol AnyServer: AnyObject {
     func waitForStop() throws
 }
 
-public extension AnyServer {
+public extension Server {
     fileprivate var name: String { "\(type(of: self))" }
 
     @Sendable
