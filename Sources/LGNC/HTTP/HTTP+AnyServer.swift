@@ -9,7 +9,7 @@ import NIOHTTP1
 import AsyncHTTPClient
 
 public extension LGNC.HTTP {
-    class Server: AnyServer, @unchecked Sendable {
+    class Server: LGNCoreServer, @unchecked Sendable {
         private let readTimeout: TimeAmount
         private let writeTimeout: TimeAmount
 

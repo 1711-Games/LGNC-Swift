@@ -1,5 +1,6 @@
-public extension LGNCore {
+import Foundation
 
+public extension LGNCore {
     /// A random request ID.
     ///
     /// Attention: this value is random, but not random enough to be used in sensitive cryptographic operations.

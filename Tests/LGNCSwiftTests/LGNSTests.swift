@@ -1,6 +1,7 @@
 import XCTest
 import NIO
 import LGNLog
+import LGNCore
 
 @testable import LGNS
 @testable import LGNP
@@ -187,7 +188,7 @@ final class LGNSTests: XCTestCase {
         let response2 = "second response"
         let response3 = "third response, bye"
 
-        let server: AnyServer = LGNS.Server(
+        let server: some Server = LGNS.Server(
             address: address,
             cryptor: cryptor,
             requiredBitmask: controlBitmask,

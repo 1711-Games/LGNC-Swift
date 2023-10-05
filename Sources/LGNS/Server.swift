@@ -12,7 +12,7 @@ public extension LGNS {
     static let DEFAULT_PORT = 1711
 
     /// A LGNS server
-    class Server: AnyServer, @unchecked Sendable {
+    class Server: LGNCoreServer, @unchecked Sendable {
         public typealias BindTo = LGNCore.Address
 
         public static let defaultPort: Int = LGNS.DEFAULT_PORT

@@ -42,7 +42,7 @@ public extension Service {
         requiredBitmask: LGNP.Message.ControlBitmask = .defaultValues,
         readTimeout: TimeAmount = .minutes(1),
         writeTimeout: TimeAmount = .minutes(1)
-    ) throws -> AnyServer {
+    ) throws -> some Server {
         try self.validateContract(requiredBitmask: requiredBitmask)
 
         return LGNS.Server(
@@ -63,8 +63,8 @@ public extension Service {
         requiredBitmask: LGNP.Message.ControlBitmask = .defaultValues,
         readTimeout: TimeAmount = .seconds(1),
         writeTimeout: TimeAmount = .seconds(1)
-    ) async throws -> AnyServer {
-        let server: AnyServer = try self.getServerLGNS(
+    ) async throws -> some Server {
+        let server: some Server = try self.getServerLGNS(
             at: target,
             cryptor: cryptor,
             eventLoopGroup: eventLoopGroup,

@@ -1,3 +1,5 @@
+import Foundation
+
 // These are pretty much default for all packages and shouldn't clash with anything
 
 public typealias Byte = UInt8
