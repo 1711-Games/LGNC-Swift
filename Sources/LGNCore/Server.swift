@@ -1,11 +1,12 @@
 import Foundation
 import LGNLog
 import NIO
+import ServiceLifecycle
 
 public typealias LGNCoreServer = Server
 
 /// A type-erased server type
-public protocol Server: AnyObject {
+public protocol Server: AnyObject, ServiceLifecycle.Service {
     /// Indicates whether server is running (and serving requests) or not
     var isRunning: Bool { get set }
 
@@ -29,6 +30,11 @@ public protocol Server: AnyObject {
     /// Performs server shutdown and returns when server is down
     @Sendable
     func shutdown() async throws
+
+    /// Performs server shutdown and returns when server is down
+    /// This method **must not** be called in `EventLoop` context, only on dedicated threads/dispatch queues/main thread
+    @Sendable
+    func shutdown()
 
     /// Blocks current thread until server is stopped.
     /// This method **must not** be called in `EventLoop` context, only on dedicated threads/dispatch queues/main thread
@@ -76,6 +82,33 @@ public extension Server {
             Logger.current.info("Goodbye")
         } catch {
             Logger.current.info("Could not shutdown: \(error)")
+        }
+    }
+
+    @Sendable
+    func shutdown() {
+        guard self.channel != nil else {
+            return
+        }
+
+        Logger.current.info("Shutting down")
+
+        do {
+            try self.channel.close().wait()
+            self.isRunning = false
+            self.channel = nil
+            Logger.current.info("Goodbye")
+        } catch {
+            Logger.current.info("Could not shutdown: \(error)")
+        }
+    }
+
+    func run() async throws {
+        try await withGracefulShutdownHandler {
+            try await self.bind()
+            _ = try await self.channel.closeFuture.get()
+        } onGracefulShutdown: {
+            self.shutdown()
         }
     }
 }

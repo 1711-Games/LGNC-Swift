@@ -18,6 +18,7 @@ let package = Package(
         .package(url: "https://github.com/1711-Games/LGN-Log.git", .upToNextMinor(from: "0.4.0")),
 
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.2.1"),
+        .package(url: "https://github.com/swift-server/swift-service-lifecycle", from: "2.3.0"),
 
         // used by LGNPContenter
         .package(url: "https://github.com/kirilltitov/SwiftMsgPack.git", from: "2.0.1"),
@@ -32,6 +33,7 @@ let package = Package(
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
                 .product(name: "LGNLog", package: "LGN-Log"),
+                .product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
             ],
             exclude: ["README.md"]
         ),
