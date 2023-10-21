@@ -24,7 +24,7 @@ public extension LGNC.HTTP {
         public required init(
             address: LGNCore.Address,
             eventLoopGroup: EventLoopGroup,
-            service: Service.Type,
+            service: Service.Type? = nil,
             webSocketRouter: WebsocketRouter.Type? = nil,
             readTimeout: Time = .minutes(1),
             writeTimeout: Time = .minutes(1),
@@ -47,10 +47,9 @@ public extension LGNC.HTTP {
                     ]
 
                     var upgrader: NIOHTTPServerUpgradeConfiguration? = nil
-                    if let webSocketRouterType = webSocketRouter {
-                        let webSocketRouter = webSocketRouterType.init(channel: channel, service: service)
+                    if let webSocketRouter, let service {
                         upgrader = (
-                            upgraders: [ webSocketRouter.upgrader ],
+                            upgraders: [ webSocketRouter.init(channel: channel, service: service).upgrader ],
                             completionHandler: { context in
                                 for handler in httpHandlers {
                                     context.channel.pipeline.removeHandler(handler, promise: nil)
