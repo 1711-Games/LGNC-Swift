@@ -54,7 +54,7 @@ public extension LGNCore {
         // String representation of the value
         @inlinable
         public var string: String {
-            String(bytes: Self.getBytesFrom(value: self.value), encoding: .ascii)!
+            String(decoding: Self.getBytesFrom(value: self.value), as: UTF8.self)
         }
 
         @usableFromInline
@@ -70,7 +70,7 @@ public extension LGNCore {
         // Creates an instance of RequestID from raw 16 bytes `Value`
         public init(value: Value) throws {
             guard Self.alphabet.isSuperset(of: Self.getBytesFrom(value: value)) else {
-                throw E.ValueContainsInvalidBytes(String(bytes: Self.getBytesFrom(value: value), encoding: .ascii)!)
+                throw E.ValueContainsInvalidBytes(String(decoding: Self.getBytesFrom(value: value), as: UTF8.self))
             }
             self.value = value
         }

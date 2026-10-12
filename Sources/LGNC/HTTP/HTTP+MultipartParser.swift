@@ -13,92 +13,106 @@ extension HTTPHeaders {
 }
 
 extension HTTP {
+    /// Parses a `multipart/form-data` body (RFC 7578). Malformed parts are skipped, never trap.
+    ///
+    /// Text fields become `String`s (parts with invalid UTF-8 are skipped), parts with a `Content-Type` header
+    /// become ``LGNC/Entity/File``s.
     static func parseMultipartFormdata(boundary: String, input: Bytes) -> Entita.Dict {
         let logger = Logger.current
 
-        let boundary = Bytes(("--" + boundary).utf8)
-        let boundaryLength = boundary.count
-        let inputLength = input.count
-        var range = 0...
+        let delimiter = Bytes(("--" + boundary).utf8)
         var output = [String: Any]()
-        while true {
-            guard let firstOccurenceBoundary = input.firstRange(of: boundary, in: range)?.upperBound else {
-                logger.debug("No first boundary found in range \(range)")
+
+        // Positions right after each delimiter
+        var partStarts: [Int] = []
+        var searchFrom = 0
+        while searchFrom < input.count, let found = input[searchFrom...].firstRange(of: delimiter) {
+            partStarts.append(found.upperBound)
+            searchFrom = found.upperBound
+        }
+        guard partStarts.count >= 2 else {
+            logger.debug("Multipart body contains less than two boundaries")
+            return output
+        }
+
+        for (index, start) in partStarts.dropLast().enumerated() {
+            // The part ends where the next delimiter begins (minus the delimiter's own preceding line break)
+            var end = partStarts[index + 1] - delimiter.count
+            var start = start
+            // Closing delimiter `--boundary--`
+            if input[start...].starts(with: [45, 45]) {
                 break
             }
-            guard firstOccurenceBoundary + boundaryLength < inputLength else {
-                logger.debug("Reached the end of input, break")
-                break
+            if input[start...].starts(with: [13, 10]) {
+                start += 2
+            } else if input[start...].starts(with: [10]) {
+                start += 1
             }
-            guard let secondOccurenceBoundary = input
-                .firstRange(of: boundary, in: firstOccurenceBoundary...)?
-                .lowerBound
-            else {
-                logger.debug("No second boundary found in range \(firstOccurenceBoundary...) (length: \(input.count))")
-                break
+            if end >= start + 2, input[end - 2 ..< end] == [13, 10] {
+                end -= 2
+            } else if end >= start + 1, input[end - 1] == 10 {
+                end -= 1
             }
-            range = secondOccurenceBoundary...
-            let partRange = (firstOccurenceBoundary + 1)...(secondOccurenceBoundary - 2)
-            let part = input[partRange]
-            guard let partsSeparator = part.firstRange(of: [10, 10]) else {
-                logger.debug("Part doesn't contain two newlines: \(part._string)")
+            guard start <= end else {
+                logger.debug("Empty multipart part")
                 continue
             }
+            let part = input[start ..< end]
+
+            let separator: Range<Int>
+            if let crlf = part.firstRange(of: [13, 10, 13, 10]) {
+                separator = crlf
+            } else if let lf = part.firstRange(of: [10, 10]) {
+                separator = lf
+            } else {
+                logger.debug("Multipart part doesn't contain headers separator")
+                continue
+            }
+
             let headers = HTTPHeaders(
-                part[..<partsSeparator.lowerBound]
-                    ._string
-                    .components(separatedBy: "\n")
-                    .compactMap { (rawHeader: String) -> (key: String, value: String)? in
+                String(decoding: part[..<separator.lowerBound], as: UTF8.self)
+                    .split(whereSeparator: { $0 == "\n" || $0 == "\r\n" || $0 == "\r" })
+                    .compactMap { rawHeader -> (String, String)? in
                         let components = rawHeader
                             .split(separator: ":", maxSplits: 1)
                             .map { $0.trimmingCharacters(in: .whitespaces) }
                         guard components.count == 2 else {
-                            logger.debug("Somehow header contains not two components: \(rawHeader)")
                             return nil
                         }
-                        return (key: components[0], value: components[1])
+                        return (components[0], components[1])
                     }
             )
-            let body = part[partsSeparator.upperBound...]
-            guard let contentDisposition = headers.first(name: "Content-Disposition") else {
-                logger.debug("No Content-Disposition header")
-                continue
-            }
-            guard contentDisposition.contains("form-data") else {
-                logger.debug("Content-Disposition does not contain 'form-data' value: \(contentDisposition)")
-                continue
-            }
+            let body = part[separator.upperBound...]
 
+            guard let contentDisposition = headers.first(name: "Content-Disposition"),
+                  contentDisposition.contains("form-data")
+            else {
+                logger.debug("Multipart part without form-data Content-Disposition")
+                continue
+            }
             let KVs = LGNCore.parseKV(from: contentDisposition)
             guard let name = KVs["name"] else {
                 logger.debug("Content-Disposition does not contain 'name' value: \(contentDisposition)")
                 continue
             }
 
-            let isFile: Bool
-            let rawContentType: String
-            if let _rawContentType = headers.first(name: "Content-Type") {
-                isFile = true
-                rawContentType = _rawContentType
-            } else {
-                isFile = false
-                rawContentType = LGNCore.ContentType.TextPlain.type
-            }
-            let contentType = LGNCore.ContentType(rawValue: rawContentType)
-
-            let result: Any
-
-            if isFile {
+            if let rawContentType = headers.first(name: "Content-Type") {
                 guard let filename = KVs["filename"] else {
                     logger.debug("File does not contain filename: \(headers)")
                     continue
                 }
-                result = LGNC.Entity.File(filename: filename, contentType: contentType, body: Bytes(body))
-            } else /* String */ {
-                result = String(bytes: body, encoding: .utf8)!
+                output[name] = LGNC.Entity.File(
+                    filename: filename,
+                    contentType: LGNCore.ContentType(rawValue: rawContentType),
+                    body: Bytes(body)
+                )
+            } else {
+                guard let value = String(validating: body, as: UTF8.self) else {
+                    logger.debug("Multipart field '\(name)' is not valid UTF-8")
+                    continue
+                }
+                output[name] = value
             }
-
-            output[name] = result
         }
 
         return output

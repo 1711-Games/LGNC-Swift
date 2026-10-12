@@ -159,8 +159,9 @@ final class LGNSTests: XCTestCase {
         let requiredBitmaskErrorMessage = try LGNP.decode(
             body: try await self.write(
                 to: address,
+                // SIZE is HEAD size (4) + headless size (16 + 2 + 20)
                 payload: "LGNP".bytes +
-                    Bytes([20,0,0,0]) +
+                    Bytes([42,0,0,0]) +
                     Bytes([97,97,97,97,97,97,97,97,97,97,97,97,97,97,97,97]) +
                     Bytes([0,0]) +
                     Bytes(repeating: 0, count: 20)

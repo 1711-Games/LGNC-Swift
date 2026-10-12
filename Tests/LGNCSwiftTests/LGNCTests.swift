@@ -189,7 +189,7 @@ final class LGNCTests: XCTestCase {
                         requiredBitmask: controlBitmask
                     )
                     promiseStartAuthLGNS.succeed(())
-                    try server.waitForStop()
+                    try await server.channel.closeFuture.get()
                 } catch {
                     promiseStartAuthLGNS.fail(error)
                 }
@@ -204,7 +204,7 @@ final class LGNCTests: XCTestCase {
                         requiredBitmask: controlBitmask
                     )
                     promiseStartShopLGNS.succeed(())
-                    try server.waitForStop()
+                    try await server.channel.closeFuture.get()
                 } catch {
                     promiseStartShopLGNS.fail(error)
                 }
@@ -220,7 +220,7 @@ final class LGNCTests: XCTestCase {
                         eventLoopGroup: Self.eventLoopGroup
                     )
                     promiseStartAuthHTTP.succeed(())
-                    try server.waitForStop()
+                    try await server.channel.closeFuture.get()
                 } catch {
                     promiseStartAuthHTTP.fail(error)
                 }
@@ -234,7 +234,7 @@ final class LGNCTests: XCTestCase {
                         eventLoopGroup: Self.eventLoopGroup
                     )
                     promiseStartShopHTTP.succeed(())
-                    try server.waitForStop()
+                    try await server.channel.closeFuture.get()
                 } catch {
                     promiseStartShopHTTP.fail(error)
                 }

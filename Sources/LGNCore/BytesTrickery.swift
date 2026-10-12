@@ -61,7 +61,7 @@ public extension Array where Element == Byte {
     ///
     /// Caution! This operation is potentially unsafe, you should use it only for debug purposes.
     @inlinable var _string: String {
-        return String(bytes: self, encoding: .ascii)!
+        return String(decoding: self, as: UTF8.self)
     }
 
     /// Adds `NUL` octet (zero byte) to the end of current byte array

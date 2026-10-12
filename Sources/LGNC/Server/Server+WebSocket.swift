@@ -165,18 +165,10 @@ extension LGNC.WebSocket {
 
         init(router: WebsocketRouter) {
             self.router = router
-
-            print("init \(Self.self) \(ObjectIdentifier(self))")
-        }
-
-        deinit {
-            print("deinit \(Self.self) \(ObjectIdentifier(self))")
         }
 
         func errorCaught(context: ChannelHandlerContext, error: Error) {
-            dump(error)
-            print(error)
-            print(#line)
+            Logger.current.debug("WebSocket error: \(error)")
             context.fireErrorCaught(error)
         }
 
@@ -245,8 +237,7 @@ extension LGNC.WebSocket {
                     responseFrame = response.frame
                     close = response.close
                 case .failure(let error):
-                    // log
-                    dump(["error": error])
+                    Logger.current.error("WebSocket request failed: \(error)")
                     responseFrame = LGNC.WebSocket.errorFrame
                     close = true
                 }

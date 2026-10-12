@@ -70,7 +70,10 @@ public extension Service {
 
             return try await LGNCore.Context.$current.withValue(context) {
                 try await Logger.$current.withValue(logger) {
-                    var rawURI: String = request.URI
+                    // Path and query string
+                    let URIComponents = request.URI.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)
+                    var rawURI = String(URIComponents.first ?? "")
+                    let query = URIComponents.count == 2 ? String(URIComponents[1]) : ""
                     let payload: Entita.Dict
                     let URI: String
 
@@ -79,8 +82,7 @@ public extension Service {
                     }
 
                     if request.method == .GET {
-                        let components = rawURI.split(separator: "?", maxSplits: 1)
-                        URI = String(components[0])
+                        URI = rawURI
                         guard GETSafeURLs.contains(URI.lowercased()) else {
                             return (
                                 body: LGNCore.getBytes("This contract cannot be invoked with GET"),
@@ -88,7 +90,7 @@ public extension Service {
                                 headers: []
                             )
                         }
-                        payload = HTTP.parseQueryParams(String(components.last ?? ""))
+                        payload = HTTP.parseQueryParams(query)
                     } else if request.isURLEncoded {
                         URI = rawURI
                         payload = HTTP.parseQueryParams(request.body._string)

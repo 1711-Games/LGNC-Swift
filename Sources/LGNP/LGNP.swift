@@ -32,7 +32,9 @@ public enum LGNP {
         + 1 // minimum URI length
         + 1 // NUL byte after URI
 
-    public static var MAXIMUM_MESSAGE_LENGTH: Message.Block.SIZE.TYPE = .max
+    /// Maximum length of a message (16 MiB by default). Longer messages are rejected on decoding as soon as their
+    /// header is read, and are not encoded.
+    nonisolated(unsafe) public static var MAXIMUM_MESSAGE_LENGTH: Message.Block.SIZE.TYPE = 16 * 1024 * 1024
 
     /// Validates and parses message header if enough bytes is provided, otherwise `LGNP.E.TooShortHeaderToParse` error is thrown which
     /// should be treated as `waiting for more bytes`. Returns expected message length.
@@ -236,6 +238,10 @@ public enum LGNP {
             throw E.ParsingFailed("Body length must be \(realLength) bytes or more (given \(body.count) bytes)")
         }
 
+        guard body.count >= Message.Block.MSID.size + Message.Block.BMSK.size else {
+            throw E.ParsingFailed("Message body is too short (\(body.count) bytes)")
+        }
+
         let msid = try LGNP.Message.MSID(bytes: Bytes(body[0 ..< Message.Block.MSID.size]))
         var pos = Message.Block.MSID.size
         let nextPos = pos + Message.Block.BMSK.size
@@ -356,6 +362,10 @@ public enum LGNP {
             signatureLength = SHA512.byteCount
         }
 
+        guard payload.count >= signatureLength else {
+            throw E.SignatureVerificationFailed("Payload is shorter than \(signatureName) signature")
+        }
+
         let givenSignature = Bytes(payload[0 ..< signatureLength])
         let result = Bytes(payload[signatureLength...])
 
@@ -371,20 +381,26 @@ public enum LGNP {
             controlBitmask: controlBitmask,
             msid: msid
         )
-        let sampleSignatureHexString = sampleSignature.count > 0 ? sampleSignature.hexString : "NULL"
-
-        guard givenSignature == sampleSignature else {
-            logger.error(
-                """
-                Given \(signatureName) signature (\(givenSignature.hexString)) does not match \
-                with sample (\(sampleSignatureHexString))
-                """
-            )
+        guard Self.constantTimeEquals(givenSignature, sampleSignature) else {
+            // Never log the expected signature: it would make the logs a signing oracle
+            logger.error("Given \(signatureName) signature does not match")
             throw E.SignatureVerificationFailed("Signature mismatch")
         }
 
-        logger.trace("Validated \(signatureName) signature \(sampleSignatureHexString)")
+        logger.trace("Validated \(signatureName) signature")
 
         return result
+    }
+
+    /// Compares two byte arrays in time which depends only on their lengths
+    static func constantTimeEquals(_ lhs: Bytes, _ rhs: Bytes) -> Bool {
+        guard lhs.count == rhs.count else {
+            return false
+        }
+        var difference: UInt8 = 0
+        for index in lhs.indices {
+            difference |= lhs[index] ^ rhs[index]
+        }
+        return difference == 0
     }
 }

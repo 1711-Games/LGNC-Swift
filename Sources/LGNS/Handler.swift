@@ -49,23 +49,18 @@ internal extension LGNS {
         }
 
         internal func sendError(to context: ChannelHandlerContext, error: ErrorTupleConvertible) {
-            print("FLUSHING ERROR TO CLIENT")
-            print("\(#file):\(#line)")
-            print(error)
-            context.eventLoop.makeSucceededFuture(())
-                .flatMap { () -> EventLoopFuture<Void> in
-                    context.writeAndFlush(
-                        self.wrapOutboundOut(
-                            LGNP.Message(
-                                URI: "",
-                                payload: LGNCore.getBytes("\(error.tuple.code) \(error.tuple.message)"),
-                                controlBitmask: .containsError
-                            )
+            Logger.current.debug("Sending error to the client and closing the connection: \(error)")
+            context
+                .writeAndFlush(
+                    self.wrapOutboundOut(
+                        LGNP.Message(
+                            URI: "",
+                            payload: LGNCore.getBytes("\(error.tuple.code) \(error.tuple.message)"),
+                            controlBitmask: .containsError
                         )
                     )
-                }
-                .map { () -> Void in context.close(promise: nil) }
-                .whenComplete { _ in }
+                )
+                .whenComplete { _ in context.close(promise: nil) }
         }
 
         func channelActive(context: ChannelHandlerContext) {
@@ -213,11 +208,10 @@ internal extension LGNS {
         }
 
         func errorCaught(context: ChannelHandlerContext, error: Error) {
-            dump("ERROR CAUGHT: \(error)")
+            Logger.current.debug("Error caught: \(error)")
             if let error = error as? ErrorTupleConvertible {
                 self.handleError(context: context, error: error)
             } else {
-                print("Unknown error: \(error)")
                 self.handleError(context: context, error: LGNS.E.UnknownError("\(error)"))
             }
         }
@@ -263,6 +257,8 @@ internal extension LGNS {
             if self.state == .WaitingForInbound {
                 self.promise?.fail(error)
             }
+            // The decoder can't recover after an error, the connection must not be reused
+            context.close(promise: nil)
         }
     }
 }

@@ -1,10 +1,10 @@
-// swift-tools-version:5.9
+// swift-tools-version:6.4
 
 import PackageDescription
 
 let package = Package(
     name: "LGNC-Swift",
-    platforms: [.macOS(.v12)],
+    platforms: [.macOS(.v15)],
     products: [
         .library(name: "LGNCore", targets: ["LGNCore"]),
         .library(name: "LGNP", targets: ["LGNP"]),
@@ -14,17 +14,17 @@ let package = Package(
         .library(name: "Entita", targets: ["Entita"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-nio.git", from: "2.33.0"),
+        .package(url: "https://github.com/apple/swift-nio.git", from: "2.80.0"),
         .package(url: "https://github.com/1711-Games/LGN-Log.git", .upToNextMinor(from: "0.4.0")),
 
-        .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.2.1"),
-        .package(url: "https://github.com/swift-server/swift-service-lifecycle", from: "2.3.0"),
+        .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.25.0"),
+        .package(url: "https://github.com/swift-server/swift-service-lifecycle", from: "2.6.0"),
 
         // used by LGNPContenter
         .package(url: "https://github.com/kirilltitov/SwiftMsgPack.git", from: "2.0.1"),
 
         // used by LGNP
-        .package(url: "https://github.com/apple/swift-crypto.git", from: "1.1.7"),
+        .package(url: "https://github.com/apple/swift-crypto.git", "3.0.0" ..< "5.0.0"),
     ],
     targets: [
         .target(
@@ -91,5 +91,6 @@ let package = Package(
             ],
             exclude: ["Schema"]
         ),
-    ]
+    ],
+    swiftLanguageModes: [.v5]
 )
