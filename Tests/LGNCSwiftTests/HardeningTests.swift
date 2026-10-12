@@ -41,6 +41,49 @@ final class HardeningTests: XCTestCase {
         XCTAssertFalse(LGNP.constantTimeEquals([1, 2, 3], [1, 2]))
     }
 
+    func testHeaderIsAuthenticated() throws {
+        for bitmask: LGNP.Message.ControlBitmask in [[.signatureSHA256], [.signatureSHA512, .encrypted], [.encrypted]] {
+            let message = LGNP.Message(URI: "uri", payload: [1, 2, 3], controlBitmask: bitmask.union(.contentTypeMsgPack))
+            let encoded = try LGNP.encode(message: message, with: self.cryptor)
+            let size = UInt32(encoded.count - 4)
+
+            XCTAssertEqual(
+                try LGNP.decodeHeadless(body: Bytes(encoded[8...]), length: size, with: self.cryptor).payload,
+                [1, 2, 3]
+            )
+
+            // Flip content type bits and keep-alive in the bitmask (bytes 24-25 of the message)
+            for (offset, bit) in [(25, UInt8(1 << 3)), (25, UInt8(1 << 4)), (24, UInt8(1))] {
+                var tampered = encoded
+                tampered[offset] ^= bit
+                XCTAssertThrowsError(
+                    try LGNP.decodeHeadless(body: Bytes(tampered[8...]), length: size, with: self.cryptor),
+                    "Tampered bitmask \(bitmask) at \(offset) must be detected"
+                )
+            }
+
+            // MSID
+            var tampered = encoded
+            tampered[8] ^= 1
+            XCTAssertThrowsError(try LGNP.decodeHeadless(body: Bytes(tampered[8...]), length: size, with: self.cryptor))
+        }
+    }
+
+    func testNoNonceReuse() throws {
+        // A response keeps the MSID of its request, nested calls share the MSID: ciphertexts must still differ
+        let msid = LGNCore.RequestID()
+        let first = try LGNP.encode(
+            message: LGNP.Message(URI: "uri", payload: [1, 2, 3], controlBitmask: .encrypted, msid: msid),
+            with: self.cryptor
+        )
+        let second = try LGNP.encode(
+            message: LGNP.Message(URI: "uri", payload: [1, 2, 3], controlBitmask: .encrypted, msid: msid),
+            with: self.cryptor
+        )
+        XCTAssertEqual(first.count, second.count)
+        XCTAssertNotEqual(first, second)
+    }
+
     // MARK: - LGNS framing
 
     func makeDecoderChannel(maximumMessageLength: Int = 1024 * 1024) throws -> EmbeddedChannel {
