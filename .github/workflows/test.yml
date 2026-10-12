@@ -1,0 +1,25 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    container: swift:6.4-noble
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build LGNBuilder
+        run: |
+          git clone --depth 1 --branch "${LGNBUILDER_REF:-main}" https://github.com/1711-Games/LGNBuilder /tmp/lgnbuilder
+          swift build -c release --package-path /tmp/lgnbuilder
+        env:
+          LGNBUILDER_REF: claude/contract-type
+      - name: Generate test contracts
+        run: /tmp/lgnbuilder/.build/release/LGNBuilder --lang Swift --input Tests/LGNCSwiftTests/Schema --output Tests/LGNCSwiftTests/Codegen
+      - name: Test
+        run: swift test
+        env:
+          APP_ENV: local
