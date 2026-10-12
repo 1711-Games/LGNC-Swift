@@ -198,4 +198,39 @@ final class HardeningTests: XCTestCase {
             XCTAssertNil(result["x"])
         }
     }
+
+    // MARK: - HTTP
+
+    func testCookieAttributesCantBeInjected() throws {
+        let cookie = LGNC.Entity.Cookie(
+            name: "token",
+            value: "abc; Domain=evil.com, Path=/x\"\\ ",
+            path: "/",
+            domain: ".1711.games",
+            expires: nil,
+            maxAge: 60,
+            httpOnly: true,
+            secure: true
+        )
+        let string = try cookie.getCookieString()
+        XCTAssertTrue(string.hasPrefix("token=abc%3B%20Domain=evil.com%2C%20Path=/x%22%5C%20; "), string)
+        // name=value, Max-Age, Path, Domain, Secure, HttpOnly
+        XCTAssertEqual(string.components(separatedBy: "; ").count, 6)
+
+        var badDomain = cookie
+        badDomain.domain = "a.com; Secure"
+        XCTAssertThrowsError(try badDomain.getCookieString())
+        var badPath = cookie
+        badPath.path = "/\r\nSet-Cookie: x=y"
+        XCTAssertThrowsError(try badPath.getCookieString())
+    }
+
+    func testPrivateAddresses() {
+        for address in ["127.0.0.1", "10.1.2.3", "172.16.0.1", "172.31.255.255", "192.168.1.1", "169.254.0.1", "::1", "fd00::1", "fe80::1", "::ffff:10.0.0.1"] {
+            XCTAssertTrue(LGNS.isPrivateIPAddress(address), address)
+        }
+        for address in ["8.8.8.8", "172.32.0.1", "172.15.0.1", "1.10.0.1", "2001:db8::1", "", "garbage", "::ffff:8.8.8.8"] {
+            XCTAssertFalse(LGNS.isPrivateIPAddress(address), address)
+        }
+    }
 }

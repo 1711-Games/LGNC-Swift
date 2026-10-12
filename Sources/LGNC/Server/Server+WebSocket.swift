@@ -31,7 +31,7 @@ public extension WebsocketRouter {
 
                 self.baseContext = LGNCore.Context(
                     remoteAddr: channel.remoteAddrString,
-                    clientAddr: head.headers["X-Real-IP"].first ?? channel.remoteAddrString,
+                    clientAddr: channel.clientAddress(realIPHeader: head.headers["X-Real-IP"].first),
                     userAgent: head.headers["User-Agent"].first ?? "",
                     locale: LGNCore.i18n.Locale(
                         maybeLocale: head.headers["Accept-Language"].first,
