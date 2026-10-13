@@ -99,7 +99,7 @@ public extension LGNP.Message {
 
 public extension Array where Element == Byte {
     var ascii: String {
-        return String(bytes: self, encoding: .ascii)!
+        return String(decoding: self, as: UTF8.self)
     }
 
     func unpackFromMsgPack() throws -> [String: Any] {

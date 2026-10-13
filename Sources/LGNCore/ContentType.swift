@@ -26,7 +26,7 @@ public extension LGNCore {
                 .map { $0.trimmingCharacters(in: .whitespaces) }
 
             self.init(
-                type: components[0],
+                type: components.first ?? "",
                 options: components.count == 2
                     ? LGNCore.parseKV(from: components[1])
                     : [:]

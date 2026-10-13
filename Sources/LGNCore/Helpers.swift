@@ -74,7 +74,8 @@ public extension LGNCore {
                 .compactMap { (rawPair: String) -> KV? in
                     let parsedPair = rawPair
                         .trimmingCharacters(in: .whitespaces)
-                        .components(separatedBy: "=")
+                        .split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+                        .map(String.init)
 
                     guard parsedPair.count == 2 else {
                         return nil

@@ -158,12 +158,24 @@ extension LGNC.Entity.Cookie: ContractEntity, @unchecked Sendable {
         ]
     }
 
+    /// Characters allowed in cookie names and values as is (RFC 6265 `cookie-octet` without `%`);
+    /// everything else is percent-encoded
+    static let allowedCookieCharacters = CharacterSet(
+        charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$&'()*+-./:<=>?@[]^_`{|}~"
+    )
+
     public func getCookieString() throws -> String {
-        guard let name = self.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+        guard let name = self.name.addingPercentEncoding(withAllowedCharacters: Self.allowedCookieCharacters) else {
             throw LGNC.E.serverError("Could not percent encode cookie name of cookie \(self)")
         }
-        guard let value = self.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+        guard let value = self.value.addingPercentEncoding(withAllowedCharacters: Self.allowedCookieCharacters) else {
             throw LGNC.E.serverError("Could not percent encode cookie value of cookie \(self)")
+        }
+        // Attributes are not encoded, so they must not be able to inject other attributes
+        for attribute in [self.path, self.domain ?? ""] {
+            guard !attribute.contains(where: { $0 == ";" || $0 == "," || $0.isNewline || $0.asciiValue.map { $0 < 0x20 || $0 == 0x7F } == true }) else {
+                throw LGNC.E.serverError("Invalid cookie attribute '\(attribute)' of cookie '\(self.name)'")
+            }
         }
 
         var result: [String] = ["\(name)=\(value)"]

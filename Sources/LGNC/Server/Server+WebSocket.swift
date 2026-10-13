@@ -31,7 +31,7 @@ public extension WebsocketRouter {
 
                 self.baseContext = LGNCore.Context(
                     remoteAddr: channel.remoteAddrString,
-                    clientAddr: head.headers["X-Real-IP"].first ?? channel.remoteAddrString,
+                    clientAddr: channel.clientAddress(realIPHeader: head.headers["X-Real-IP"].first),
                     userAgent: head.headers["User-Agent"].first ?? "",
                     locale: LGNCore.i18n.Locale(
                         maybeLocale: head.headers["Accept-Language"].first,
@@ -165,18 +165,10 @@ extension LGNC.WebSocket {
 
         init(router: WebsocketRouter) {
             self.router = router
-
-            print("init \(Self.self) \(ObjectIdentifier(self))")
-        }
-
-        deinit {
-            print("deinit \(Self.self) \(ObjectIdentifier(self))")
         }
 
         func errorCaught(context: ChannelHandlerContext, error: Error) {
-            dump(error)
-            print(error)
-            print(#line)
+            Logger.current.debug("WebSocket error: \(error)")
             context.fireErrorCaught(error)
         }
 
@@ -245,8 +237,7 @@ extension LGNC.WebSocket {
                     responseFrame = response.frame
                     close = response.close
                 case .failure(let error):
-                    // log
-                    dump(["error": error])
+                    Logger.current.error("WebSocket request failed: \(error)")
                     responseFrame = LGNC.WebSocket.errorFrame
                     close = true
                 }

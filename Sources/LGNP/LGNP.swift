@@ -11,7 +11,8 @@ import LGNLog
 /// - `SIZE` 4 bytes of message size in LE `UInt32` (this size includes sizes of `HEAD` and `SIZE` blocks)
 /// - `MSID` 16 bytes of RequestID
 /// - `BMSK` 2 bytes of control bitmask in LE `UInt16`
-/// - `SIGN` (optional, if stated in `BMSK`) Some number of bytes of HMAC-signature (depends of algo), computed as `HMAC(URI + MSZE + META + BODY + MSID, KEY)`
+/// - `SIGN` (optional, if stated in `BMSK`) Some number of bytes of HMAC-signature (depends of algo), computed as
+///   `HMAC(MSID + BMSK + URI + NUL + MSZE + META + BODY)` with the signature key (see `LGNP.Cryptor`)
 /// - `URI` Some number of bytes of URI and a terminating `NUL` byte
 /// - `MSZE` (optional, if stated in `BMSK`) 4 bytes of meta section size in LE `UInt32`
 /// - `META` (optional, if stated in `BMSK`) Some number of bytes of meta section (size is specified in `MSZE`)
@@ -19,8 +20,10 @@ import LGNLog
 ///
 /// # Notes
 ///
-/// - Sections starting from `SIGN` (uncluding one) may be encrypted with AES.GCM (using external secret key and first 12 bytes of `MSID` as nonce)
-/// - Sections starting from `URI` (including one) are hashed into `SIGN` (before encryption)
+/// - Sections starting from `SIGN` (including one) may be encrypted with AES-GCM with the encryption key (see
+///   `LGNP.Cryptor`) and a random nonce: the encrypted section is `NONCE (12 bytes) + ciphertext + TAG (16 bytes)`,
+///   and `MSID + BMSK` are authenticated as additional data
+/// - `MSID` and `BMSK` are covered by both the signature and the encryption tag, so they can't be altered
 /// - It's recommended to fail parsing if there is more data than stated in `SIZE` block
 public enum LGNP {
     public static let ERROR_RESPONSE = LGNCore.getBytes("error")
@@ -32,7 +35,9 @@ public enum LGNP {
         + 1 // minimum URI length
         + 1 // NUL byte after URI
 
-    public static var MAXIMUM_MESSAGE_LENGTH: Message.Block.SIZE.TYPE = .max
+    /// Maximum length of a message (16 MiB by default). Longer messages are rejected on decoding as soon as their
+    /// header is read, and are not encoded.
+    nonisolated(unsafe) public static var MAXIMUM_MESSAGE_LENGTH: Message.Block.SIZE.TYPE = 16 * 1024 * 1024
 
     /// Validates and parses message header if enough bytes is provided, otherwise `LGNP.E.TooShortHeaderToParse` error is thrown which
     /// should be treated as `waiting for more bytes`. Returns expected message length.
@@ -105,8 +110,8 @@ public enum LGNP {
 
         if message.controlBitmask.contains(.encrypted) {
             do {
-                rawBody = try cryptor.encrypt(input: rawBody, requestID: message.msid)
-                logger.trace("[\(message.msid.string)] Encrypted message with")
+                rawBody = try cryptor.encrypt(rawBody, authenticating: Self.header(of: message))
+                logger.trace("[\(message.msid.string)] Encrypted message")
             } catch {
                 throw E.EncryptionFailed("Encryption failed: \(error)")
             }
@@ -144,23 +149,30 @@ public enum LGNP {
             return result
         }
 
-        let saltedBody = bodySoFar + LGNCore.getBytes(msid)
-
-        Logger.current.trace("Salted prefix: \(saltedBody)")
+        let signed = Self.header(msid: msid, controlBitmask: controlBitmask) + bodySoFar
 
         if controlBitmask.contains(.signatureSHA256) {
-            result = Bytes(HMAC<SHA256>.authenticationCode(for: saltedBody, using: cryptor.symmetricKey))
+            result = Bytes(HMAC<SHA256>.authenticationCode(for: signed, using: cryptor.signatureKey))
         }
 
         if controlBitmask.contains(.signatureSHA384) {
-            result = Bytes(HMAC<SHA384>.authenticationCode(for: saltedBody, using: cryptor.symmetricKey))
+            result = Bytes(HMAC<SHA384>.authenticationCode(for: signed, using: cryptor.signatureKey))
         }
 
         if controlBitmask.contains(.signatureSHA512) {
-            result = Bytes(HMAC<SHA512>.authenticationCode(for: saltedBody, using: cryptor.symmetricKey))
+            result = Bytes(HMAC<SHA512>.authenticationCode(for: signed, using: cryptor.signatureKey))
         }
 
         return result
+    }
+
+    /// `MSID + BMSK`: the part of a message authenticated by the signature and the encryption tag
+    static func header(msid: Message.MSID, controlBitmask: Message.ControlBitmask) -> Bytes {
+        LGNCore.getBytes(msid) + LGNCore.getBytes(controlBitmask)
+    }
+
+    static func header(of message: Message) -> Bytes {
+        Self.header(msid: message.msid, controlBitmask: message.controlBitmask)
     }
 
     /// Returns computed signature for given body bytes and message
@@ -236,6 +248,10 @@ public enum LGNP {
             throw E.ParsingFailed("Body length must be \(realLength) bytes or more (given \(body.count) bytes)")
         }
 
+        guard body.count >= Message.Block.MSID.size + Message.Block.BMSK.size else {
+            throw E.ParsingFailed("Message body is too short (\(body.count) bytes)")
+        }
+
         let msid = try LGNP.Message.MSID(bytes: Bytes(body[0 ..< Message.Block.MSID.size]))
         var pos = Message.Block.MSID.size
         let nextPos = pos + Message.Block.BMSK.size
@@ -260,7 +276,7 @@ public enum LGNP {
 
         if controlBitmask.contains(.encrypted) {
             do {
-                payload = try cryptor.decrypt(input: payload, requestID: msid)
+                payload = try cryptor.decrypt(payload, authenticating: Self.header(msid: msid, controlBitmask: controlBitmask))
                 logger.trace("Decrypted")
             } catch {
                 throw E.DecryptionFailed("Could not decrypt payload: \(error)")
@@ -356,6 +372,10 @@ public enum LGNP {
             signatureLength = SHA512.byteCount
         }
 
+        guard payload.count >= signatureLength else {
+            throw E.SignatureVerificationFailed("Payload is shorter than \(signatureName) signature")
+        }
+
         let givenSignature = Bytes(payload[0 ..< signatureLength])
         let result = Bytes(payload[signatureLength...])
 
@@ -371,20 +391,26 @@ public enum LGNP {
             controlBitmask: controlBitmask,
             msid: msid
         )
-        let sampleSignatureHexString = sampleSignature.count > 0 ? sampleSignature.hexString : "NULL"
-
-        guard givenSignature == sampleSignature else {
-            logger.error(
-                """
-                Given \(signatureName) signature (\(givenSignature.hexString)) does not match \
-                with sample (\(sampleSignatureHexString))
-                """
-            )
+        guard Self.constantTimeEquals(givenSignature, sampleSignature) else {
+            // Never log the expected signature: it would make the logs a signing oracle
+            logger.error("Given \(signatureName) signature does not match")
             throw E.SignatureVerificationFailed("Signature mismatch")
         }
 
-        logger.trace("Validated \(signatureName) signature \(sampleSignatureHexString)")
+        logger.trace("Validated \(signatureName) signature")
 
         return result
+    }
+
+    /// Compares two byte arrays in time which depends only on their lengths
+    static func constantTimeEquals(_ lhs: Bytes, _ rhs: Bytes) -> Bool {
+        guard lhs.count == rhs.count else {
+            return false
+        }
+        var difference: UInt8 = 0
+        for index in lhs.indices {
+            difference |= lhs[index] ^ rhs[index]
+        }
+        return difference == 0
     }
 }

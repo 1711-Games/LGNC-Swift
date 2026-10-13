@@ -10,28 +10,25 @@ internal extension LGNC.HTTP {
         typealias OutboundOut = HTTPServerResponsePart
 
         private let resolver: Resolver
-        private let profiler: LGNCore.Profiler
-        private let requestID = LGNCore.RequestID()
+        private var logger = Logger(label: "LGNC.HTTP.Handler")
 
-        private lazy var logger: Logger = {
-            var logger = Logger(label: "LGNC.HTTP.Handler")
-
-            logger[metadataKey: "requestID"] = "\(self.requestID.string)"
-
-            return logger
-        }()
-
-        public init(resolver: @escaping Resolver, profiler: LGNCore.Profiler) {
+        public init(resolver: @escaping Resolver) {
             self.resolver = resolver
-            self.profiler = profiler
         }
 
         func channelRead(context: ChannelHandlerContext, data: NIOAny) {
-            self.logger.trace("LGNC.HTTP.channelRead \(self.profiler.mark("LGNC.HTTP.channelRead"))")
+            // Per request (not per connection): keep-alive connections serve many requests
+            let requestID = LGNCore.RequestID()
+            let profiler = LGNCore.Profiler()
+            var logger = Logger(label: "LGNC.HTTP.Handler")
+            logger[metadataKey: "requestID"] = "\(requestID.string)"
+            self.logger = logger
+
+            logger.trace("LGNC.HTTP.channelRead \(profiler.mark("LGNC.HTTP.channelRead"))")
 
             let request: NIOHTTPServerRequestFull = self.unwrapInboundIn(data)
 
-            self.logger.debug("About to serve \(request.head.method) \(request.head.uri)")
+            logger.debug("About to serve \(request.head.method) \(request.head.uri)")
 
             guard [.POST, .GET].contains(request.head.method) else {
                 return self.sendResponse(context: context, status: .notImplemented, body: "501 Not Implemented")
@@ -69,26 +66,26 @@ internal extension LGNC.HTTP {
             let resolverRequest = Request(
                 URI: URI,
                 headers: request.head.headers,
-                remoteAddr: request.head.headers["X-Real-IP"].first ?? context.channel.remoteAddrString,
+                remoteAddr: context.channel.clientAddress(realIPHeader: request.head.headers["X-Real-IP"].first),
                 body: payloadBytes,
-                requestID: self.requestID,
+                requestID: requestID,
                 contentType: contentType,
                 method: method,
                 meta: meta,
                 eventLoop: context.eventLoop,
-                profiler: self.profiler
+                profiler: profiler
             )
 
             let resolverResultPromise = context.eventLoop.makePromise(of: ResolverResult.self)
 
             Task.detached {
-                self.logger.trace("Resolver invocation begin \(self.profiler.mark("resolver invocation begin"))")
+                logger.trace("Resolver invocation begin \(profiler.mark("resolver invocation begin"))")
                 do {
                     resolverResultPromise.succeed(try await self.resolver(resolverRequest))
                 } catch {
                     resolverResultPromise.fail(error)
                 }
-                self.logger.trace("Resolver invocation end \(self.profiler.mark("resolver invocation end"))")
+                logger.trace("Resolver invocation end \(profiler.mark("resolver invocation end"))")
             }
 
             let headers = [
@@ -106,7 +103,7 @@ internal extension LGNC.HTTP {
             }
 
             resolverResultPromise.futureResult.whenFailure { error in
-                self.logger.error("There was an error while processing request '\(resolverRequest.URI)': \(error)")
+                logger.error("There was an error while processing request '\(resolverRequest.URI)': \(error)")
                 self.sendResponse(
                     context: context,
                     status: .internalServerError,
@@ -117,8 +114,8 @@ internal extension LGNC.HTTP {
             }
 
             resolverResultPromise.futureResult.whenComplete { _ in
-                self.logger.debug(
-                    "HTTP request '\(resolverRequest.URI)' served in \(self.profiler.mark("HTTP request served").elapsed.rounded(toPlaces: 4))"
+                logger.debug(
+                    "HTTP request '\(resolverRequest.URI)' served in \(profiler.mark("HTTP request served").elapsed.rounded(toPlaces: 4))"
                 )
             }
         }

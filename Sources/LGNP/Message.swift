@@ -41,7 +41,7 @@ public extension LGNP {
         /// Returns message payload body as ASCII string.
         /// This operation is potentially unsafe and should be used only for debug purposes
         public var _payloadAsString: String {
-            return String(bytes: payload, encoding: .ascii)!
+            return String(decoding: payload, as: UTF8.self)
         }
 
         public init(

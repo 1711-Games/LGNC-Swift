@@ -39,11 +39,10 @@ public extension LGNC.HTTP {
                 .serverChannelOption(ChannelOptions.backlog, value: 256)
                 .serverChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
                 .childChannelInitializer { channel in
-                    let profiler = LGNCore.Profiler()
 
                     let httpHandlers: [ChannelHandler & RemovableChannelHandler] = [
                         NIOHTTPServerRequestAggregator(maxContentLength: 1_000_000),
-                        LGNC.HTTP.Handler(resolver: resolver, profiler: profiler),
+                        LGNC.HTTP.Handler(resolver: resolver),
                     ]
 
                     var upgrader: NIOHTTPServerUpgradeConfiguration? = nil
@@ -59,7 +58,14 @@ public extension LGNC.HTTP {
                     }
 
                     return channel.pipeline
-                        .configureHTTPServerPipeline(withServerUpgrade: upgrader, withErrorHandling: true)
+                        // Connections idle for too long (e.g. slowloris) are closed
+                        .addHandlers([
+                            IdleStateHandler(readTimeout: readTimeout, writeTimeout: writeTimeout),
+                            CloseOnIdleHandler(),
+                        ])
+                        .flatMap {
+                            channel.pipeline.configureHTTPServerPipeline(withServerUpgrade: upgrader, withErrorHandling: true)
+                        }
                         .flatMap { channel.pipeline.addHandlers(httpHandlers) }
                 }
                 .childChannelOption(ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
@@ -73,5 +79,18 @@ public extension LGNC.HTTP {
                 Logger.current.warning("HTTP Server has not been shutdown manually")
             }
         }
+    }
+}
+
+/// Closes connections on idle events of `IdleStateHandler`
+final class CloseOnIdleHandler: ChannelInboundHandler, Sendable {
+    typealias InboundIn = NIOAny
+
+    func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
+        if event is IdleStateHandler.IdleStateEvent {
+            context.close(promise: nil)
+            return
+        }
+        context.fireUserInboundEventTriggered(event)
     }
 }

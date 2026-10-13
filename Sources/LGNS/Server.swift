@@ -50,10 +50,16 @@ public extension LGNS {
 
                 .childChannelInitializer { channel in
                     channel.pipeline.addHandlers(
-                        BackPressureHandler(),
-                        IdleStateHandler(readTimeout: self.readTimeout, writeTimeout: self.writeTimeout),
-                        LGNS.LGNPCoder(cryptor: self.cryptor, requiredBitmask: self.requiredBitmask),
-                        LGNS.ServerHandler(profiler: LGNCore.Profiler(), resolver: resolver)
+                        [
+                            BackPressureHandler(),
+                            IdleStateHandler(readTimeout: self.readTimeout, writeTimeout: self.writeTimeout),
+                        ]
+                        + LGNS.makeLGNPHandlers(
+                            cryptor: self.cryptor,
+                            requiredBitmask: self.requiredBitmask,
+                            validateRequiredBitmask: true
+                        )
+                        + [LGNS.ServerHandler(profiler: LGNCore.Profiler(), resolver: resolver)]
                     )
                 }
 

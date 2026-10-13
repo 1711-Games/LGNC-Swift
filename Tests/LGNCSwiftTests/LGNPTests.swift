@@ -30,18 +30,19 @@ final class LGNPTests: XCTestCase {
         let cryptor = try LGNP.Cryptor(key: "1234567812345678")
 
         let sampleData: Bytes = (0...16).map { _ in Byte.random(in: (Byte.min...Byte.max)) }
-        let msid = LGNCore.RequestID()
+        let header: Bytes = [1, 2, 3]
 
-        XCTAssertEqual(
-            try cryptor.decrypt(
-                input: try cryptor.encrypt(
-                    input: sampleData,
-                    requestID: msid
-                ),
-                requestID: msid
-            ),
-            sampleData
-        )
+        let encrypted = try cryptor.encrypt(sampleData, authenticating: header)
+        XCTAssertEqual(try cryptor.decrypt(encrypted, authenticating: header), sampleData)
+        // A fresh nonce every time
+        XCTAssertNotEqual(try cryptor.encrypt(sampleData, authenticating: header), encrypted)
+        // The header is authenticated
+        XCTAssertThrowsError(try cryptor.decrypt(encrypted, authenticating: [1, 2, 4]))
+        // And so is the ciphertext
+        var tampered = encrypted
+        tampered[LGNP.Cryptor.NONCE_SIZE] ^= 1
+        XCTAssertThrowsError(try cryptor.decrypt(tampered, authenticating: header))
+        XCTAssertThrowsError(try cryptor.decrypt([1, 2, 3], authenticating: header))
     }
 
     func testMessage() {
@@ -379,13 +380,10 @@ final class LGNPTests: XCTestCase {
         let headlessBody = Bytes(encoded[Int(LGNP.MESSAGE_HEADER_LENGTH)...])
 
         var corruptedHeadlessBody: Bytes = headlessBody
-        corruptedHeadlessBody.replaceSubrange(
-            30...,
-            with: [
-                1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,0,1,2,3,4,5,0,1,2,3,4,5,1,2,3,4,5,6,7,
-                6,7,8,9,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,0,1,2,3,4,5,1,2,1,2,3,4,5,6,7,
-            ]
-        )
+        // Corrupt the encrypted section (keeping the length)
+        for index in 30 ..< corruptedHeadlessBody.count {
+            corruptedHeadlessBody[index] ^= 0x5A
+        }
         XCTAssertThrowsError(
             try LGNP.decodeHeadless(
                 body: corruptedHeadlessBody,

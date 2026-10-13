@@ -2,7 +2,7 @@ import LGNCore
 
 extension ArraySlice where Element == Byte {
     var _string: String {
-        String(bytes: self, encoding: .ascii)!
+        String(decoding: self, as: UTF8.self)
     }
 }
 
